@@ -1,21 +1,22 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 18:55:00 +02:00  
+> **Last Updated:** 2026-10-20 19:18:02 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Phase 0 platform manifest, audited algorithm contract, and format primitives established; contract-conformant Reference Trellis Encoder transcribed and verified; live downstream oracle parity confirmed (42 unit tests passing). Native dependency audit (P0-15) and Gate 0 report remain pending.  
+> **Current Status:** Phase 0 platform manifest, audited algorithm contract, format primitives, live oracle parity, and native dependency audit established; contract-conformant Reference Trellis Encoder transcribed and verified (42 unit tests passing). XPU extension skeleton (P0-18) and Gate 0 report (G0-03) remain pending.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
 
 ## Executive Summary
 
-Steps 1 through 10 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
+Steps 1 through 11 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
 
 - Steps 1–5 established the initial CPU sandbox under review waiver `DEV-2026-10-20-01`.
 - Steps 6–7 fetched and audited the pinned upstream EXL3 source, establishing [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) and [`exl3_quant/trellis_format.py`](./exl3_quant/trellis_format.py).
 - **Step 8 [2026-10-20 17:10:00 +0200]:** Probed the host hardware and software environment, amended `tasks.md` with the Arc 140V platform profile, and published [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) (P0-05, P0-08, V140-01).
 - **Step 9 [2026-10-20 17:22:55 +0200]:** Replaced the provisional prototype encoder with the **contract-conformant `ReferenceTrellisEncoder`** directly transcribing `quantize_tiles_kernel.cuh:23-313` with NumPy vectorization (P1-01, P1-02, P1-05).
 - **Step 10 [2026-10-20 18:55:00 +0200]:** Added live oracle parity test suite ([`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py)) verifying bit-exact decode against the adjacent downstream runtime (`exl3xpu.ref`), and expanded manifest with model/corpus specifications and 140V memory risk analysis.
+- **Step 11 [2026-10-20 19:18:02 +0200]:** Published [`docs/native_dependency_audit.md`](./docs/native_dependency_audit.md), classifying all six `ext.*` entry points and the supporting runtime surface, with the XPU port decisions and blockers (P0-15, P0-16).
 
 ```
 +-------------------------------------------------------------------------------------------------------+
@@ -30,6 +31,7 @@ Steps 1 through 10 of the foundational engineering work have been implemented, u
 | 7. Algorithm Contract (docs) | P0-11, P0-13, P0-14, 16  | Published & Maintained          | docs/algorithm_...    |
 | 8. 140V Compatibility Manif. | P0-05, P0-08, V140-01    | Pinned Model/Corpus/Mem Risk    | docs/compatibility... |
 | 9. Legacy Bitpacker (Shim)   | Legacy Sandbox           | Superseded (Retained for test)  | test_bitpack.py (4)   |
+| 10. Native Dependency Audit  | P0-15, P0-16             | Published — 6 ext + 17 runtime  | docs/native_dep...    |
 +------------------------------+--------------------------+---------------------------------+-----------------------+
 ```
 
@@ -188,6 +190,26 @@ Steps 1 through 10 of the foundational engineering work have been implemented, u
 
 ---
 
+### Step 11: Native Dependency Audit (P0-15, P0-16)
+* **Time tag:** [2026-10-20 19:18:02 +0200]
+* **Commit:** `d632227`
+* **Artefact:** [`docs/native_dependency_audit.md`](./docs/native_dependency_audit.md)
+* **Method:** re-fetched the pinned upstream sources and verified their SHA-256 prefixes against [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) §0 before classifying anything. No CUDA execution and no SYCL build; runtime validation is explicitly **not** claimed.
+* **Custom-extension inventory (six entry points):**
+  * `ext.quantize_tiles` — the only mandatory custom port (SYCL kernel; 512-thread work-groups, 32-wide subgroup reduction, dynamic SLM, fp16 FMA metric, `K ∈ 1..8`, `L ∈ {160, 256}`).
+  * `ext.pack_trellis` — already reimplemented device-independently; CPU reuse recommended for the first layer.
+  * `ext.unpack_trellis` — debug-only, call site commented out.
+  * `ext.pack_signs` — dormant, call sites commented out.
+  * `ext.had_paley` / `ext.had_paley2` — **unreachable for `H_128`** because 128 takes the Sylvester branch.
+* **Runtime surface classified (17 rows):** stream/device guard, dynamic SLM, 512-thread occupancy, subgroup shuffle, half2/FMA, `__dp4a`, `lop3`, funnel shift, error checks, SM-count query, multi-GPU pinned/event path, `cuda_sync_active`, memory helpers, `lru_cache` scratch residency, and torch linear-algebra coverage.
+* **Concrete findings recorded:**
+  * `torch.xpu` device properties expose **no** `multi_processor_count`; `get_temp_buffers()` would fail as written for `K >= 4`. Recommended SM analogue for the wave cap is `gpu_subslice_count` (8), to be confirmed under P1-14/V140-03.
+  * SLM at `K=2` is 66,240 B (64.7 KiB) per work-group, so the upstream 2-work-group/SLM occupancy target cannot be met on the 128 KiB Arc 140V; `K=1` already keeps costs in global memory.
+  * `torch.xpu` exposes `Stream`, `Event`, `synchronize`, `current_stream`, `mem_get_info`, and `set_per_process_memory_fraction`, so those are renames rather than rewrites; shared-memory accounting semantics remain unverified (V140-04).
+* **Blockers carried forward:** CUDA ground truth (P0-24/P0-25), terminal-edge parity O-1, true-fp16-FMA parity O-6, and the absent XPU extension skeleton (P0-18).
+
+---
+
 ## Test Suite Execution Evidence
 
 **42 unit tests** ran and passed cleanly as of [2026-10-20 18:55:00 +0200] across all test suites:
@@ -212,6 +234,8 @@ OK
 ## Git Commit History
 
 ```text
+d632227 2026-10-20 19:18:02 +0200  docs: add native dependency audit and close P0-15/P0-16
+229dca2 2026-10-20 19:05:33 +0200  fix(review): address review-2026-10-20T18:30:21+02:00 findings
 e0194b1 2026-10-20 17:26:48 +0200  docs(progress): record Steps 8-9 with commit-aligned time tags [2026-10-20 17:22:55 +02:00]
 613943a 2026-10-20 17:22:55 +0200  feat: contract-conformant reference trellis encoder and 140V manifest
 ee90d59 2026-10-20 16:42:52 +0200  Add files via upload (adaptation for 140v as the primary development platform)
@@ -233,6 +257,8 @@ bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Ste
 
 ## Critical Path Next Steps
 
-1. **P0-16 / P0-15 — Native Dependency Inventory:** Complete `docs/native_dependency_audit.md` classifying all `ext.*` calls in upstream EXL3 conversion pipeline.
-2. **P0-18 / P0-19 / P0-20 / V140-02 — Arc 140V XPU Allocation & Extension Probe:** Benchmark scratch allocation sizing, memory reserve guardrails, and build a minimal custom SYCL/XPU extension using oneAPI 2026.0 on the Arc 140V device.
-3. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback.
+1. **P0-18 / P0-19 / P0-23 — XPU Extension Skeleton & Capability Capture:** Build and execute a minimal SYCL extension through `torch.xpu` (oneAPI 2026.0), verify queue ordering and tensor lifetime, and save subgroup/SLM/max-allocation limits in `artifacts/environment/`.
+2. **V140-02 / P0-20 / V140-03 — Idle Baseline, Reserve Policy & Scratch Sizing:** Measure the idle profile, enforce the 6 GiB reserve, reconcile it with the estimator's 2 GiB default, and validate the wave-cap choice (`gpu_subslice_count` vs `max_compute_units`).
+3. **P0-21 / P0-22 — Operator Coverage & Factorization Fallback:** Probe `cholesky`, `inv`, matmul/einsum and fp16 rounding on the 140V; measure any CPU fallback.
+4. **G0-03 — `reports/gate_0.md`:** Record go/no-go, owners, and the Phase 1 estimate; carry P0-24/O-1/O-6 as explicit blockers.
+5. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback (device-independent reference track).

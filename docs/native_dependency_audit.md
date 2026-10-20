@@ -62,7 +62,7 @@ The custom-extension surface is small: **six `ext.*` entry points**, of which
 | `ext.pack_signs` call sites are commented out in the current encode path | Dormant; not required for the first layer |
 | `ext.had_paley` / `ext.had_paley2` are **not reached** for `H_128` | The Paley branches are dead for the initial transform (128 is even → Sylvester) |
 | `torch.xpu` exposes `Stream`, `Event`, `synchronize`, `current_stream`, `mem_get_info`, `set_per_process_memory_fraction` | Stream/event/memory plumbing is a rename, not a rewrite |
-| `torch.xpu` device properties have **no** `multi_processor_count` | `get_temp_buffers()` will fail as written; the SM analogue must be chosen explicitly (see R11) |
+| `torch.xpu` device properties have **no** `multi_processor_count` | `get_temp_buffers()` fails as written for `K >= 4`; the SM analogue must be chosen explicitly (see R11) |
 
 ---
 
@@ -91,8 +91,8 @@ quantize_tiles(input_tiles, output_tiles, output_indices,
 - `temp_costs`: `(B, 2, 65536 >> K)` float16; `temp_edges`: `(B, L, 65536 >> K)` int16.
 - Device guard + **current CUDA stream**; launches `num_tiles / wave` sequential waves.
 - Wave cap: `min(temp_costs.size(0), 2 * DevCtx::get_num_sms(device))`.
-- 48 template instantiations (`8 K × 3 codebooks × 2 L`) from
-  `comp_units/quantize_tiles_instances.cuh`.
+- Per-(`K`, `cb`, `L`) instantiations: 24 for `L = 256` (`8 K × 3 codebooks`)
+  plus 8 for `L = 160` (`mul1` only), selected in `quantize.cu:81-85`.
 
 Kernel facts (`quantize_tiles_kernel.cuh:18-313`):
 
@@ -186,7 +186,7 @@ enters scope.
 | **R8** | `lop3.b32` inline PTX | `codebook.cuh:47-48, 63, 72, 101-102` | **Reusable** | rewrite as `(x & 0x8FFF8FFF) ^ 0x3B603B60` | KERNEL | unit test vs LUT |
 | **R9** | `__funnelshift_r` | `pack.cu:130` | **Reusable** | shift/or rewrite | PIPELINE | P2-15 |
 | **R10** | `cuda_check`, `cudaPeekAtLastError` | all `.cu` | **Reusable** | SYCL exception handling; fail loudly | KERNEL | P0-18 |
-| **R11** | `multi_processor_count` / `DevCtx::get_num_sms` | `quantize.py:59`, `quantize.cu:74` | **Custom decision (blocking bug on XPU)** | `multi_processor_count` is **absent** on `torch.xpu`; `gpu_subslice_count=8`, `max_compute_units=64`, `gpu_eu_count=64`. Recommended SM analogue for wave capping: **subslices (8)**, not EUs. Record the choice and measure under P1-14 | ENV | P0-19, V140-03 |
+| **R11** | `multi_processor_count` / `DevCtx::get_num_sms` | `quantize.py:59` (`K >= 4` only), `quantize.cu:74` | **Custom decision (fails on XPU at `K >= 4`)** | `multi_processor_count` is **absent** on `torch.xpu`; `gpu_subslice_count=8`, `max_compute_units=64`, `gpu_eu_count=64`. Recommended SM analogue for wave capping: **subslices (8)**, not EUs. Record the choice and measure under P1-14 | ENV | P0-19, V140-03 |
 | **R12** | pinned memory, events, per-device streams, `AutoSplit` | `quantize.py:155-345` | **Deferred** | Multi-GPU path; out of initial single-device scope. `torch.xpu` has Stream/Event if revisited | ENV | P4-06/P4-07 |
 | **R13** | `cuda_sync_active` | `quantize.py:9`, `util/misc.py:35-43` | **XPU-native** | `torch.xpu.synchronize()` over active devices | PIPELINE | P0-18 |
 | **R14** | `mem_get_info`, `memory_reserved`, `set_per_process_memory_fraction`, `empty_cache` | `util/memory.py` | **XPU-native, semantics unverified** | All symbols exist on `torch.xpu`; shared-memory accounting must be validated, not assumed | ENV | V140-02, V140-04 |
