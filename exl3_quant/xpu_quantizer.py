@@ -311,7 +311,15 @@ class ScratchArena:
         distinct_staging_bytes: int = 0,
         allocator_hook: Optional[Callable[[int], None]] = None,
     ):
-        """Acquire `(temp_costs, temp_edges, admitted_b)` with bounded eviction & retry."""
+        """Acquire `(temp_costs, temp_edges, admitted_b)` with bounded eviction & retry.
+
+        ``distinct_staging_bytes`` is a *conservative upper bound* on host-side
+        staging memory that will be live alongside the XPU buffers (e.g. the
+        full ``temp_edges`` copy in ``d2h_cpu`` mode). It is subtracted from the
+        admission budget but is not measured per chunk; callers computing it
+        from the requested (not admitted) batch size over-estimate rather than
+        under-estimate, which is the safe direction (L5).
+        """
         import torch
 
         target_b = requested_b if requested_b is not None else self.default_cap_b

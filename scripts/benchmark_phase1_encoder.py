@@ -21,6 +21,7 @@ Writes ``artifacts/benchmarks/phase1_encoder_bench.json``.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import resource
@@ -308,7 +309,6 @@ def compare_kernel_variants(tiles: np.ndarray) -> dict:
                         "num_waves": num_waves,
                         "total_search_ms": round(bd.search_seconds * 1e3, 3),
                         "mean_wave_slice_ms": round(ms_per_wave, 3),
-                        "mean_wave_dispatch_ms": round(ms_per_wave, 3),  # total_search_ms / num_waves (equal wave chunks) (L2)
                         "within_500ms_watchdog_budget": ms_per_wave < 500.0,
                         "tiles_per_sec": round(num_tiles / bd.total_seconds, 2),
                     }
@@ -362,7 +362,7 @@ def static_isa_report() -> dict:
     return {
         "target_device": "lnl-m (Intel Arc 140V, Xe2, device 0x64A0)",
         "compiler": "icpx 2026.0.0 + IGC ocloc (Xe2)",
-        "provenance": "manual IGC shader dump via IGC_ShaderDumpEnable=1 / ocloc lnl-m (see docs/extension_build.md §5)",
+        "provenance": "manual IGC shader dump via IGC_ShaderDumpEnable=1 / ocloc lnl-m (see docs/extension_build.md §3.3)",
         "work_group_size": 512,
         "slm_limit_bytes": 131072,
         "kernels_128grf_default": {
@@ -425,16 +425,29 @@ def static_isa_report() -> dict:
 def main() -> int:
     import torch
 
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--cold-build",
+        action="store_true",
+        help="force a clean rebuild so cold_build_seconds is measured in this run",
+    )
+    args = parser.parse_args()
+
     if not torch.xpu.is_available():
         print("torch.xpu not available")
         return 1
 
     telemetry_start = read_power_and_thermals()
     t0 = time.perf_counter()
-    build_quantize_extension()
+    build_quantize_extension(force_rebuild=args.cold_build)
     load_s = time.perf_counter() - t0
     build_info = get_build_timings()
     build_info["invocation_load_seconds"] = round(load_s, 4)
+    build_info["cold_build_provenance"] = (
+        "measured in this run (forced clean rebuild)"
+        if args.cold_build
+        else "not measured in this run (cached build); rerun with --cold-build"
+    )
 
     rng = np.random.default_rng(seed=20261020)
     tiles_16 = rng.normal(0.0, 1.1, size=(16, 256)).astype(np.float32)

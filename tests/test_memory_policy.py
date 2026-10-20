@@ -161,6 +161,33 @@ class TestPolicyArithmetic(unittest.TestCase):
                 make_snapshot(5 * BYTES_PER_GIB))
         self.assertIn("reserve breached", str(ctx.exception))
 
+    def test_allocator_growth_assertion(self):
+        """M1: the commit check verifies allocator-visible growth, not OS counters."""
+        policy = MemoryPolicy(reserve_bytes=6 * BYTES_PER_GIB)
+        pre = make_snapshot(10 * BYTES_PER_GIB)
+        post = MemorySnapshot(
+            gpu_available=True,
+            system_total_bytes=pre.system_total_bytes,
+            system_available_bytes=pre.system_available_bytes,
+            system_free_bytes=pre.system_free_bytes,
+            cached_bytes=pre.cached_bytes,
+            swap_total_bytes=pre.swap_total_bytes,
+            swap_free_bytes=pre.swap_free_bytes,
+            device_free_bytes=pre.device_free_bytes,
+            device_total_bytes=pre.device_total_bytes,
+            device_allocated_bytes=pre.device_allocated_bytes + 2 * BYTES_PER_MIB,
+            device_reserved_bytes=pre.device_reserved_bytes,
+        )
+        # Growth meets the expectation -> allowed.
+        policy.check_after_commit(post, pre_snapshot=pre,
+                                  expected_bytes=2 * BYTES_PER_MIB)
+        # Growth falls short -> committed bytes are not actually backed.
+        with self.assertRaises(MemoryPressureError) as ctx:
+            policy.check_after_commit(post, pre_snapshot=pre,
+                                      expected_bytes=3 * BYTES_PER_MIB)
+        self.assertIn("allocator commitment failure", str(ctx.exception))
+        self.assertIn("expected at least", str(ctx.exception))
+
     def test_error_dict_has_full_context(self):
         policy = MemoryPolicy(reserve_bytes=6 * BYTES_PER_GIB)
         try:

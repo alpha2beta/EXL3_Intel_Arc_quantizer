@@ -4,7 +4,7 @@
 > **Time Tag:** `2026-10-20T20:57:38+02:00`  
 > **Target Profile:** `lunar_lake_140v_258v_32gb` (Intel Core Ultra 7 258V / Arc 140V `0x64A0`, 32 GB LPDDR5x UMA)  
 > **Evidence Artifacts:**  
-> - [`artifacts/benchmarks/phase1_encoder_bench.json`](../artifacts/benchmarks/phase1_encoder_bench.json)  
+> - [`artifacts/benchmarks/phase1_encoder_bench.json`](../artifacts/benchmarks/phase1_encoder_bench.json) (regenerated 2026-10-20 21:58 +0200 with a forced cold build; latency/throughput vary by roughly ±10% with host thermal state and background load, so treat the numbers below as representative of the 20:57 run)  
 > - [`reports/traceback_decision.md`](./traceback_decision.md)  
 > **Gate Decision:** **GO to Phase 2 (Complete single-layer conversion)**
 

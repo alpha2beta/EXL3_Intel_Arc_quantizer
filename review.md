@@ -255,7 +255,7 @@ transcription.
 | `review-2026-10-20T18:30:21+02:00` | 2026-10-20 18:30:21 +02:00 | `e0194b1` | 🟡 **QUALIFIED PASS**: 37/37 tests and 140V profile verified; encoder transcription faithful, but waiver/checklist completion claims outrun evidence (H1–H5); parity blocked on P0-24 and open item O-1 | `review.md` (conclusion below) |
 | ↳ response to `review-2026-10-20T18:30:21+02:00` | 2026-10-20 19:05:00 +02:00 | HEAD | 🟢 **ALL FINDINGS ADDRESSED**: Remediated H1–H5 and M1–M6; live oracle parity test suite added (`tests/test_oracle_parity.py`, 42/42 tests pass); checklist and manifest strictly aligned with evidence boundary | `review.md` (response below) |
 | `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:06:51 +02:00 | `9080b5a` | 🟡 **QUALIFIED PASS**: Phase 1 encoder is bit-exact and genuinely measured (84/84 tests), but `ScratchArena` has 2 blocking memory-reclamation defects (B1, B2) and 3 medium provenance/enforcement gaps (M1–M3) that must close before Phase 2 | `review.md` (conclusion below) |
-| ↳ response to `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:45:00 +02:00 | HEAD | 🟢 **ALL FINDINGS ADDRESSED**: Remediated B1/B2 with regression tests (now 86 tests pass); M1 strengthened to assert allocator growth; M2/M3 build & ISA provenance documented; L1–L7 resolved | `review.md` (response below) |
+| ↳ response to `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:45:00 +02:00 | `3006a32` | 🟢 **ALL FINDINGS ADDRESSED**: Remediated B1/B2 with regression tests (now 86 tests pass); M1 strengthened to assert allocator growth; M2/M3 build & ISA provenance documented; L1–L7 resolved | `review.md` (response below) |
 
 <!-- Future reviews: append a row above and create a new timestamped review file. -->
 
@@ -537,7 +537,7 @@ The buffers stay alive for as long as the caller retains the `MemoryPressureErro
 
 #### B1 — Elimination of Transient Doubled Scratch Residency During Retry
 * **Finding:** In `ScratchArena.acquire`, when an allocation attempt failed at `check_after_commit`, the locals `costs` and `edges` remained resident in the function frame while the loop halved $B$ and allocated the subsequent attempt, consuming $B_{\text{prev}} + B_{\text{next}}$ memory at peak.
-* **Remediation ([`exl3_quant/xpu_quantizer.py`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/exl3_quant/xpu_quantizer.py#L436-L445)):**
+* **Remediation ([`exl3_quant/xpu_quantizer.py`](exl3_quant/xpu_quantizer.py#L436-L445)):**
   - Explicitly bound `costs = None; edges = None` prior to the `try:` block.
   - In `except Exception as exc:`, added immediate conditional cleanup:
     ```python
@@ -549,16 +549,16 @@ The buffers stay alive for as long as the caller retains the `MemoryPressureErro
             torch.xpu.empty_cache()
     ```
   - Ensures previous attempt buffers are 100% returned to the framework allocator before the next shrunken batch capacity $B$ is attempted.
-* **Verification Test ([`TestScratchArenaLifecycle.test_retry_path_no_double_residency_b1`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/tests/test_xpu_quantizer.py)):**
+* **Verification Test ([`TestScratchArenaLifecycle.test_retry_path_no_double_residency_b1`](tests/test_xpu_quantizer.py)):**
   - Configured a policy failing post-commit at $B=8$ and admitting $B=4$. Installed an `allocator_hook` that samples `torch.xpu.memory_allocated()` at admission of each candidate $B$.
   - Verified that when $B=4$ is admitted, allocated bytes equal `0` (the $B=8$ buffers are already gone). After $B=4$ completes, allocated bytes equal exactly $16.125 \text{ MiB}$ ($B=4$ scratch alone).
 
 #### B2 — Complete Reclamation of Scratch on Failed Acquisition
 * **Finding:** When acquisition failed after allocating (e.g. final attempt at $B=1$), `acquire` raised while `_key` and buffer references were unset. The exception's traceback bound the frame locals, keeping GPU memory allocated as long as the caller retained the exception.
-* **Remediation ([`exl3_quant/xpu_quantizer.py`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/exl3_quant/xpu_quantizer.py#L455-L480)):**
+* **Remediation ([`exl3_quant/xpu_quantizer.py`](exl3_quant/xpu_quantizer.py#L455-L480)):**
   - The `except` block immediately frees any allocated tensors and calls `torch.xpu.empty_cache()`.
   - Replaced re-raising of the original exception with a freshly constructed `MemoryPressureError` cleanly detached from the allocation frame (`raise clean_err from None`), preventing traceback traversal from keeping tensor locals alive.
-* **Verification Test ([`TestScratchArenaLifecycle.test_failed_acquisition_frees_all_scratch_b2`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/tests/test_xpu_quantizer.py)):**
+* **Verification Test ([`TestScratchArenaLifecycle.test_failed_acquisition_frees_all_scratch_b2`](tests/test_xpu_quantizer.py)):**
   - Simulated a post-commit failure at $B=1$. Caught `MemoryPressureError as exc`.
   - Verified that *while holding `exc` in local scope*, `torch.xpu.memory_allocated()` has returned completely to the pre-call baseline (`0` bytes), and `arena.resident_bytes == 0`.
 
@@ -568,7 +568,7 @@ The buffers stay alive for as long as the caller retains the `MemoryPressureErro
 
 #### M1 — Allocator-Visible Growth Enforcement in `check_after_commit`
 * **Finding:** On Lunar Lake integrated graphics (UMA), driver-level memory pooling prevents `torch.xpu.mem_get_info()` and `/proc/meminfo` free counters from reliably falling upon allocation (measured in Step 13: -9 MiB device-free for a 1 GiB commit). A post-commit check relying only on `binding_available_bytes < floor` was effectively inert.
-* **Remediation ([`exl3_quant/memory_policy.py`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/exl3_quant/memory_policy.py#L240-L275)):**
+* **Remediation ([`exl3_quant/memory_policy.py`](exl3_quant/memory_policy.py#L240-L275)):**
   - Upgraded `MemoryPolicy.check_after_commit(snapshot, pre_snapshot=pre, expected_bytes=N)`:
     - **Primary enforcement:** Asserts that framework allocator-visible memory grew by at least `expected_bytes` (`snapshot.device_allocated_bytes - pre_snapshot.device_allocated_bytes >= expected_bytes`), raising `MemoryPressureError("allocator commitment failure")` if memory was not properly backed.
     - **Advisory secondary check:** Retains the reserve floor check (`binding_available < reserve - slack`) as an external guard against background OS/driver processes.
@@ -577,13 +577,13 @@ The buffers stay alive for as long as the caller retains the `MemoryPressureErro
 #### M2 — Benchmark Provenance and Cold Build Recording
 * **Finding:** `static_isa_report()` contained hard-coded IGC metrics without provenance labelling, and `build_and_warmup.cold_build_seconds` was `0.0` in the benchmark artifact due to caching.
 * **Remediation:**
-  - Added explicit provenance in [`scripts/benchmark_phase1_encoder.py`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/scripts/benchmark_phase1_encoder.py) and [`artifacts/benchmarks/phase1_encoder_bench.json`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/artifacts/benchmarks/phase1_encoder_bench.json):
+  - Added explicit provenance in [`scripts/benchmark_phase1_encoder.py`](scripts/benchmark_phase1_encoder.py) and [`artifacts/benchmarks/phase1_encoder_bench.json`](artifacts/benchmarks/phase1_encoder_bench.json):
     `"provenance": "manual IGC shader dump via IGC_ShaderDumpEnable=1 / ocloc lnl-m (see docs/extension_build.md §5)"`.
-  - Updated `build_and_warmup` in [`artifacts/benchmarks/phase1_encoder_bench.json`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/artifacts/benchmarks/phase1_encoder_bench.json) to reflect the measured cold build time (`13.78 s`).
+  - Updated `build_and_warmup` in [`artifacts/benchmarks/phase1_encoder_bench.json`](artifacts/benchmarks/phase1_encoder_bench.json) to reflect the measured cold build time (`13.78 s`).
 
 #### M3 — Documentation for Production Extension (`csrc/quantize_xpu/`)
 * **Finding:** `docs/extension_build.md` documented only the probe extension (`csrc/probe_xpu/`), leaving the primary production extension undocumented.
-* **Remediation ([`docs/extension_build.md`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/docs/extension_build.md) §3):**
+* **Remediation ([`docs/extension_build.md`](docs/extension_build.md) §3):**
   - Documented `csrc/quantize_xpu/quantize_xpu.cpp` and `csrc/quantize_xpu/quantize_kernels.sycl`.
   - Listed all 5 kernel classes (`FusedQuantizeKernel`, `ForwardOnlyKernel`, `BackwardOnlyKernel`, `DecodeCodebookKernel`).
   - Documented JIT invocation via `build_quantize_extension(force_rebuild=True)` into `artifacts/build/quantize_xpu/`.
@@ -593,13 +593,13 @@ The buffers stay alive for as long as the caller retains the `MemoryPressureErro
 
 ### 3. Low-Severity Findings Remediation (L1 – L7)
 
-* **L1 (Test Matrix Precision):** Corrected [`reports/gate_1.md`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/reports/gate_1.md) §2.1 to state the exact tested cross-product: bitrates $K \in \{2, 3, 4\}$ across all 3 codebooks (`3inst`, `mcg`, `mul1`), $K=1$ with `CB_MUL1`, and $L \in \{256, 160\}$ (all 3 codebooks tested on $K=1$ for codebook table parity).
-* **L2 (Wave Slice Timing Metric):** In [`scripts/benchmark_phase1_encoder.py`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/scripts/benchmark_phase1_encoder.py), added `mean_wave_slice_ms` documenting that the metric represents `total_search_ms / num_waves` (equal wave chunks).
-* **L3 (Split Mode Wave Cap):** In [`reports/gate_1.md`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/reports/gate_1.md) §2.3, noted that `gpu_resident_split` submits a single full grid for all batch tiles and does not apply per-wave throttling.
-* **L4 (Timing Breakdown Post-Processing):** Added `postprocess_seconds` to [`BatchEncodingBreakdown`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/exl3_quant/xpu_quantizer.py) in `exl3_quant/xpu_quantizer.py`, capturing NumPy path cost and distortion computations and closing the unexplained 0.2–0.5 ms timing delta.
+* **L1 (Test Matrix Precision):** Corrected [`reports/gate_1.md`](reports/gate_1.md) §2.1 to state the exact tested cross-product: bitrates $K \in \{2, 3, 4\}$ across all 3 codebooks (`3inst`, `mcg`, `mul1`), $K=1$ with `CB_MUL1`, and $L \in \{256, 160\}$ (all 3 codebooks tested on $K=1$ for codebook table parity).
+* **L2 (Wave Slice Timing Metric):** In [`scripts/benchmark_phase1_encoder.py`](scripts/benchmark_phase1_encoder.py), added `mean_wave_slice_ms` documenting that the metric represents `total_search_ms / num_waves` (equal wave chunks).
+* **L3 (Split Mode Wave Cap):** In [`reports/gate_1.md`](reports/gate_1.md) §2.3, noted that `gpu_resident_split` submits a single full grid for all batch tiles and does not apply per-wave throttling.
+* **L4 (Timing Breakdown Post-Processing):** Added `postprocess_seconds` to [`BatchEncodingBreakdown`](exl3_quant/xpu_quantizer.py) in `exl3_quant/xpu_quantizer.py`, capturing NumPy path cost and distortion computations and closing the unexplained 0.2–0.5 ms timing delta.
 * **L5 (Staging Memory Bounds):** Documented in `ScratchArena.acquire` that `distinct_staging_bytes` uses `desired_b` as a conservative upper bound for admission.
-* **L6 (NaN Divergence Documentation):** In [`docs/algorithm_contract.md`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/docs/algorithm_contract.md) §5.2, documented the behavior difference between upstream `np.argmin` (NaN-propagating) and SYCL reduction (NaN-skipping), noting that in standard TCQ workflows this divergence is mathematically unreachable.
-* **L7 (Documentation Stale Nits):** Fixed [`README.md`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/README.md) to reference "Gate 0 through Gate 3 (Phase 4 has no gate)"; updated [`docs/native_dependency_audit.md`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/docs/native_dependency_audit.md) R16 to mark `ScratchArena` resolved.
+* **L6 (NaN Divergence Documentation):** In [`docs/algorithm_contract.md`](docs/algorithm_contract.md) §5.2, documented the behavior difference between upstream `np.argmin` (NaN-propagating) and SYCL reduction (NaN-skipping), noting that in standard TCQ workflows this divergence is mathematically unreachable.
+* **L7 (Documentation Stale Nits):** Fixed [`README.md`](README.md) to reference "Gate 0 through Gate 3 (Phase 4 has no gate)"; updated [`docs/native_dependency_audit.md`](docs/native_dependency_audit.md) R16 to mark `ScratchArena` resolved.
 
 ---
 

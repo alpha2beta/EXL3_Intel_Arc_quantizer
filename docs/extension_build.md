@@ -1,7 +1,11 @@
-# Building and Testing the XPU Extension (P0-23)
+# Building and Testing the XPU Extensions (P0-23)
 
-Reproducible procedure for the custom SYCL extension in `csrc/probe_xpu/`
-(`P0-18`), plus the memory-probe scripts (`V140-02`, `P0-20`).
+Reproducible procedures for the two custom SYCL modules:
+
+- `csrc/probe_xpu/` — environment/parity probe (P0-18, O-6).
+- `csrc/quantize_xpu/` — production trellis tile quantizer (Phase 1).
+
+plus the memory-probe scripts (`V140-02`, `P0-20`).
 
 ## 1. Prerequisites
 
@@ -41,8 +45,8 @@ The primary production extension implementing Phase 1 Trellis Viterbi search and
 
 ### 3.1 Source Components & Kernel Inventory
 
-- [`csrc/quantize_xpu/quantize_xpu.cpp`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/csrc/quantize_xpu/quantize_xpu.cpp): PyBind11 C++ entry points, parameter validation, queue bindings, and tensor lifetime management.
-- [`csrc/quantize_xpu/quantize_kernels.sycl`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/csrc/quantize_xpu/quantize_kernels.sycl): Native SYCL 2020 kernel classes templated on subgroup size (`SG ∈ {16, 32}`) and cost storage mode (`UseSLM ∈ {true, false}`):
+- [`csrc/quantize_xpu/quantize_xpu.cpp`](../csrc/quantize_xpu/quantize_xpu.cpp): PyBind11 C++ entry points, parameter validation, queue bindings, and tensor lifetime management.
+- [`csrc/quantize_xpu/quantize_kernels.sycl`](../csrc/quantize_xpu/quantize_kernels.sycl): Native SYCL 2020 kernel classes templated on subgroup size (`SG ∈ {16, 32}`) and cost storage mode (`UseSLM ∈ {true, false}`):
   - `FusedQuantizeKernel<SG, UseSLM>`: Two-pass tail-biting forward ACS dynamic programming and circular traceback fused into a single submission.
   - `ForwardOnlyKernel<SG, UseSLM>`: Standalone forward ACS pass for split and CPU/USM traceback pipelines.
   - `BackwardOnlyKernel`: Standalone GPU-resident circular traceback pass.
@@ -50,7 +54,7 @@ The primary production extension implementing Phase 1 Trellis Viterbi search and
 
 ### 3.2 Compilation and Build Lifecycle
 
-Compiled via `torch.utils.cpp_extension.load` encapsulated in [`exl3_quant.xpu_quantizer.build_quantize_extension`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/exl3_quant/xpu_quantizer.py):
+Compiled via `torch.utils.cpp_extension.load` encapsulated in [`exl3_quant.xpu_quantizer.build_quantize_extension`](../exl3_quant/xpu_quantizer.py):
 
 ```python
 from exl3_quant.xpu_quantizer import build_quantize_extension
@@ -59,32 +63,38 @@ from exl3_quant.xpu_quantizer import build_quantize_extension
 ext = build_quantize_extension(verbose=True, force_rebuild=True)
 ```
 
-- **Cold Build Duration:** ~13.78 seconds.
-- **Warm Cached Load:** ~21 milliseconds.
+- **Cold Build Duration:** ~13.8 s (measured; re-measure with `scripts/benchmark_phase1_encoder.py --cold-build`).
+- **Warm Cached Load:** ~21 ms.
 - **Target Architecture:** Intel Xe2-LPG (`lnl-m`, Device ID `0x64A0`).
-- **Compiler Flags:** `-O2 -fsycl -fsycl-targets=spir64_gen -Xsycl-target-backend "-device lnl-m"`.
+- **Compiler Flags:** flags are injected by torch's SYCL build; the generated
+  `artifacts/build/quantize_xpu/build.ninja` shows
+  `-O2 -fsycl -fsycl-targets=spir64_gen,spir64` for compilation and
+  `-fsycl-link --offload-compress -Xs "-device pvc,bmg,arl-h,mtl-h,lnl-m,ptl-h,ptl-u"`
+  for the device-link step. Do not assume a single `-device lnl-m` flag.
 
 ### 3.3 Shader Dump and ISA Inspection Procedure
 
 To inspect register allocation (128 GRF vs 256 GRF), spills, and SLM usage on Lunar Lake:
 
 ```bash
-# Set environment variables for the Intel Graphics Compiler (IGC) shader dump
-export IGC_ShaderDumpEnable=1
-export IGC_DumpToCustomDir=artifacts/isa_dump
 mkdir -p artifacts/isa_dump
-
-# Rebuild extension to capture gen ISA assembly and shader resource reports
-python -c "from exl3_quant.xpu_quantizer import build_quantize_extension; build_quantize_extension(force_rebuild=True)"
+IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=artifacts/isa_dump \
+  python -c "from exl3_quant.xpu_quantizer import build_quantize_extension; build_quantize_extension(force_rebuild=True)"
 ```
 
-Alternatively, disassemble using `ocloc`:
-```bash
-ocloc disasm -file artifacts/build/quantize_xpu/quantize_kernels.spv -device lnl-m -dump artifacts/isa_dump
-```
+IGC writes one `OCL_asm*_simd{16,32}_entry_*.asm` file per kernel instantiation.
+These are already disassembled and carry the resource headers used by the
+benchmark (`//.thread_config numGRF=..., numAcc=...`,
+`//.instCount`, `//.spill flag store/load`). Parse those headers directly;
+no separate `ocloc disasm` invocation is needed.
+
+> The SPIR-V is bundled inside `quantize_kernels.sycl.o`; there is no
+> `quantize_kernels.spv` in the build directory, so `ocloc disasm -file
+> artifacts/build/quantize_xpu/quantize_kernels.spv` does **not** work as
+> written. Use the IGC dump above.
 
 Inspected IGC metrics for `FusedQuantizeKernel<32, true>`:
-- 128 GRF mode, 0 spill bytes to DRAM, 16 EU threads per workgroup.
+- 128 GRF mode, 0 bytes of GRF spill (abort-on-spill passed), 16 EU threads per workgroup.
 - SLM allocation: 66.4 KiB ($K=2$), 33.6 KiB ($K=3$), 17.2 KiB ($K=4$).
 
 ## 4. Environment smoke test
@@ -97,7 +107,7 @@ PYTHONPATH=. python -m unittest discover -s tests -p "test_*.py"
 otherwise verifies device selection, bit-exact output, queue ordering, tensor
 lifetime, capability capture, and both O-6 fp16-FMA probes.
 
-## 4. Memory baseline and scratch allocations
+## 5. Memory baseline and scratch allocations
 
 ```bash
 PYTHONPATH=. python scripts/measure_idle_baseline.py --samples 10 --interval 1.0
@@ -106,11 +116,11 @@ PYTHONPATH=. python scripts/measure_scratch_allocations.py --reserve-gib 6
 
 Outputs `artifacts/environment/idle_baseline.json` and
 `artifacts/environment/scratch_allocations.json`. Every allocation is admitted
-by `exl3_quant/memory_policy.py`, which keeps the configured reserve intact and
-refuses requests that would breach it (abort path is exercised by the
-oversized-request probe).
+by `exl3_quant/memory_policy.py` (pre-allocation reserve check plus
+allocator-growth verification after commit) and refuses requests that would
+breach the reserve.
 
-## 5. Known build constraints
+## 6. Known build constraints
 
 - **Named kernel classes are mandatory.** torch's extension build adds
   `-fsycl-host-compiler`, which conflicts with `-fsycl-unnamed-lambda`.
@@ -119,11 +129,11 @@ oversized-request probe).
   the auto-inserted `torch/types.h` does not expose `c10::Half`.
 - **Use `torch::xpu::device_count()`**, not `c10::xpu::device_count()`, in the
   C++ binding file (the `torch/xpu.h` facade is what the extension includes).
-- **Single queue:** all probe kernels run on the current torch XPU stream
+- **Single queue:** all kernels run on the current torch XPU stream
   (`c10::xpu::getCurrentXPUStream(device).queue()`); no secondary queues are
   created (P1-08 restriction).
 
-## 6. Artifact inventory
+## 7. Artifact inventory
 
 | File | Purpose |
 |---|---|
@@ -132,3 +142,4 @@ oversized-request probe).
 | `artifacts/environment/idle_baseline.json` | OS + XPU idle memory baseline samples |
 | `artifacts/environment/scratch_allocations.json` | allocator tests at the 6 GiB reserve |
 | `artifacts/environment/scratch_allocations_reserve4.json` | capacity increase at a 4 GiB reserve |
+| `artifacts/benchmarks/phase1_encoder_bench.json` | Phase 1 encoder, traceback, batch, ISA and telemetry results |
