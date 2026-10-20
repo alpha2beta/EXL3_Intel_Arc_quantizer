@@ -35,3 +35,37 @@ The following implementation details in `exl3_quant/` are currently **speculativ
 1. **Un-check premature checklist items in `tasks.md`:** Ensure tasks requiring audited contracts or GPU execution (P1-02, P1-04, P2-13) are marked accurately.
 2. **Execute Phase 0 Audits as Critical Path:** Complete `docs/compatibility_manifest.md` (P0-08), `docs/native_dependency_audit.md`, and `docs/algorithm_contract.md` (P0-16).
 3. **Update Reference Code:** Align `reference_encoder.py`, `bitpack.py`, and test fixtures with the audited contracts.
+
+---
+
+## 4. Audit Update — 2026-10-20 (P0-11, P0-13, P0-14 partially closed)
+
+> **Status of §2 changed from "speculative placeholder" to "confirmed incorrect".**
+> The upstream source was fetched and read on the audit host (no GPU required):
+> `turboderp-org/exllamav3` @ `4d7b69c7e177c2b0f34ed8c90b7036fe31a7281f`.
+> The audited contract is [`algorithm_contract.md`](./algorithm_contract.md);
+> the audited primitives are [`exl3_quant/trellis_format.py`](../exl3_quant/trellis_format.py).
+
+| Component | Audited upstream value | Prototype verdict | Source |
+| :--- | :--- | :--- | :--- |
+| **Trellis State Transition** | 16-bit states; `edges = 65536 >> K`; `Kr = 16 - K`; branch state `sigma = (k << Kr) | e`; predecessor `pred = sigma >> K` | **WRONG** (wrong state width, wrong branch count) | `quantize_tiles_kernel.cuh:37-39, 104-107` |
+| **`mul1` Arithmetic Levels** | Pseudorandom LUT over the 16-bit state: `x = state*0x83DCD12D`; `sum = dp4a(x, 0x01010101, 0x6400)`; `__hfma(fp16(sum), 0x1EEE, 0xC931)` → **913 distinct levels in [-3.453125, 3.34765625]** | **WRONG** (uniform grid with half-integer zero point) | `codebook.cuh:76-89` |
+| **Trellis Tail Closure** | Two-pass **tail-biting ring**: `forward(L/2,-1)` → `argmin_cost()` → `backward(L/2,false,…)` → `forward(0,end_state)` → `backward(0,true,…)`, with `pre_state` masking to `H_INF` | **WRONG** (unconstrained terminal `argmin`) | `.cuh:59-72, 99, 130, 231-313` |
+| **Quantization Objective** | Per-element **fp16** squared error with **fused** accumulation (`__hfma2`); layer-level error weighting enters through the LDLQ feedback (`L` slices), not a Hessian-weighted objective inside the tile encoder | **WRONG precision** (fp64 metric, fp64 accumulation) | `.cuh:97-98, 180`; `quantize.py:566-604` |
+| **Tile Permutation** | Fixed 256-entry table; applied **before** encoding and **not** undone on the index stream | **RESOLVED** — implemented as `tensor_core_perm()` / `tensor_core_perm_inv()` | `quantize.py:22-49, 579, 584-585` |
+| **Bitpack Packing Layout** | MSB-first, 16 spans × 16 elements, **low `K` bits of each 16-bit state**, `SWAP16` half-word swap; the decoder recovers the remaining bits from a 16-bit window ending at bit `(t+1)*K` | **WRONG** (independent symbols, LSB-first) — this is a **different format**, not a bit-order difference | `pack.cu:9-57`; `exl3xpu/ref.py:81-99` |
+
+### Consequences
+
+1. `exl3_quant/reference_encoder.py` and `exl3_quant/bitpack.py` must be **replaced**, not reconciled.
+   `exl3_quant/trellis_format.py` now carries the audited codebook LUT, the tile permutation,
+   and the upstream packing/decoding layout, with 17 format-conformance tests in
+   `tests/test_trellis_format.py`.
+2. `exl3_quant/scratch_estimator.py` is **confirmed correct** against
+   `get_temp_buffers` (`quantize.py:52-63`) and needs no rework.
+3. The "unweighted MSE objective" row in §2 is **partly retired**: the tile encoder's
+   objective is plain squared error; the Hessian weighting lives in the LDLQ feedback
+   stage, which is documented separately in `algorithm_contract.md` §9.
+4. Still blocked and still provisional: P0-08 (manifest), P0-12 (LDLQ *implementation* —
+   the equations are now extracted, the code is not written), P0-15/P0-16 (native dependency
+   inventory), P0-17–P0-23 (hardware), P0-24/P0-25 (CUDA ground truth).

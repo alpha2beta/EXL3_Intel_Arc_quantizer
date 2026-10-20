@@ -218,11 +218,12 @@ hardware task.
 |---|---|
 | `docs/algorithm_contract.md` | The audited contract with line-level citations to the pinned upstream revision; 13 sections, 6 explicitly blocked open items |
 | `exl3_quant/trellis_format.py` | Audited device-independent primitives: `codebook_lut` (mul1/mcg/3inst, fp16-exact), `tensor_core_perm` (+inverse), `pack_trellis`, `swap16_storage`, `decode_states`, `decode_tile_values` |
-| `tests/test_trellis_format.py` | 22 tests: codebook exactness, permutation structure, packing layout identity for K∈{1,2,3,4,5,6,8}, the state-history property, and **negative tests** (flipped bit, reversed bit order, perturbed codebook) — the P0-28 harness requirement |
+| `tests/test_trellis_format.py` | 17 tests: codebook exactness, permutation structure, packing layout identity for K∈{1,2,3,4,5,6,8}, the state-history property, and **negative tests** (flipped bit, reversed bit order, perturbed codebook) — the P0-28 harness requirement |
 
-Test suite: **34 tests, all passing** (12 pre-existing + 22 new). The new tests are
-*format-conformance* tests against the audited upstream semantics, not encoder-parity
-tests — the latter still need P0-24.
+Test suite at this commit: **34 tests, all passing** — 12 original + 5 negative tests
+added by the owner in `tests/test_negative.py` (commit `fc73c07`) + 17 trellis-format
+tests. The new tests are *format-conformance* tests against the audited upstream
+semantics, not encoder-parity tests — the latter still need P0-24.
 
 Measured codebook facts now on record: mul1 → **913 distinct levels**, range
 **[-3.453125, 3.34765625]**; 3INST → 10598 levels, [-3.957, 3.973]; mcg → 10746 levels,

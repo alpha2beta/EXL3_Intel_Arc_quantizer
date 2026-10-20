@@ -105,3 +105,50 @@ Following the reviewer's guidance, the upstream audits are placed on the critica
 2. **P0-12 (LDLQ Audit):** Extract exact one-sided LDLQ error update equations and factor orientation.
 3. **P0-13 / P0-14 (Transforms & Formats Audit):** Extract 16×16 `tensor_core_perm`, FWHT butterfly sign conventions, and `.safetensors` header metadata.
 4. **P0-08 / P0-16 (Formal Contracts):** Publish `docs/compatibility_manifest.md` and `docs/algorithm_contract.md`.
+
+---
+
+## 6. Addendum — Post-Review Audit Completed (2026-10-20, later the same day)
+
+The P0-11 / P0-13 / P0-14 audits named in §5 were executed **on this host, without CUDA
+and without Intel Arc hardware**, by reading the pinned upstream source directly:
+
+```text
+https://github.com/turboderp-org/exllamav3 @ 4d7b69c7e177c2b0f34ed8c90b7036fe31a7281f
+  exllamav3/modules/quant/exl3_lib/quantize.py
+  exllamav3/exllamav3_ext/quant/quantize_tiles_kernel.cuh
+  exllamav3/exllamav3_ext/quant/codebook.cuh
+  exllamav3/exllamav3_ext/quant/pack.cu
+  exllamav3/util/hadamard.py
+https://github.com/sybil-solutions/exl3xpu  ->  exl3xpu/ref.py  (independent CPU decode oracle)
+```
+
+**Deliverables**
+
+| Artefact | Content |
+|---|---|
+| [`docs/algorithm_contract.md`](./algorithm_contract.md) | 13-section audited contract with line-level citations, 6 explicitly blocked open items |
+| [`exl3_quant/trellis_format.py`](../exl3_quant/trellis_format.py) | fp16-exact codebook LUTs, `tensor_core_perm` (+inverse), upstream `pack_trellis`/`SWAP16`, decoder window semantics |
+| [`tests/test_trellis_format.py`](../tests/test_trellis_format.py) | 17 format-conformance and negative tests |
+
+**Revised conclusions**
+
+- The §1 responses are upheld, and the findings are now **stronger**: the provisional
+  defaults catalogued in [`deviation_log.md`](./deviation_log.md) §2 are **confirmed
+  incorrect**, not merely unverified. In particular the `mul1` codebook is a pseudorandom
+  per-state LUT (not a uniform grid), the trellis uses 16-bit states with
+  `edges = 65536 >> K`, the metric is fp16 with fused accumulation, the closure is a
+  two-pass tail-biting ring, and the exported container is a **state-history** encoding.
+- `exl3_quant/reference_encoder.py` and `exl3_quant/bitpack.py` must be **replaced** by the
+  audited implementations, not patched.
+- `exl3_quant/scratch_estimator.py` is **confirmed correct** against upstream
+  `get_temp_buffers` and needs no rework.
+
+**Test suite (current HEAD):** 34 tests, all passing — 12 original + 5 negative
+(`tests/test_negative.py`) + 17 trellis-format. The §4 transcript above (17 tests) predates
+the trellis-format suite.
+
+**Remaining open work:** P0-08 (manifest), P0-12/P0-13/P0-14 *implementation* (equations
+and layouts are now extracted; the code is not written), P0-15/P0-16 (native dependency
+inventory), P0-17–P0-23 (XPU hardware), P0-24/P0-25 (CUDA ground truth — tier-4
+acceptance still cannot be closed offline).
