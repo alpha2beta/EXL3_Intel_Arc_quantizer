@@ -153,9 +153,15 @@ class ScratchEstimator:
         if max_single_alloc_bytes is not None:
             bytes_per_edge_unit_b = t * states * bytes_per_edge
             b_alloc_bound = max_single_alloc_bytes // bytes_per_edge_unit_b
-            max_b = max(1, min(b_vram_bound, b_alloc_bound))
+            max_b = min(b_vram_bound, b_alloc_bound)
         else:
-            max_b = max(1, b_vram_bound)
+            max_b = b_vram_bound
+
+        if max_b < 1:
+            raise ValueError(
+                f"Insufficient memory: minimum batch size B=1 requires "
+                f"{bytes_per_unit_b / BYTES_PER_MIB:.2f} MiB, which exceeds allowable memory budget."
+            )
 
         allocation = cls.estimate_scratch(
             k=k,

@@ -1,9 +1,9 @@
 """EXL3 Intel Arc Quantizer: Sub-Byte Bitpacking and Unpacking.
 
-Implements P2-13, P2-14, P2-15 from tasks.md:
+Generic CPU sub-byte bitpacker (unverified reference, pending upstream format audit P0-14):
 - Sub-byte integer packing (2, 3, 4, 8 bits) into contiguous 32-bit unsigned integers.
 - Exact bit-level round-trip verification (unpack(pack(x)) == x).
-- Bounds checking and malformed input validation.
+- Bounds checking and strict non-integer input rejection.
 """
 
 from typing import List, Sequence, Union
@@ -42,7 +42,15 @@ class SubByteBitPacker:
         Returns:
             1D numpy array of dtype np.uint32.
         """
-        arr = np.asarray(indices, dtype=np.int64)
+        raw_arr = np.asarray(indices)
+        if raw_arr.ndim != 1:
+            raw_arr = raw_arr.ravel()
+
+        if np.issubdtype(raw_arr.dtype, np.floating):
+            if not np.all(np.equal(raw_arr, np.floor(raw_arr))):
+                raise ValueError("Indices must be exact integer values, got non-integer floats.")
+
+        arr = raw_arr.astype(np.int64)
         if arr.ndim != 1:
             arr = arr.ravel()
         cls.validate_indices(arr, bits_per_value)

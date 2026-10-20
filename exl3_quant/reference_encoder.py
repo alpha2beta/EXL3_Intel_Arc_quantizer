@@ -1,12 +1,13 @@
-"""EXL3 Intel Arc Quantizer: Golden Reference Trellis Encoder.
+"""EXL3 Intel Arc Quantizer: Golden Reference Trellis Encoder (Provisional Prototype).
 
-Implements P1-01, P1-02, P1-04 from tasks.md:
-- Inspectable Python/NumPy reference encoder for Trellis Coded Quantization (TCQ).
-- Procedural `mul1` arithmetic codebook (pure integer/ALU decoding, zero table lookups).
-- Shift-register bitshift trellis state transitions.
-- Add-Compare-Select (ACS) forward dynamic programming pass.
-- Predecessor backpointer recording and backward traceback path recovery.
-- Reconstruction error (Mean Squared Error / Distortion) calculation.
+PROVISIONAL NOTICE:
+Implements an inspectable Python/NumPy reference prototype for Trellis Coded Quantization (TCQ).
+Per review-2026-10-20T13:50:25+02:00 (B1):
+- Uses generic shift-register state transitions: s_next = ((s_prev << bits) | sym) & (S - 1)
+- Uses provisional centered mul1 zero-point (half-integer) pending upstream audit P0-11.
+- Uses unweighted MSE objective (upstream uses Hessian-weighted distortion ||W - W_hat||_H).
+- Uses unconstrained terminal state argmin (upstream tail closure rules pending audit P0-11).
+- This is an unverified reference prototype, not audited contract-conformant code.
 """
 
 from dataclasses import dataclass

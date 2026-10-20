@@ -95,10 +95,10 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 
 ### 1.1 Implement a correctness-first encoder
 
-- [x] **P1-01** Implement an inspectable reference encoder for the selected codebook/K using the audited state and boundary rules. *(Implemented in `exl3_quant/reference_encoder.py`)*
-- [x] **P1-02** Implement and test the exact tile permutation/inverse and procedural codebook arithmetic against fixtures. *(Tested in `tests/test_encoder.py`)*
+- [ ] **P1-01** Implement an inspectable reference encoder for the selected codebook/K using the audited state and boundary rules. *(Provisional CPU prototype in `exl3_quant/reference_encoder.py`; pending audited contract P0-11, see `docs/deviation_log.md`)*
+- [ ] **P1-02** Implement and test the exact tile permutation/inverse and procedural codebook arithmetic against fixtures. *(Provisional codebook arithmetic in `tests/test_encoder.py`; tile permutation pending audit P0-13)*
 - [ ] **P1-03** Implement XPU forward ACS search with explicit precision/conversion policy; initially prefer understandable storage and synchronization over speculative fusion.
-- [x] **P1-04** Implement predecessor recording and a GPU-resident traceback baseline; preserve state and edge conventions. *(CPU reference baseline implemented in `exl3_quant/reference_encoder.py`)*
+- [ ] **P1-04** Implement predecessor recording and a GPU-resident traceback baseline; preserve state and edge conventions. *(CPU reference baseline in `exl3_quant/reference_encoder.py`; GPU-resident baseline pending XPU hardware)*
 - [ ] **P1-05** Reconstruct encoded tiles and compare path validity, objective/distortion, and output weights against the reference.
 - [ ] **P1-06** Test ties separately: allow alternate valid paths only under the defined objective/quality criteria; do not require identical state indices merely because floating-point paths differ.
 - [ ] **P1-07** Test single tiles, multiple batches, partial final batches, repeated calls, and the supported input validation rules; reject unsupported shapes/configurations explicitly.
@@ -181,9 +181,9 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### 2.3 Export and validate one layer
 
-- [x] **P2-13** Reuse device-independent upstream packing/serialization where possible; port only audited device-specific operations. *(Implemented sub-byte bitpacker in `exl3_quant/bitpack.py`)*
+- [ ] **P2-13** Reuse device-independent upstream packing/serialization where possible; port only audited device-specific operations. *(Generic sub-byte packer in `exl3_quant/bitpack.py`; upstream packing reuse pending P0-14)*
 - [ ] **P2-14** Validate output keys, shapes, dtypes, scales, signs, codebook metadata, bit ordering, and tensor permutations.
-- [x] **P2-15** Add exact synthetic pack/unpack round trips and malformed/truncated-output rejection tests. *(Tested in `tests/test_bitpack.py` across 2, 3, 4, 8 bits)*
+- [ ] **P2-15** Add exact synthetic pack/unpack round trips and malformed/truncated-output rejection tests. *(Generic synthetic round-trips tested in `tests/test_bitpack.py`; upstream layout tests pending P0-14)*
 - [ ] **P2-16** Export and reload the layer artifact; compare reconstructed weights using the pinned reference decoder and a supported XPU decoder where available.
 - [ ] **P2-17** Profile full-layer peak allocated/reserved/device-wide VRAM, host RSS, and workspace; account for simultaneous live tensors and fragmentation.
 - [ ] **P2-18** Run repeated layer conversions to detect memory growth; verify the chosen memory reserve and device fit experimentally.
