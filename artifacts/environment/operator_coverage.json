@@ -1,0 +1,267 @@
+{
+  "coverage": [
+    {
+      "dtype": "float32",
+      "fallback_ops": [],
+      "op": "matmul",
+      "rel_error": 3.9467862100286754e-07,
+      "seconds": 0.00045,
+      "status": "ok",
+      "tolerance": 1e-05,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float16",
+      "fallback_ops": [],
+      "op": "matmul",
+      "rel_error": 0.00036608465369089127,
+      "seconds": 0.00022,
+      "status": "ok",
+      "tolerance": 0.02,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "bfloat16",
+      "fallback_ops": [],
+      "op": "matmul",
+      "rel_error": 0.002883801931945466,
+      "seconds": 0.00023,
+      "status": "ok",
+      "tolerance": 0.02,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [],
+      "op": "einsum_ij_jk_ik",
+      "rel_error": 3.9467862100286754e-07,
+      "seconds": 0.00023,
+      "status": "ok",
+      "tolerance": 1e-05,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float16",
+      "fallback_ops": [],
+      "op": "einsum_ij_jk_ik",
+      "rel_error": 0.00036608465369089127,
+      "seconds": 0.00012,
+      "status": "ok",
+      "tolerance": 0.02,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [
+        "aten::linalg_cholesky_ex.L"
+      ],
+      "op": "linalg.cholesky",
+      "reconstruction_rel_error": 9.588816141103962e-08,
+      "seconds": 0.0011,
+      "status": "ok",
+      "tolerance": 0.0001,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float16",
+      "error": "NotImplementedError: \"cholesky_cpu\" not implemented for 'Half'",
+      "fallback_ops": [],
+      "op": "linalg.cholesky",
+      "seconds": null,
+      "status": "unsupported"
+    },
+    {
+      "dtype": "bfloat16",
+      "error": "NotImplementedError: \"cholesky_cpu\" not implemented for 'BFloat16'",
+      "fallback_ops": [],
+      "op": "linalg.cholesky",
+      "seconds": null,
+      "status": "unsupported"
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [
+        "aten::linalg_cholesky_ex.L"
+      ],
+      "info": 0,
+      "op": "linalg.cholesky_ex",
+      "seconds": 0.00104,
+      "status": "ok",
+      "tolerance": 0,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [],
+      "op": "linalg.inv",
+      "residual_rel_error": 4.5630972067556286e-07,
+      "seconds": 0.00183,
+      "status": "ok",
+      "tolerance": 0.0001,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float16",
+      "error": "RuntimeError: linalg.inv: Low precision dtypes not supported. Got Half",
+      "fallback_ops": [],
+      "op": "linalg.inv",
+      "seconds": null,
+      "status": "unsupported"
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [],
+      "op": "linalg.solve",
+      "residual_rel_error": 3.2127223903444246e-07,
+      "seconds": 0.00162,
+      "status": "ok",
+      "tolerance": 0.0001,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float16",
+      "error": "NotImplementedError: \"lu_cpu\" not implemented for 'Half'",
+      "fallback_ops": [],
+      "op": "linalg.solve",
+      "seconds": null,
+      "status": "unsupported"
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [],
+      "op": "linalg.solve_triangular",
+      "residual_rel_error": 1.2140053229359182e-07,
+      "seconds": 0.0003,
+      "status": "ok",
+      "tolerance": 0.0001,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [
+        "aten::linalg_qr.out"
+      ],
+      "op": "linalg.qr",
+      "reconstruction_rel_error": 2.330924502302878e-07,
+      "seconds": 0.00439,
+      "status": "ok",
+      "tolerance": 0.0001,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [
+        "aten::_linalg_svd.U"
+      ],
+      "op": "linalg.svd",
+      "reconstruction_rel_error": 1.4178252740748576e-06,
+      "seconds": 0.02045,
+      "status": "ok",
+      "tolerance": 0.0001,
+      "within_tolerance": true
+    },
+    {
+      "dtype": "float32",
+      "fallback_ops": [
+        "aten::_linalg_eigh.eigenvalues"
+      ],
+      "op": "linalg.eigvalsh",
+      "rel_error": 5.320215413028745e-07,
+      "seconds": 0.00661,
+      "status": "ok",
+      "tolerance": 0.0001,
+      "within_tolerance": true
+    }
+  ],
+  "coverage_size": 512,
+  "ldlq_benchmark": [
+    {
+      "block_ldl_cpu_seconds": 0.01546,
+      "block_ldl_xpu_seconds": 0.0686,
+      "bytes_per_matrix": 1048576,
+      "cpu_cholesky_seconds": 0.00063,
+      "d2h_seconds": 0.00015,
+      "device_allocated_bytes": 4227072,
+      "device_free_bytes": 9648025600,
+      "factor_roundtrip_seconds": 0.00124,
+      "fold_diag_identity_max_abs_error": 0.0,
+      "h2d_bandwidth_gbps": 1.69,
+      "h2d_seconds": 0.00062,
+      "host_max_rss_delta_bytes": 517320704,
+      "n": 512,
+      "swap_free_delta_bytes": 0,
+      "xpu_block_inv_seconds": 0.00078,
+      "xpu_cholesky_seconds": 0.00119,
+      "xpu_fold_bmm_seconds": 0.03142,
+      "xpu_vs_cpu_max_abs_diff": 0.0
+    },
+    {
+      "block_ldl_cpu_seconds": 0.00662,
+      "block_ldl_xpu_seconds": 0.01887,
+      "bytes_per_matrix": 4194304,
+      "cpu_cholesky_seconds": 0.00295,
+      "d2h_seconds": 0.00031,
+      "device_allocated_bytes": 16842752,
+      "device_free_bytes": 9642840064,
+      "factor_roundtrip_seconds": 0.00064,
+      "fold_diag_identity_max_abs_error": 0.0,
+      "h2d_bandwidth_gbps": 0.99,
+      "h2d_seconds": 0.00424,
+      "host_max_rss_delta_bytes": 0,
+      "n": 1024,
+      "swap_free_delta_bytes": 0,
+      "xpu_block_inv_seconds": 0.00068,
+      "xpu_cholesky_seconds": 0.00391,
+      "xpu_fold_bmm_seconds": 0.00056,
+      "xpu_vs_cpu_max_abs_diff": 0.0
+    },
+    {
+      "block_ldl_cpu_seconds": 0.03281,
+      "block_ldl_xpu_seconds": 0.05429,
+      "bytes_per_matrix": 16777216,
+      "cpu_cholesky_seconds": 0.0144,
+      "d2h_seconds": 0.00165,
+      "device_allocated_bytes": 67239936,
+      "device_free_bytes": 9559511040,
+      "factor_roundtrip_seconds": 0.00402,
+      "fold_diag_identity_max_abs_error": 0.0,
+      "h2d_bandwidth_gbps": 6.33,
+      "h2d_seconds": 0.00265,
+      "host_max_rss_delta_bytes": 16707584,
+      "n": 2048,
+      "swap_free_delta_bytes": 0,
+      "xpu_block_inv_seconds": 0.00139,
+      "xpu_cholesky_seconds": 0.02838,
+      "xpu_fold_bmm_seconds": 0.00154,
+      "xpu_vs_cpu_max_abs_diff": 0.0
+    },
+    {
+      "block_ldl_cpu_seconds": 0.14221,
+      "block_ldl_xpu_seconds": 0.23121,
+      "bytes_per_matrix": 67108864,
+      "cpu_cholesky_seconds": 0.11406,
+      "d2h_seconds": 0.00638,
+      "device_allocated_bytes": 268697600,
+      "device_free_bytes": 9368363008,
+      "factor_roundtrip_seconds": 0.01192,
+      "fold_diag_identity_max_abs_error": 0.0,
+      "h2d_bandwidth_gbps": 7.6,
+      "h2d_seconds": 0.00883,
+      "host_max_rss_delta_bytes": 69812224,
+      "n": 4096,
+      "swap_free_delta_bytes": 0,
+      "xpu_block_inv_seconds": 0.00112,
+      "xpu_cholesky_seconds": 0.1312,
+      "xpu_fold_bmm_seconds": 0.02738,
+      "xpu_vs_cpu_max_abs_diff": 0.0
+    }
+  ],
+  "notes": [
+    "Fallback detection uses PYTORCH_DEBUG_XPU_FALLBACK=1; each row lists the aten operator that fell back to CPU.",
+    "fp16/bf16 decompositions are unsupported (no CPU kernel either), so the port must run factorization in fp32; no silent dtype change.",
+    "The \u00a79.1 damping retry schedule is preserved; only the compute location changes, so the algorithm is unchanged.",
+    "LP64 shapes use the Llama-3.1-8B layer dimensions (up to 4096)."
+  ],
+  "time_local": "2026-10-20T20:14:26+02:00",
+  "time_utc": "2026-10-20T18:14:26+00:00"
+}

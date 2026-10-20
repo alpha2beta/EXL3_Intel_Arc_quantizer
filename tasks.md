@@ -66,12 +66,12 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 
 ### 0.3 Establish a reproducible environment
 
-- [ ] **P0-17** Pin Linux, Intel driver/Compute Runtime, Level Zero, compiler/SYCL (oneAPI 2026.0), PyTorch XPU (2.14.0+xpu), Python, and build dependencies on the actual 140V platform; record versions and installation provenance.
+- [x] **P0-17** Pin Linux, Intel driver/Compute Runtime, Level Zero, compiler/SYCL (oneAPI 2026.0), PyTorch XPU (2.14.0+xpu), Python, and build dependencies on the actual 140V platform; record versions and installation provenance. *(Pinned in `docs/compatibility_manifest.md` §1–§2 and `artifacts/environment/device_capabilities.json`: Linux `7.2.11-1-cachyos-deckify`, Intel Compute Runtime `26.35.39758.10-1.1`, Level Zero `1.32.0-1` / UR `1.17.39758`, `icpx 2026.0.0_947-1.1`, PyTorch `2.14.0+xpu`, Python `3.12.14`, Ninja `1.13.2`)*
 - [x] **P0-18** Build and execute a minimal custom XPU extension through the intended framework integration; verify device selection, output correctness, queue ordering, and tensor lifetime. *(`csrc/probe_xpu/` built via `torch.utils.cpp_extension.load` (icpx 2026.0); all four verifications pass — see `artifacts/environment/extension_probe.json`)*
 - [x] **P0-19** Query supported subgroup sizes, local memory, work-group limits, and maximum allocation size; save device capabilities in `artifacts/environment/`. *(`artifacts/environment/device_capabilities.json`: torch props + SYCL-side caps — max WG 1024, max subgroup 32, local 128 KiB, max alloc 30,692,810,752 B; SM analogue = `gpu_subslice_count` 8 per R11)*
 - [x] **P0-20** Test representative scratch allocations through the actual framework allocator; start small and bound tests by available memory and a configurable reserve (e.g. 6–8 GiB). *(B=1→256 estimator configs allocated/touched through `torch.xpu` under `MemoryPolicy`; 16.1 MiB→3.02 GiB succeeded depending on reserve; 4.03 GiB denied; evidence in `artifacts/environment/scratch_allocations*.json`)*
-- [ ] **P0-21** Probe required calibration and factorization operations/dtypes on Arc 140V; record unsupported operations and intentional CPU fallbacks.
-- [ ] **P0-22** Test any proposed Cholesky-derived LDLQ quantities against the extracted equations; benchmark CPU fallback transfer, memory, and wall-clock costs on the shared memory bus without silently changing the algorithm.
+- [x] **P0-21** Probe required calibration and factorization operations/dtypes on Arc 140V; record unsupported operations and intentional CPU fallbacks. *(17 ops probed in `scripts/probe_operators.py` -> `artifacts/environment/operator_coverage.json`: `matmul`/`einsum`/`inv`/`solve`/`solve_triangular` native on XPU; `cholesky`/`cholesky_ex`/`qr`/`svd`/`eigvalsh` fp32 fall back to CPU; fp16/bf16 decompositions unsupported)*
+- [x] **P0-22** Test any proposed Cholesky-derived LDLQ quantities against the extracted equations; benchmark CPU fallback transfer, memory, and wall-clock costs on the shared memory bus without silently changing the algorithm. *(`exl3_quant/ldlq.py` implements contract §9.1 `block_ldl` + retry-damping schedule; 10 equation/parity tests in `tests/test_ldlq.py`; benchmarked up to `n=4096` in `artifacts/environment/operator_coverage.json`)*
 - [x] **P0-23** Add an environment smoke test and reproducible build/test instructions; verify a clean rebuild. *(`tests/test_xpu_extension.py` smoke tests; `docs/extension_build.md` procedure; clean rebuild verified `rm -rf artifacts/build/probe_xpu` → 9.8 s icpx build)*
 
 ### 0.4 Create reference fixtures and a test harness
@@ -81,7 +81,7 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [ ] **P0-26** Include zeros, repeated values, outliers, seeded random tiles, ties/near-ties, boundary states, and representative real-weight tiles. Define expected behavior for invalid inputs from the audited contract.
 - [ ] **P0-27** Attach checksums, provenance, settings, shapes, dtypes, and expected results to fixtures; do not treat fixtures from another commit as equivalent without verification.
 - [~] **P0-28** Implement a reference comparison harness with separate exact and tolerance-based assertions; prove it detects deliberately perturbed values, bit order, and metadata. *(Perturbation detection verified in `tests/test_negative.py` for bits, scale mutations, illegal transitions; container metadata perturbation pending)*
-- [ ] **P0-29** Record unavailable reference coverage as a blocker or explicit limitation; do not mark unexecuted CUDA comparisons as passed.
+- [x] **P0-29** Record unavailable reference coverage as a blocker or explicit limitation; do not mark unexecuted CUDA comparisons as passed. *(Unavailable CUDA ground-truth fixtures `P0-24`/`P0-25` and Open Item `O-1` recorded as explicit blockers in `reports/gate_0.md` §3 and `docs/native_dependency_audit.md` §8; unexecuted CUDA tasks remain unchecked)*
 
 ### 0.5 Arc 140V Prototype Profile Checkboxes
 
@@ -97,9 +97,9 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 
 ### Gate 0: Audit readiness
 
-- [ ] **G0-01** Confirm the compatibility manifest, algorithm contract, dependency inventory, working extension skeleton, and fixture harness are complete.
-- [ ] **G0-02** Confirm factorization/operator coverage or a measured, explicit fallback exists for the initial scope.
-- [ ] **G0-03** Record go/no-go, blockers, owners, and the refined Phase 1 plan in `reports/gate_0.md`.
+- [~] **G0-01** Confirm the compatibility manifest, algorithm contract, dependency inventory, working extension skeleton, and fixture harness are complete. *(Manifest, contract, dependency inventory, and SYCL extension skeleton complete; comparison harness in place for oracle/perturbations, while CUDA ground-truth fixtures `P0-24`/`P0-25` remain an explicit external blocker)*
+- [x] **G0-02** Confirm factorization/operator coverage or a measured, explicit fallback exists for the initial scope. *(Verified in `artifacts/environment/operator_coverage.json` and `exl3_quant/ldlq.py`)*
+- [x] **G0-03** Record go/no-go, blockers, owners, and the refined Phase 1 plan in `reports/gate_0.md`. *(Published in `reports/gate_0.md` — conditional GO to Phase 1)*
 
 ## Phase 1: Tile encoder and scratch-memory prototype
 

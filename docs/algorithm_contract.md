@@ -484,6 +484,9 @@ n = H.shape[0];  b = block size;  m = n // b
   damping constant. Any port that adds damping up-front changes the algorithm.
 - The "LDL" is a Cholesky factor `L` with **block-diagonal inverses folded in** — it is
   *not* an `L D Lᵀ` factorization in the classical sense.
+- **Measured Arc 140V operator behavior (P0-21 / P0-22, `artifacts/environment/operator_coverage.json`):**
+  - `torch.linalg.cholesky` (fp32) silently falls back to CPU (`aten::linalg_cholesky_ex.L`), while `torch.linalg.inv`, `torch.linalg.solve`, `torch.linalg.solve_triangular`, `matmul`, and `einsum` execute natively on XPU. Low-precision (`fp16`/`bf16`) decompositions are unsupported on both XPU and CPU.
+  - At `n = 4096` (64 MiB fp32 matrix), CPU Cholesky takes `114.1 ms`, implicit XPU fallback takes `131.2 ms` (H2D transfer `8.8 ms` at `7.6 GB/s`), and full `block_ldl` takes `142.2 ms` on CPU vs `231.2 ms` on XPU (`max |XPU - CPU| = 1.91e-6`, zero swap growth). Reference implementation: `exl3_quant/ldlq.py` (`tests/test_ldlq.py`).
 
 ### 9.2 `ldlq` (error feedback) — `quantize.py:493-609`
 

@@ -31,7 +31,9 @@
 
 | Component | Pinned Version / Path | Build & Package Provenance |
 |---|---|---|
-| **Operating System** | Linux x86_64 | Arch Linux / rolling kernel 6.x |
+| **Operating System** | Linux `7.2.11-1-cachyos-deckify` x86_64 | Arch Linux / CachyOS kernel |
+| **Python Runtime** | `3.12.14` | `/home/yanchun/Projects/vllm.xpu/.venv/bin/python` (`uv` CPython build) |
+| **Build System** | Ninja `1.13.2` + `torch.utils.cpp_extension` | Bundled `pybind11` headers via PyTorch `2.14.0+xpu` |
 | **Intel Compute Runtime** | `26.35.39758.10-1.1` | `local/intel-compute-runtime` (Level Zero & OpenCL NEO driver) |
 | **Level Zero Loader** | `1.32.0-1` | `local/level-zero-loader` |
 | **Unified Runtime Driver** | `1.17.39758` | Intel Level-Zero V2 driver reported by PyTorch XPU |
