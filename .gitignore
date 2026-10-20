@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C++ / SYCL build artifacts
+build/
+dist/
+*.egg-info/
+*.so
+*.pyd
+*.dll
+*.dylib
+*.o
+*.obj
+*.spv
+
+# Checkpoints, models & calibration data
+*.safetensors
+*.pt
+*.bin
+*.pth
+*.parquet
+weights/
+models/
+calibration_data/
+output/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.venv
+env/
+venv/
