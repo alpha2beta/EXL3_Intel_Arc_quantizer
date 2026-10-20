@@ -1,6 +1,6 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 17:20:00 +02:00  
+> **Last Updated:** 2026-10-20 17:22:55 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
 > **Current Status:** Phase 0 audit & manifest complete; contract-conformant Reference Trellis Encoder implemented and verified; provisional prototype replaced; 37 unit tests passing. Phase 0 waiver `DEV-2026-10-20-01` resolved for encoder and layout components.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
@@ -148,8 +148,9 @@ Steps 1 through 9 of the foundational engineering work have been implemented, un
 ---
 
 ### Step 8: Arc 140V Platform Adaptation & Compatibility Manifest (P0-05, P0-08, V140-01)
-* **Time tag:** [2026-10-20 17:10:00 +0200]
-* **Files:** [`tasks.md`](./tasks.md), [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md)
+* **Time tag:** [2026-10-20 16:42:52 +0200] (adaptation guide), finalized at [2026-10-20 17:22:55 +0200] (manifest and tasks amendment)
+* **Commits:** `ee90d59`, `613943a`
+* **Files:** [`docs/140v.md`](./docs/140v.md), [`tasks.md`](./tasks.md), [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md)
 * **Target Hardware Probed:**
   * CPU: Intel Core Ultra 7 258V (8 cores, Lunar Lake)
   * GPU: Intel Arc 140V integrated graphics (device ID `0x64A0`, 8 Xe-cores / 64 XVEs, 128 KiB SLM, SIMD16/32)
@@ -160,7 +161,8 @@ Steps 1 through 9 of the foundational engineering work have been implemented, un
 ---
 
 ### Step 9: Contract-Conformant Golden Reference Trellis Encoder (P1-01, P1-02, P1-05)
-* **Time tag:** [2026-10-20 17:18:00 +0200]
+* **Time tag:** [2026-10-20 17:22:55 +0200]
+* **Commit:** `613943a`
 * **Source:** [`exl3_quant/reference_encoder.py`](./exl3_quant/reference_encoder.py)
 * **Test Suite:** [`tests/test_encoder.py`](./tests/test_encoder.py) — 7 tests
 * **Implementation:**
@@ -176,7 +178,7 @@ Steps 1 through 9 of the foundational engineering work have been implemented, un
 
 ## Test Suite Execution Evidence
 
-**37 unit tests** ran and passed cleanly as of [2026-10-20 17:18:00 +0200] across all test suites:
+**37 unit tests** ran and passed cleanly as of [2026-10-20 17:22:55 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -187,9 +189,30 @@ Steps 1 through 9 of the foundational engineering work have been implemented, un
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
 .....................................
 ----------------------------------------------------------------------
-Ran 37 tests in 8.947s
+Ran 37 tests in 7.371s
 
 OK
+```
+
+---
+
+## Git Commit History
+
+```text
+613943a 2026-10-20 17:22:55 +0200  feat: contract-conformant reference trellis encoder and 140V manifest
+ee90d59 2026-10-20 16:42:52 +0200  Add files via upload (adaptation for 140v as the primary development platform)
+cc576d9 2026-10-20 14:30:39 +0200  docs(review): append review conclusion for Steps 6-7 audit progress [2026-10-20 14:28:01 +02:00]
+b4aac24 2026-10-20 14:25:06 +0200  docs(progress): record the upstream source audit (Steps 6-7) with per-entry time tags
+cab8503 2026-10-20 14:21:20 +0200  docs: reconcile deviation log and review response with the completed upstream audit
+7647cd6 2026-10-20 14:19:27 +0200  docs+feat: audit pinned upstream EXL3 source, add algorithm contract and audited format primitives
+3160885 2026-10-20 13:56:58 +0200  docs: add formal review response document for review-2026-10-20T13:50:25+02:00
+fc73c07 2026-10-20 13:55:32 +0200  fix(review): address review-2026-10-20T13:50:25+02:00 findings
+f95c640 2026-10-20 13:51:00 +0200  docs: add code review of tasks.md and progress.md (review-2026-10-20T13:50:25+02:00)
+bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Steps 1 to 4 and test verification evidence
+668b7dc 2026-10-20 13:35:48 +0200  docs(tasks): update checklist to reflect completed reference encoder, scratch estimator, and bitpacker
+3ee68d4 2026-10-20 13:35:01 +0200  feat: implement scratch estimator, bitpacker, and golden reference Viterbi encoder with test suite
+491818c 2026-10-20 13:27:16 +0200  docs: add tasks.md implementation task list and phase gates
+7b6b4a7 2026-10-20 13:17:19 +0200  Initial commit: EXL3 Intel Arc quantizer feasibility specification and repository scaffolding
 ```
 
 ---
@@ -198,4 +221,5 @@ OK
 
 1. **P0-16 / P0-15 — Native Dependency Inventory:** Complete `docs/native_dependency_audit.md` classifying all `ext.*` calls in upstream EXL3 conversion pipeline.
 2. **P0-18 / P0-19 / P0-20 — Arc 140V XPU Allocation & Extension Probe:** Benchmark scratch allocation sizing, memory reserve guardrails, and build a minimal custom SYCL/XPU extension using oneAPI 2026.0 on the Arc 140V device.
+3. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback.
 3. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ feedback loop.
