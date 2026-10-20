@@ -45,12 +45,12 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 ### 0.1 Freeze the compatibility contract
 
 - [ ] **P0-01** Select one coherent upstream repository commit; reconcile the separately referenced quantizer and conversion-document revisions against that commit.
-- [ ] **P0-02** Select the initial dense model architecture and exact source checkpoint/tokenizer revisions; record source weight dtypes.
-- [ ] **P0-03** Select `mul1`, one supported integer encoder parameter K, and an explicit initial bitrate recipe; verify the mapping between K and exported representation in native code.
-- [ ] **P0-04** Check the chosen model, codebook, bitrate, and dimensions against the pinned downstream decoder/runtime coverage before choosing the initial validation path.
-- [x] **P0-05** Select the primary prototype device (Intel Core Ultra 7 258V with Arc 140V integrated graphics, 32 GB shared memory); record actual device identifiers, driver version, memory reporting semantics, and maintain discrete Arc (A770/B580/Pro B60) as a separate qualification track. *(Probed & recorded in `docs/compatibility_manifest.md`)*
-- [ ] **P0-06** Pin calibration corpus revision, tokenizer settings, token/sample counts, sequence handling, masks, and RNG seeds.
-- [ ] **P0-07** Define numerical acceptance criteria before tuning: exact discrete checks, floating-point absolute/relative tolerances, distortion checks, and full-model quality thresholds. Document how tolerances are justified.
+- [x] **P0-02** Select the initial dense model architecture and exact source checkpoint/tokenizer revisions; record source weight dtypes. *(Pinned in `docs/compatibility_manifest.md` §5)*
+- [x] **P0-03** Select `mul1`, one supported integer encoder parameter K, and an explicit initial bitrate recipe; verify the mapping between K and exported representation in native code. *(Pinned in `docs/compatibility_manifest.md` §6)*
+- [x] **P0-04** Check the chosen model, codebook, bitrate, and dimensions against the pinned downstream decoder/runtime coverage before choosing the initial validation path. *(Verified in `tests/test_oracle_parity.py` against `exl3xpu.ref`)*
+- [x] **P0-05** Select the primary prototype device (Intel Core Ultra 7 258V with Arc 140V integrated graphics, 32 GB shared memory); record actual device identifiers, driver version, memory reporting semantics, and maintain discrete Arc (A770/B580/Pro B60) as a separate qualification track. *(Probed & recorded in `docs/compatibility_manifest.md` §1)*
+- [x] **P0-06** Pin calibration corpus revision, tokenizer settings, token/sample counts, sequence handling, masks, and RNG seeds. *(Pinned in `docs/compatibility_manifest.md` §5)*
+- [x] **P0-07** Define numerical acceptance criteria before tuning: exact discrete checks, floating-point absolute/relative tolerances, distortion checks, and full-model quality thresholds. Document how tolerances are justified. *(Defined in `docs/compatibility_manifest.md` §7)*
 - [x] **P0-08** Write `docs/compatibility_manifest.md` covering all pinned inputs, software versions, supported modes, integrated memory boundaries, and exclusions; do not claim universal model support. *(Published in `docs/compatibility_manifest.md`)*
 
 ### 0.2 Audit Python and native dependencies
@@ -62,7 +62,7 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [x] **P0-13** Extract transform dimensions, signs, scaling, tile permutation/inverse, and the order in which they are applied. *(Audited in `docs/algorithm_contract.md` §2, §8, implemented in `exl3_quant/trellis_format.py`)*
 - [x] **P0-14** Audit output tensor names, dtypes, shapes, scales, metadata, bit ordering, and all native versus device-independent packing operations. *(Audited in `docs/algorithm_contract.md` §7, §10, implemented in `exl3_quant/trellis_format.py`)*
 - [ ] **P0-15** Classify each dependency as reusable, XPU-native, custom-port-required, explicit CPU fallback, or unsupported; include owner and validation method.
-- [x] **P0-16** Save `docs/native_dependency_audit.md` and `docs/algorithm_contract.md`; leave unresolved native behavior explicitly blocked rather than inventing defaults. *(Contract published in `docs/algorithm_contract.md`)*
+- [ ] **P0-16** Save `docs/native_dependency_audit.md` and `docs/algorithm_contract.md`; leave unresolved native behavior explicitly blocked rather than inventing defaults. *(Algorithm contract published; native dependency audit in progress under P0-15)*
 
 ### 0.3 Establish a reproducible environment
 
@@ -80,7 +80,7 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [ ] **P0-25** Capture representative native encoder costs/edges where practical; avoid dumping full multi-gigabyte scratch buffers when small fixtures or selected snapshots suffice.
 - [ ] **P0-26** Include zeros, repeated values, outliers, seeded random tiles, ties/near-ties, boundary states, and representative real-weight tiles. Define expected behavior for invalid inputs from the audited contract.
 - [ ] **P0-27** Attach checksums, provenance, settings, shapes, dtypes, and expected results to fixtures; do not treat fixtures from another commit as equivalent without verification.
-- [x] **P0-28** Implement a reference comparison harness with separate exact and tolerance-based assertions; prove it detects deliberately perturbed values, bit order, and metadata. *(Implemented in `tests/test_negative.py` and `tests/test_trellis_format.py`)*
+- [~] **P0-28** Implement a reference comparison harness with separate exact and tolerance-based assertions; prove it detects deliberately perturbed values, bit order, and metadata. *(Perturbation detection verified in `tests/test_negative.py` for bits, scale mutations, illegal transitions; container metadata perturbation pending)*
 - [ ] **P0-29** Record unavailable reference coverage as a blocker or explicit limitation; do not mark unexecuted CUDA comparisons as passed.
 
 ### 0.5 Arc 140V Prototype Profile Checkboxes
@@ -113,7 +113,7 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [x] **P1-02** Implement and test the exact tile permutation/inverse and procedural codebook arithmetic against fixtures. *(Transcribed in `exl3_quant/trellis_format.py` and verified in `tests/test_trellis_format.py` and `tests/test_encoder.py`)*
 - [ ] **P1-03** Implement XPU forward ACS search with explicit precision/conversion policy; initially prefer understandable storage and synchronization over speculative fusion.
 - [ ] **P1-04** Implement predecessor recording and a GPU-resident traceback baseline; preserve state and edge conventions. *(CPU reference baseline in `exl3_quant/reference_encoder.py`; GPU-resident baseline pending XPU kernel)*
-- [x] **P1-05** Reconstruct encoded tiles and compare path validity, objective/distortion, and output weights against the reference. *(Verified in `tests/test_encoder.py` across K=2, 3, 4, CB_MUL1, CB_MCG, CB_3INST)*
+- [~] **P1-05** Reconstruct encoded tiles and compare path validity, objective/distortion, and output weights against the reference. *(Reconstruction, circular ring path validity, and live oracle decode verified in `tests/test_encoder.py` and `tests/test_oracle_parity.py` across K=2,3,4 with mul1, and 3-codebook sweep at K=2; numerical parity against CUDA reference fixtures pending P0-24 and Open Item O-1)*
 - [ ] **P1-06** Test ties separately: allow alternate valid paths only under the defined objective/quality criteria; do not require identical state indices merely because floating-point paths differ.
 - [ ] **P1-07** Test single tiles, multiple batches, partial final batches, repeated calls, and the supported input validation rules; reject unsupported shapes/configurations explicitly.
 - [ ] **P1-08** Stress asynchronous invocation and tensor lifetime; test non-default framework streams/queues if supported, or document and enforce the initial restriction.
@@ -122,7 +122,7 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 
 - [x] **P1-09** Implement a checked scratch-size estimator using the pinned allocator contract; validate shapes/dtypes against native code before relying on it. *(Implemented in `exl3_quant/scratch_estimator.py`)*
 - [x] **P1-10** Unit-test the estimator against the allocation examples below; distinguish GiB/MiB from decimal GB/MB. *(Verified 4/4 fixtures in `tests/test_scratch.py`)*
-- [x] **P1-11** Implement adaptive scratch batch capacity B using measured memory availability, a configurable reserve, and validated single-allocation limits; do not substitute Xe-core count for CUDA multiprocessor count. *(Implemented in `ScratchEstimator.calculate_max_batch_size`)*
+- [~] **P1-11** Implement adaptive scratch batch capacity B using measured memory availability, a configurable reserve, and validated single-allocation limits; do not substitute Xe-core count for CUDA multiprocessor count. *(Batch calculation formula implemented in `ScratchEstimator.calculate_max_batch_size`; live device allocation limit validation on Arc 140V pending V140-02/V140-03)*
 - [ ] **P1-12** Implement a bounded scratch cache or reusable arena with safe event-aware reuse/eviction; prevent unbounded residency across K/device changes. Account for shared-backing vs distinct memory copies on 140V.
 - [ ] **P1-13** Test allocation failure handling and smaller-batch retries without changing tile semantics or silently dropping work; reject a configuration cleanly if the minimum valid batch cannot fit within the available memory envelope (leaving system reserve intact).
 - [ ] **P1-14** Sweep B values such as 1, 16, 64, 128, and 256 where feasible; compare numerical results, actual allocations, throughput, and reserved memory under OS paging/pressure monitoring.

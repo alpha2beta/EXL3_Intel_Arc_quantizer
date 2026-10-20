@@ -1,34 +1,35 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 17:22:55 +02:00  
+> **Last Updated:** 2026-10-20 18:55:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Phase 0 audit & manifest complete; contract-conformant Reference Trellis Encoder implemented and verified; provisional prototype replaced; 37 unit tests passing. Phase 0 waiver `DEV-2026-10-20-01` resolved for encoder and layout components.  
+> **Current Status:** Phase 0 platform manifest, audited algorithm contract, and format primitives established; contract-conformant Reference Trellis Encoder transcribed and verified; live downstream oracle parity confirmed (42 unit tests passing). Native dependency audit (P0-15) and Gate 0 report remain pending.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
 
 ## Executive Summary
 
-Steps 1 through 9 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
+Steps 1 through 10 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
 
 - Steps 1–5 established the initial CPU sandbox under review waiver `DEV-2026-10-20-01`.
 - Steps 6–7 fetched and audited the pinned upstream EXL3 source, establishing [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) and [`exl3_quant/trellis_format.py`](./exl3_quant/trellis_format.py).
 - **Step 8 [2026-10-20 17:10:00 +0200]:** Probed the host hardware and software environment, amended `tasks.md` with the Arc 140V platform profile, and published [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) (P0-05, P0-08, V140-01).
-- **Step 9 [2026-10-20 17:15:00 +0200]:** Replaced the provisional prototype encoder with the **contract-conformant `ReferenceTrellisEncoder`** directly transcribing `quantize_tiles_kernel.cuh:23-313` with NumPy vectorization, passing comprehensive integration and round-trip tests (P1-01, P1-02, P1-05).
+- **Step 9 [2026-10-20 17:22:55 +0200]:** Replaced the provisional prototype encoder with the **contract-conformant `ReferenceTrellisEncoder`** directly transcribing `quantize_tiles_kernel.cuh:23-313` with NumPy vectorization (P1-01, P1-02, P1-05).
+- **Step 10 [2026-10-20 18:55:00 +0200]:** Added live oracle parity test suite ([`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py)) verifying bit-exact decode against the adjacent downstream runtime (`exl3xpu.ref`), and expanded manifest with model/corpus specifications and 140V memory risk analysis.
 
 ```
 +-------------------------------------------------------------------------------------------------------+
 | Module                       | Task Mapping             | Status                          | Unit Test Suite       |
 +------------------------------+--------------------------+---------------------------------+-----------------------+
 | 1. Tasks Checklist           | Scope Governance         | Committed (Amended for 140V)    | tasks.md              |
-| 2. Scratch Estimator         | P1-09, P1-10, P1-11      | Passed — CONFIRMED CORRECT      | test_scratch.py       |
-| 3. Sub-Byte Bitpacker        | P2-13, P2-15             | Audited Layout Implemented      | test_trellis_format.py|
-| 4. Golden Reference Encoder  | P1-01, P1-02, P1-05      | Passed — CONTRACT CONFORMANT    | test_encoder.py       |
-| 5. Negative Test Harness     | P0-28                    | Passed (Perturbation Det.)      | test_negative.py      |
-| 6. Algorithm Contract (docs) | P0-11, P0-13, P0-14, 16  | Published 2026-10-20 14:19      | docs/algorithm_...    |
-| 7. Audited Format Primitives | P0-13, P0-14, P0-28      | Passed (Format Conformance)     | test_trellis_format.py|
-| 8. 140V Compatibility Manif. | P0-05, P0-08, V140-01    | Published 2026-10-20 17:10      | docs/compatibility... |
-| 9. Trellis Encoder Tests     | P1-01, P1-02, P1-05      | Passed (7/7 tests, K=2,3,4)     | test_encoder.py       |
+| 2. Scratch Estimator         | P1-09, P1-10, P1-11      | Passed — CONFIRMED CORRECT      | test_scratch.py (4)   |
+| 3. Format Primitives & Packer| P0-13, P0-14, P2-13      | Passed — AUDITED CONTRACT       | test_trellis_format(17|
+| 4. Golden Reference Encoder  | P1-01, P1-02, P1-05      | Passed — SOURCE TRANSCRIBED     | test_encoder.py (8)   |
+| 5. Oracle Parity Suite       | P0-04, P0-28, P2-16      | Passed — LIVE ORACLE BIT-EXACT  | test_oracle_parity (4)|
+| 6. Negative Test Harness     | P0-28                    | Passed (Perturbation Det.)      | test_negative.py (5)  |
+| 7. Algorithm Contract (docs) | P0-11, P0-13, P0-14, 16  | Published & Maintained          | docs/algorithm_...    |
+| 8. 140V Compatibility Manif. | P0-05, P0-08, V140-01    | Pinned Model/Corpus/Mem Risk    | docs/compatibility... |
+| 9. Legacy Bitpacker (Shim)   | Legacy Sandbox           | Superseded (Retained for test)  | test_bitpack.py (4)   |
 +------------------------------+--------------------------+---------------------------------+-----------------------+
 ```
 
@@ -174,22 +175,34 @@ Steps 1 through 9 of the foundational engineering work have been implemented, un
   * Verified mathematical inverse identity $((pred \ll K) \mid e) == state$ across all 65,536 combinations.
   * Verified continuous unbroken circular ring topology, bit-exact codebook reconstruction, and 100% round-trip match through `pack_trellis` $\to$ `swap16_storage` $\to$ `decode_states` and `decode_tile_values`.
 
+### Step 10: Downstream Oracle Parity Suite & Manifest Expansion (P0-02, P0-04, P0-06, P0-07, H4, H5)
+* **Time tag:** [2026-10-20 18:55:00 +0200]
+* **Files:** [`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py), [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md)
+* **Oracle Verification (exl3xpu.ref):**
+  * Executed live cross-checks against the installed downstream decoder oracle:
+    * `tensor_core_perm()` matches bit for bit.
+    * `codebook_lut(cb)` matches across all 65,536 states for `CB_3INST`, `CB_MCG`, and `CB_MUL1`.
+    * `decode_states(packed, K)` matches bit for bit across all $K \in \{1, 2, 3, 4, 5, 6, 8\}$.
+    * `ReferenceTrellisEncoder` output decoded through `oracle_ref.decode_states` and `oracle_ref.reconstruct_inner` reproduces the reconstructed tile with 100% bit-exact identity.
+* **Manifest Expansion:** Formally pinned `meta-llama/Meta-Llama-3.1-8B` (fp16/bf16 base weights), `wikitext-2-raw-v1` corpus parameters, 6-tier numerical acceptance thresholds, explicit exclusions (MoE, vision, 2-sided LDLQ), and documented the ~4.0 GiB usable headroom constraint on Arc 140V under the 6.0 GiB reserve policy.
+
 ---
 
 ## Test Suite Execution Evidence
 
-**37 unit tests** ran and passed cleanly as of [2026-10-20 17:22:55 +0200] across all test suites:
+**42 unit tests** ran and passed cleanly as of [2026-10-20 18:55:00 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
-- `test_encoder.py`: 7 tests (contract-conformant reference encoder and tail-biting round-trips)
-- `test_bitpack.py`: 4 tests (sub-byte packing)
+- `test_encoder.py`: 8 tests (contract-conformant reference encoder, path cost tracking, bounded distortion)
+- `test_oracle_parity.py`: 4 tests (live bit-exact parity against `exl3xpu.ref`)
+- `test_bitpack.py`: 4 tests (sub-byte packing shim)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-.....................................
+..........................................
 ----------------------------------------------------------------------
-Ran 37 tests in 7.371s
+Ran 42 tests in 15.256s
 
 OK
 ```
@@ -199,6 +212,7 @@ OK
 ## Git Commit History
 
 ```text
+e0194b1 2026-10-20 17:26:48 +0200  docs(progress): record Steps 8-9 with commit-aligned time tags [2026-10-20 17:22:55 +02:00]
 613943a 2026-10-20 17:22:55 +0200  feat: contract-conformant reference trellis encoder and 140V manifest
 ee90d59 2026-10-20 16:42:52 +0200  Add files via upload (adaptation for 140v as the primary development platform)
 cc576d9 2026-10-20 14:30:39 +0200  docs(review): append review conclusion for Steps 6-7 audit progress [2026-10-20 14:28:01 +02:00]
@@ -220,6 +234,5 @@ bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Ste
 ## Critical Path Next Steps
 
 1. **P0-16 / P0-15 — Native Dependency Inventory:** Complete `docs/native_dependency_audit.md` classifying all `ext.*` calls in upstream EXL3 conversion pipeline.
-2. **P0-18 / P0-19 / P0-20 — Arc 140V XPU Allocation & Extension Probe:** Benchmark scratch allocation sizing, memory reserve guardrails, and build a minimal custom SYCL/XPU extension using oneAPI 2026.0 on the Arc 140V device.
+2. **P0-18 / P0-19 / P0-20 / V140-02 — Arc 140V XPU Allocation & Extension Probe:** Benchmark scratch allocation sizing, memory reserve guardrails, and build a minimal custom SYCL/XPU extension using oneAPI 2026.0 on the Arc 140V device.
 3. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback.
-3. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ feedback loop.

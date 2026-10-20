@@ -1,9 +1,15 @@
 """EXL3 Intel Arc Quantizer: Golden Reference Trellis Encoder.
 
-Audited transcription of ``quantize_tiles_kernel.cuh`` from the pinned upstream
-revision:
+Audited host-CPU transcription of ``quantize_tiles_kernel.cuh`` from the pinned
+upstream revision:
     https://github.com/turboderp-org/exllamav3 @ 4d7b69c7e177c2b0f34ed8c90b7036fe31a7281f
     File: exllamav3/exllamav3_ext/quant/quantize_tiles_kernel.cuh:23-313
+
+Verification Status & Evidence Boundary:
+- Algorithmic structure, state transitions, tail-biting schedule, and container bitpacking
+  are source-transcribed and verified against downstream decoder oracle (exl3xpu.ref).
+- Numerical parity against upstream CUDA execution remains an open verification gate
+  pending P0-24 (CUDA fixtures) and resolution of Open Item O-1 (terminal cost buffer parity).
 
 Normative Contract:
 - 16-bit state space: S = 65536 >> K tracked edges, Kr = 16 - K, max_q = 1 << K.
@@ -12,8 +18,8 @@ Normative Contract:
 - Two-pass tail-biting circular ring schedule:
     Pass 1: forward(L / 2, pre_state=-1), backward(L / 2, write=false, argmin_cost()) -> end_state
     Pass 2: forward(0, pre_state=end_state), backward(0, write=true, edge=end_state)
-- fp16 metric with fused accumulation (__hfma2 emulation) and strict '<' tie-breaking.
-- Tensor-core pre-permutation: input tiles are pre-permuted via ``tensor_core_perm``.
+- fp16 metric with exact fused accumulation (__hfma2 emulation via float64) and strict '<' tie-breaking.
+- Tensor-core pre-permutation: 256-element input tiles are pre-permuted via ``tensor_core_perm``.
 """
 
 from __future__ import annotations
@@ -48,6 +54,7 @@ class EncodingResult:
     end_state: int                    # Tail-biting wrap state at ring index 0
     distortion: float                 # Total squared error sum((w - w_hat)^2)
     mse: float                        # Mean squared error
+    path_cost: float                  # Final accumulated fp16 trellis path cost
     K: int                            # Bitrate parameter K
     cb: int                           # Codebook selector
 
@@ -105,8 +112,12 @@ class ReferenceTrellisEncoder:
             self.k_preds[k] = (st >> self.K).astype(np.uint16)
             self.k_vals[k] = self.lut[st]
 
-        self.perm = tensor_core_perm()
-        self.inv_perm = tensor_core_perm_inv()
+        if self.L == 256:
+            self.perm = tensor_core_perm()
+            self.inv_perm = tensor_core_perm_inv()
+        else:
+            self.perm = None
+            self.inv_perm = None
 
     @staticmethod
     def ring(i: int, roll: int, L: int = 256) -> int:
@@ -148,8 +159,8 @@ class ReferenceTrellisEncoder:
         for k in range(self.max_q):
             val = self.k_vals[k]
             pred = self.k_preds[k]
-            # fp16 subtract and square
-            dh = val.astype(np.float32) - np.float32(w)
+            # fp16 subtract and square via float64 exact intermediate
+            dh = val.astype(np.float64) - np.float64(w)
             err = (dh * dh).astype(np.float16)
 
             if pre_state >= 0:
@@ -175,9 +186,10 @@ class ReferenceTrellisEncoder:
             for k in range(self.max_q):
                 val = self.k_vals[k]
                 pred = self.k_preds[k]
-                dh = val.astype(np.float32) - np.float32(w)
-                # Fused __hfma2(dh, dh, cost_in[pred]): single rounding to fp16
-                err = (dh * dh + prev_cost[pred].astype(np.float32)).astype(np.float16)
+                dh = val.astype(np.float64) - np.float64(w)
+                # Exact __hfma2(dh, dh, cost_in[pred]) emulation via float64 intermediate:
+                # Single rounding to fp16 guarantees no intermediate double-rounding.
+                err = (dh * dh + prev_cost[pred].astype(np.float64)).astype(np.float16)
 
                 if k == 0:
                     min_cost = err.copy()
@@ -260,6 +272,10 @@ class ReferenceTrellisEncoder:
             raise ValueError(f"Tile must have {self.L} elements, got {raw_arr.size}")
 
         if pre_permute:
+            if self.L != 256 or self.perm is None:
+                raise ValueError(
+                    f"tensor_core_perm is defined only for tile_len=256; for {self.L}-element rows set pre_permute=False."
+                )
             input_tile = raw_arr[self.perm].astype(np.float16)
         else:
             input_tile = raw_arr.astype(np.float16)
@@ -274,11 +290,15 @@ class ReferenceTrellisEncoder:
 
         # Pass 2: natural order (roll = 0), wrap constrained to end_state
         # quantize_tiles_kernel.cuh:311-312
-        _ = self.forward(input_tile, roll=0, pre_state=end_state, temp_edges=temp_edges)
+        c2 = self.forward(input_tile, roll=0, pre_state=end_state, temp_edges=temp_edges)
         _, output_indices, output_tile = self.backward(temp_edges, roll=0, write=True, edge=end_state)
+        path_cost = float(c2[end_state])
 
-        # Pack into bit-exact upstream container
-        packed = swap16_storage(pack_trellis(output_indices, self.K))
+        # Pack into bit-exact upstream container (supported for standard L=256 tiles)
+        if self.L == 256:
+            packed = swap16_storage(pack_trellis(output_indices, self.K))
+        else:
+            packed = np.array([], dtype=np.uint16)
 
         reconstructed_perm = output_tile
         if pre_permute:
@@ -299,6 +319,7 @@ class ReferenceTrellisEncoder:
             end_state=end_state,
             distortion=distortion,
             mse=mse,
+            path_cost=path_cost,
             K=self.K,
             cb=self.cb,
         )

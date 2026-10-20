@@ -69,12 +69,63 @@
 
 ---
 
-## 5. Prototype Quantizer Scope & Target Recipes
+## 5. Pinned Model Target & Calibration Specification (P0-02, P0-06)
 
-- **Initial Architecture:** Dense transformer decoder layer (e.g., Llama-3 / Qwen-2.5 7B–8B).
+| Parameter | Pinned Specification |
+|---|---|
+| **Primary Dense Architecture** | Meta Llama 3.1 8B (`meta-llama/Meta-Llama-3.1-8B`) |
+| **Source Checkpoint Revision** | `48d6d03f933bc570042267aa51a83355a67738d4` (fp16 / bfloat16 base weights) |
+| **Secondary Target Architecture**| Qwen 2.5 7B (`Qwen/Qwen2.5-7B`, commit `d4385dd2a52377042ab34a883a451e505ea6bfda`) |
+| **Calibration Corpus** | `wikitext-2-raw-v1` (test split) |
+| **Calibration Tokens / Samples** | 128 samples $\times$ 2048 sequence length (262,144 tokens total) |
+| **Sequence Handling** | Deterministic non-overlapping chunks, left-truncated, seed `42` |
+| **Hessian Covariance Dtype** | float32 accumulate ($H = \sum X^T X$), damped with $\lambda = 0.01 \cdot \text{mean}(\text{diag}(H))$ |
+
+---
+
+## 6. Prototype Quantizer Scope & Target Recipes (P0-03)
+
+- **Initial Scope:** Single dense decoder layer conversion (attention projections + MLP).
 - **Codebook:** `mul1` (`cb = 2`), affine pseudorandom byte-sum LUT over 16-bit state (913 distinct levels in `[-3.453125, 3.34765625]`).
 - **Bitrate Parameter K:** Integer $K \in \{2, 3, 4\}$.
 - **Tile Format:** $16 \times 16$ elements ($L = 256$), pre-permuted into `tensor_core_perm` order.
-- **Trellis States:** $S = 65536 \gg K$ (e.g. 16384 for $K=2$, 8192 for $K=3$, 4096 for $K=4$).
+- **Trellis States:** $S = 65536 \gg K$ (16,384 for $K=2$; 8,192 for $K=3$; 4,096 for $K=4$).
 - **Packing Format:** State-history container: 16 spans $\times$ 16 elements, low $K$ bits MSB-first into uint16 words, uint32 little-endian pairs with `SWAP16` half-word swap.
-- **De-quantization Compatibility:** Checkpoints produced must decode identically through `exl3xpu.ref` and upstream ExLlamaV3.
+- **Downstream Oracle Compatibility:** Bit-exact decode verified live against `exl3xpu.ref` (`tests/test_oracle_parity.py`).
+
+---
+
+## 7. Numerical Acceptance Criteria & Tolerances (P0-07)
+
+| Acceptance Tier | Scope & Metric | Required Threshold | Justification |
+|---|---|---|---|
+| **Tier 1: Container Structure** | Tensor names, dtypes, metadata | 100% exact match | Format compatibility with ExLlamaV3 `.safetensors` |
+| **Tier 2: Discrete Bitpacking** | State-history round-trip (`pack→decode`) | 0 bit difference | Lossless container round trip for low $K$ bits |
+| **Tier 3: Weight Reconstruction** | Reconstructed fp16 weights vs LUT | 0 bit difference | Exact codebook index lookup |
+| **Tier 4: Quantizer Numerics** | Viterbi path validity & distortion | 100% valid transitions; $\text{MSE} < 0.15$ on $N(0,1)$ at $K=2$ | Monotonic distortion improvement with increasing $K$ |
+| **Tier 5: Model Perplexity** | Full model Wikitext-2 perplexity | $\Delta \text{PPL} \le 0.15$ vs CUDA reference | Quality gate preventing catastrophic degradation |
+| **Tier 6: Oracle Runtime Interop** | Live decode through `exl3xpu.ref` | 100% bit-exact across all shapes & $K$ | Prevents runtime decode divergence |
+
+---
+
+## 8. Explicit Exclusions & Out-of-Scope Modes
+
+The following modes are explicitly excluded from the Arc 140V initial prototype:
+- **MoE (Mixture of Experts):** Non-dense routing topologies deferred to Phase 4.
+- **Vision / Audio / Multimodal:** Projections with specialized tokenizers excluded.
+- **Multi-Token Prediction (MTP):** Speculative decoding auxiliary heads deferred.
+- **Two-Sided LDLQ:** Output Hessian / column damping modes deferred.
+- **Fractional Average Bitrates:** Sub-integer mixed-bitrate scheduling deferred.
+- **Discrete Arc / Windows:** Relocated to separate optional deployment tracks.
+
+---
+
+## 9. Arc 140V Live Headroom & Allocation Risk (V140-02, V140-07)
+
+- **Queried Free Memory:** ~10.0 GiB under typical idle system baseline.
+- **Configured System Reserve:** 6.0 GiB (mandatory to avoid kernel swapping and driver thrashing).
+- **Usable Live Headroom:** **$\approx$ 4.0 GiB** for aggregate framework, activations, and scratch memory.
+- **Scratch Buffer Sizing Risk:**
+  - $K=2, B=256$: `temp_edges` alone occupies 2.0 GiB (50% of available headroom).
+  - $K=1, B=256$: `temp_edges` occupies 4.0 GiB (exceeds single allocation limit and consumes 100% headroom).
+- **Policy Directive:** On Arc 140V, dynamic scratch batch capacity must clamp $B \le 128$ for $K=2$ ($1.0 \text{ GiB}$) and $B \le 64$ for $K=1$ ($1.0 \text{ GiB}$) during full-layer execution to leave sufficient headroom for activations, Hessian accumulation, and PyTorch workspace.

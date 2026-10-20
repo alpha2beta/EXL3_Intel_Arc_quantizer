@@ -81,4 +81,4 @@ The following implementation details in `exl3_quant/` are currently **speculativ
   - Two-pass tail-biting circular ring schedule ($roll = L/2$ unconstrained to find `end_state`, followed by $roll = 0$ constrained by `pre_state = end_state`).
   - fp16 metric with fused accumulation and strict `<` tie-breaking.
   - End-to-end format round-trip verified: encoded states bitpack into container, decode through `decode_states` and `decode_tile_values`, and reconstruct the original tile with 100% bit-exact parity.
-* **Waiver DEV-2026-10-20-01:** Encoder and format components of this waiver are formally resolved and verified by 37 passing unit tests.
+* **Waiver DEV-2026-10-20-01 Status:** The reference encoder and container format components are resolved with respect to upstream CUDA source transcription, mathematical state inverse identities, and live round-trip decoding through the independent oracle (`exl3xpu.ref`). However, full waiver closure and final numerical acceptance remain contingent on verifying numerical parity against upstream CUDA execution fixtures (P0-24) and resolving Open Item O-1 (terminal cost buffer parity).

@@ -408,7 +408,7 @@ mcg/mul1: int32 scalar                   # presence selects the codebook
 ### 7.4 Verified on this host (CPU, no GPU)
 
 Implemented in this repository as `exl3_quant/trellis_format.py`, exercised by
-`tests/test_trellis_format.py` (22 tests).
+`tests/test_trellis_format.py` (17 tests) and live oracle cross-check `tests/test_oracle_parity.py` (4 tests).
 
 **Check 1 — layout identity (passes).** For every `K ∈ {1,2,3,4,5,6,8}`, take a random
 *bit stream*, decode it to 256 states, re-pack it, and require the stream to be
@@ -424,8 +424,11 @@ direct demonstration that an independent-symbol sub-byte packer — which is wha
 `exl3_quant/bitpack.py` implements — **cannot** be made compatible with upstream by
 reordering bits. It is a different format and needs a different data model.
 
-> **Open item O-2** — see §12: the round trip for *trellis-produced* states requires the
-> CPU reference encoder, which does not exist yet.
+> **Open item O-2** — RESOLVED: The host-CPU reference encoder is implemented as
+> `ReferenceTrellisEncoder` in `exl3_quant/reference_encoder.py`. Its generated
+> trellis states round-trip through `pack_trellis` -> `swap16_storage` -> `decode_states`
+> bit-for-bit across K in {2, 3, 4}, verified in `tests/test_encoder.py` and against
+> the independent oracle `exl3xpu.ref` in `tests/test_oracle_parity.py`.
 
 ---
 
@@ -553,16 +556,14 @@ for j in range(size_k, 0, -buf_size_k):            # spans processed from the bo
 
 | Component | Status vs. this contract | Action |
 |---|---|---|
-| `exl3_quant/trellis_format.py` | **New** — audited primitives: `codebook_lut` (§3), `tensor_core_perm` (§2), `pack_trellis` + `swap16_storage` + `decode_states` (§7) | keep; extend with the encoder (§4/§5) |
-| `exl3_quant/scratch_estimator.py` | **Correct** — matches §6 exactly | keep; add the `K >= 4` batch policy note |
-| `exl3_quant/reference_encoder.py` → `Mul1Codebook` | **Wrong** — §3: pseudorandom per-16-bit-state LUT, not a uniform grid | rewrite against §3 |
-| `…` → `TrellisStateSpace` | **Wrong scale** — §4: `edges = 65536 >> K`, 16-bit states, `pred = sigma >> K` | rewrite against §4 |
-| `…` → `ReferenceViterbiEncoder` | **Wrong precision** — §4.3: fp16 metric and fp16 fused accumulation; **wrong termination** — §5: two-pass tail-biting ring | rewrite against §4/§5 |
-| `exl3_quant/bitpack.py` | **Wrong format** — §7: MSB-first, 16 spans × 16, low-K-bits-of-state, `SWAP16`; not independent LSB-first symbols | rewrite against §7; verify with §7.4 harness |
-| `tensor_core_perm` | **Missing** — §2 | implement (§2 table) |
-| Hadamard reference | **Missing** — §8 | implement (normalized Sylvester `H128`) |
-| LDLQ reference | **Missing** — §9 | implement in a device-independent path |
-| Objective / distortion | §4 uses plain squared error; upstream's is the same metric per element but accumulated in fp16, and the *layer-level* distortion is Hessian-weighted via `L` (§9) | document the distinction explicitly |
+| `exl3_quant/trellis_format.py` | **Audited** — `codebook_lut` (§3), `tensor_core_perm` (§2), `pack_trellis` + `swap16_storage` + `decode_states` (§7) | Verified against live `exl3xpu.ref` oracle |
+| `exl3_quant/scratch_estimator.py` | **Correct** — matches §6 exactly | Keep; reserve configured for 140V UMA profile |
+| `exl3_quant/reference_encoder.py` | **Implemented** — `ReferenceTrellisEncoder` transcribed from `quantize_tiles_kernel.cuh:23-313`: 16-bit states, 2-pass tail-biting ring, fp16 fused metric | Verified against `decode_states` and `exl3xpu.ref`; CUDA numerical parity pending P0-24 |
+| `exl3_quant/bitpack.py` | **Superseded** by `exl3_quant/trellis_format.py` | Retained for legacy negative tests only |
+| `tensor_core_perm` | **Implemented** — §2 | Transcribed in `trellis_format.py` |
+| Hadamard reference | **Missing** — §8 | Implement (normalized Sylvester `H128`) |
+| LDLQ reference | **Missing** — §9 | Implement in a device-independent path |
+| Objective / distortion | §4 uses plain squared error; upstream's is the same metric per element but accumulated in fp16, and the *layer-level* distortion is Hessian-weighted via `L` (§9) | Document the distinction explicitly |
 
 ---
 
@@ -574,7 +575,7 @@ native behaviour is left blocked rather than replaced with an invented default.
 | ID | Item | Why it is blocked | Closes when |
 |---|---|---|---|
 | **O-1** | Exact `argmin_cost()` buffer parity (it reads `temp_costs_inc`, which after the final loop of `forward()` holds the *second-to-last* step's costs) — is the terminal edge selected from step `L-2` or `L-1`? | Cannot be determined by reading alone; the ping-pong parity and the `roll` interaction must be observed | A CUDA reference run produces the terminal edge for a known tile (P0-24), or the upstream author's intent is confirmed |
-| **O-2** | Bit-exactness of the packed stream for **trellis-produced** states. The layout itself is now verified (§7.4); what is missing is a CPU reference encoder to generate consistent states | Requires the CPU re-implementation of the encoder (§4/§5) | The CPU reference encoder exists and its pack→decode round trip passes for all K |
+| **O-2** | Bit-exactness of the packed stream for **trellis-produced** states | **RESOLVED** — `ReferenceTrellisEncoder` generates states that round-trip bit-for-bit through `pack_trellis` and `exl3xpu.ref` | Closed by `tests/test_encoder.py` and `tests/test_oracle_parity.py` |
 | **O-3** | Whether `codebook_scale = 1.24371088` is applied anywhere else besides `su` (`.py:1215`) | `quantize.py` was read end-to-end for the encode path, but `convert_model.py` may add its own scaling | `convert_model.py` scale/sign path is audited (P0-09) |
 | **O-4** | `H_INF` + NaN behaviour on degenerate tiles | Kernel guards only the argmin index (`.cuh:280-283`); metric arithmetic with `inf` inputs is undefined | Degenerate-input fixtures exist (P0-26) |
 | **O-5** | Numerical ground truth for the encoder itself (tier 4) | Requires the CUDA reference (P0-24) | CUDA machine available |
