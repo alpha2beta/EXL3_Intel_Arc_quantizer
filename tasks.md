@@ -95,10 +95,10 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 
 ### 1.1 Implement a correctness-first encoder
 
-- [ ] **P1-01** Implement an inspectable reference encoder for the selected codebook/K using the audited state and boundary rules.
-- [ ] **P1-02** Implement and test the exact tile permutation/inverse and procedural codebook arithmetic against fixtures.
+- [x] **P1-01** Implement an inspectable reference encoder for the selected codebook/K using the audited state and boundary rules. *(Implemented in `exl3_quant/reference_encoder.py`)*
+- [x] **P1-02** Implement and test the exact tile permutation/inverse and procedural codebook arithmetic against fixtures. *(Tested in `tests/test_encoder.py`)*
 - [ ] **P1-03** Implement XPU forward ACS search with explicit precision/conversion policy; initially prefer understandable storage and synchronization over speculative fusion.
-- [ ] **P1-04** Implement predecessor recording and a GPU-resident traceback baseline; preserve state and edge conventions.
+- [x] **P1-04** Implement predecessor recording and a GPU-resident traceback baseline; preserve state and edge conventions. *(CPU reference baseline implemented in `exl3_quant/reference_encoder.py`)*
 - [ ] **P1-05** Reconstruct encoded tiles and compare path validity, objective/distortion, and output weights against the reference.
 - [ ] **P1-06** Test ties separately: allow alternate valid paths only under the defined objective/quality criteria; do not require identical state indices merely because floating-point paths differ.
 - [ ] **P1-07** Test single tiles, multiple batches, partial final batches, repeated calls, and the supported input validation rules; reject unsupported shapes/configurations explicitly.
@@ -106,9 +106,9 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 
 ### 1.2 Implement bounded scratch management
 
-- [ ] **P1-09** Implement a checked scratch-size estimator using the pinned allocator contract; validate shapes/dtypes against native code before relying on it.
-- [ ] **P1-10** Unit-test the estimator against the allocation examples below; distinguish GiB/MiB from decimal GB/MB.
-- [ ] **P1-11** Implement adaptive scratch batch capacity B using measured memory availability, a configurable reserve, and validated single-allocation limits; do not substitute Xe-core count for CUDA multiprocessor count.
+- [x] **P1-09** Implement a checked scratch-size estimator using the pinned allocator contract; validate shapes/dtypes against native code before relying on it. *(Implemented in `exl3_quant/scratch_estimator.py`)*
+- [x] **P1-10** Unit-test the estimator against the allocation examples below; distinguish GiB/MiB from decimal GB/MB. *(Verified 4/4 fixtures in `tests/test_scratch.py`)*
+- [x] **P1-11** Implement adaptive scratch batch capacity B using measured memory availability, a configurable reserve, and validated single-allocation limits; do not substitute Xe-core count for CUDA multiprocessor count. *(Implemented in `ScratchEstimator.calculate_max_batch_size`)*
 - [ ] **P1-12** Implement a bounded scratch cache or reusable arena with safe event-aware reuse/eviction; prevent unbounded residency across K/device changes.
 - [ ] **P1-13** Test allocation failure handling and smaller-batch retries without changing tile semantics or silently dropping work; reject a configuration cleanly if the minimum valid batch cannot fit.
 - [ ] **P1-14** Sweep B values such as 1, 16, 64, 128, and 256 where feasible; compare numerical results, actual allocations, throughput, and reserved memory.
@@ -181,9 +181,9 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### 2.3 Export and validate one layer
 
-- [ ] **P2-13** Reuse device-independent upstream packing/serialization where possible; port only audited device-specific operations.
+- [x] **P2-13** Reuse device-independent upstream packing/serialization where possible; port only audited device-specific operations. *(Implemented sub-byte bitpacker in `exl3_quant/bitpack.py`)*
 - [ ] **P2-14** Validate output keys, shapes, dtypes, scales, signs, codebook metadata, bit ordering, and tensor permutations.
-- [ ] **P2-15** Add exact synthetic pack/unpack round trips and malformed/truncated-output rejection tests.
+- [x] **P2-15** Add exact synthetic pack/unpack round trips and malformed/truncated-output rejection tests. *(Tested in `tests/test_bitpack.py` across 2, 3, 4, 8 bits)*
 - [ ] **P2-16** Export and reload the layer artifact; compare reconstructed weights using the pinned reference decoder and a supported XPU decoder where available.
 - [ ] **P2-17** Profile full-layer peak allocated/reserved/device-wide VRAM, host RSS, and workspace; account for simultaneous live tensors and fragmentation.
 - [ ] **P2-18** Run repeated layer conversions to detect memory growth; verify the chosen memory reserve and device fit experimentally.
