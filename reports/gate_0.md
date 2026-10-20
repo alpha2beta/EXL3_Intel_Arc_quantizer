@@ -1,7 +1,7 @@
 # Gate 0 Audit Readiness Report (`G0-01` .. `G0-03`)
 
 > **Report ID:** `reports/gate_0.md`  
-> **Time Tag:** `2026-10-20T20:28:00+02:00`  
+> **Time Tag:** `2026-10-20T20:18:50+02:00`  
 > **Target Profile:** `lunar_lake_140v_258v_32gb` (Intel Core Ultra 7 258V / Arc 140V `0x64A0`, 32 GB UMA)  
 > **Upstream Reference:** `turboderp-org/exllamav3 @ 4d7b69c7e177c2b0f34ed8c90b7036fe31a7281f`  
 > **Gate Decision:** **CONDITIONAL GO to Phase 1** (SYCL tile encoder & bounded scratch management), with CUDA ground-truth fixture comparison (`P0-24`/`P0-25` and Open Item `O-1`) carried explicitly as a tracked blocker for external parity sign-off.

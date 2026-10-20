@@ -1,15 +1,15 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 20:08:00 +02:00  
+> **Last Updated:** 2026-10-20 20:18:50 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Phase 0 platform manifest, audited algorithm contract, format primitives, live oracle parity, native dependency audit, verified minimal SYCL extension, and measured memory baseline/reserve policy established. Open item O-6 resolved on-device (exact fp16 FMA). 63 unit tests passing. Remaining before Gate 0: P0-21/P0-22 operator coverage, G0-03 report.  
+> **Current Status:** Gate 0 complete (conditional GO to Phase 1 recorded in `reports/gate_0.md`). Operator coverage, `block_ldl` reference/fallback benchmark, verified minimal SYCL extension, O-6 on-device resolution, and measured memory baseline/reserve policy established. 73 unit tests passing.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
 
 ## Executive Summary
 
-Steps 1 through 13 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
+Steps 1 through 14 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
 
 - Steps 1–5 established the initial CPU sandbox under review waiver `DEV-2026-10-20-01`.
 - Steps 6–7 fetched and audited the pinned upstream EXL3 source, establishing [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) and [`exl3_quant/trellis_format.py`](./exl3_quant/trellis_format.py).
@@ -18,7 +18,8 @@ Steps 1 through 13 of the foundational engineering work have been implemented, u
 - **Step 10 [2026-10-20 18:55:00 +0200]:** Added live oracle parity test suite ([`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py)) verifying bit-exact decode against the adjacent downstream runtime (`exl3xpu.ref`), and expanded manifest with model/corpus specifications and 140V memory risk analysis.
 - **Step 11 [2026-10-20 19:18:02 +0200]:** Published [`docs/native_dependency_audit.md`](./docs/native_dependency_audit.md), classifying all six `ext.*` entry points and the supporting runtime surface, with the XPU port decisions and blockers (P0-15, P0-16).
 - **Step 12 [2026-10-20 19:48:23 +0200]:** Built, verified, and committed the **minimal custom SYCL XPU extension** through `torch.utils.cpp_extension.load` (P0-18, P0-19), and **measured open item O-6 on-device**: the Arc 140V `sycl::fma(half)` performs exact fp16 single rounding — never fp32 double rounding — on 65,536 random and 11 adversarial-constructed inputs.
-- **Step 13 [2026-10-20 20:08:00 +0200]:** Established the **idle memory baseline** and the **configurable reserve/abort policy** (V140-02), tested representative scratch allocations through the framework allocator up to 3.02 GiB (P0-20, V140-03), and documented the measured **counter-lag** behaviour of the shared-memory accountant (V140-04 partial).
+- **Step 13 [2026-10-20 20:03:00 +0200]:** Established the **idle memory baseline** and the **configurable reserve/abort policy** (V140-02), tested representative scratch allocations through the framework allocator up to 3.02 GiB (P0-20, V140-03), and documented the measured **counter-lag** behaviour of the shared-memory accountant (V140-04 partial).
+- **Step 14 [2026-10-20 20:18:50 +0200]:** Implemented the contract §9.1 **`block_ldl`** transcription and equation test suite (P0-22), probed **17 operator/dtype pairs** with per-op XPU->CPU fallback attribution and benchmarked `block_ldl` up to `n=4096` (P0-21, P0-22), and published [`reports/gate_0.md`](./reports/gate_0.md) (G0-01..G0-03).
 
 ```
 +-------------------------------------------------------------------------------------------------------+
@@ -35,7 +36,8 @@ Steps 1 through 13 of the foundational engineering work have been implemented, u
 | 9. Legacy Bitpacker (Shim)   | Legacy Sandbox           | Superseded (Retained for test)  | test_bitpack.py (4)   |
 | 10. Native Dependency Audit  | P0-15, P0-16             | Published — 6 ext + 17 runtime  | docs/native_dep...    |
 | 11. XPU Extension Probe      | P0-18, P0-19, O-6        | Built & Verified (icpx SYCL)    | test_xpu_extension (7)|
-| 12. Memory Policy & Baseline | V140-02/03/04, P0-20     | Measured — Reserve Enforced     | test_memory_policy (14)|
+| 12. Memory Policy & Baseline | V140-02/03/04, P0-20     | Measured — Reserve Enforced     | test_memory_policy(14)|
+| 13. Block LDL & Op Coverage  | P0-21, P0-22, G0-01..03  | Gate 0 Closed (Conditional GO)  | test_ldlq.py (10)     |
 +------------------------------+--------------------------+---------------------------------+-----------------------+
 ```
 
@@ -260,11 +262,26 @@ Steps 1 through 13 of the foundational engineering work have been implemented, u
   * Still untested: accounting for **distinct** host↔device staging copies — these do not exist until the kernel stage is implemented, so V140-04 remains `[~]`.
 * **P0-23 (now `[x]`):** reproducible build/test instructions published in [`docs/extension_build.md`](./docs/extension_build.md), including the named-kernel, `c10/util/Half.h`, and `torch::xpu::device_count` constraints; clean rebuild re-verified.
 
+### Step 14: Operator Coverage Probe, `block_ldl` Reference & Benchmark, and Gate 0 Report (P0-17, P0-21, P0-22, P0-29, G0-01..G0-03)
+* **Time tag:** [2026-10-20 20:18:50 +0200]
+* **Commit:** `6ab0e7c`
+* **Sources:** [`exl3_quant/ldlq.py`](./exl3_quant/ldlq.py), [`tests/test_ldlq.py`](./tests/test_ldlq.py) (10 tests), [`scripts/probe_operators.py`](./scripts/probe_operators.py), [`artifacts/environment/operator_coverage.json`](./artifacts/environment/operator_coverage.json), [`reports/gate_0.md`](./reports/gate_0.md)
+* **Operator coverage (P0-21, `n=512`):**
+  * **Native XPU:** `matmul` (`fp32`/`fp16`/`bf16`), `einsum` (`fp32`/`fp16`), `linalg.inv` (`fp32`), `linalg.solve` (`fp32`), `linalg.solve_triangular` (`fp32`). All within tolerance against CPU `float64`.
+  * **Silent CPU fallbacks (`fp32`):** `linalg.cholesky` and `linalg.cholesky_ex` (`aten::linalg_cholesky_ex.L`), `linalg.qr` (`aten::linalg_qr.out`), `linalg.svd` (`aten::_linalg_svd.U`), and `linalg.eigvalsh` (`aten::_linalg_eigh.eigenvalues`).
+  * **Unsupported:** low-precision (`fp16`/`bf16`) decompositions (`cholesky`, `inv`, `solve`).
+* **`block_ldl` reference & fallback benchmark (P0-22):**
+  * Implemented `block_ldl` (`exl3_quant/ldlq.py`) directly from contract §9.1 (`quantize.py:416-490`), preserving the retry-only diagonal damping schedule (`2 * sigma_reg * mean(diag(H))`, up to 10 retries) without pre-emptive damping.
+  * Verified all extracted equations in `tests/test_ldlq.py` (`L Lᵀ = H`, `M[:, block] = L[:, block] @ inv(L_bb)`, identity block diagonal, retry schedule on near-indefinite matrices, and XPU vs CPU parity).
+  * Benchmarked at `n in {512, 1024, 2048, 4096}`: at `n=4096` (`64 MiB` per fp32 matrix), CPU Cholesky takes `114.1 ms`, XPU Cholesky (implicit fallback) takes `131.2 ms` (`H2D` `8.8 ms` at `7.6 GB/s`), and full `block_ldl` takes `142.2 ms` on CPU vs `231.2 ms` on XPU (`max |XPU - CPU| = 1.91e-6`, zero swap growth).
+* **Gate 0 closed (`reports/gate_0.md`, G0-01..G0-03):**
+  * Conditional GO to Phase 1 recorded, with `P0-24`/`P0-25` (CUDA ground-truth fixtures), `O-1` (terminal-edge ping-pong parity), and `V140-04` (distinct staging copy accounting) tracked explicitly as open items per `P0-29`.
+
 ---
 
 ## Test Suite Execution Evidence
 
-**63 unit tests** ran and passed cleanly as of [2026-10-20 20:05:00 +0200] across all test suites:
+**73 unit tests** ran and passed cleanly as of [2026-10-20 20:18:50 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -273,10 +290,11 @@ Steps 1 through 13 of the foundational engineering work have been implemented, u
 - `test_bitpack.py`: 4 tests (sub-byte packing shim)
 - `test_xpu_extension.py`: 7 tests (device selection, correctness, ordering, lifetime, caps, O-6 random + adversarial; skip unless `torch.xpu.is_available()`)
 - `test_memory_policy.py`: 14 tests (meminfo parsing, reserve arithmetic, admission boundaries, outstanding commitments, abort path, post-commit breach, live 32 MiB GPU allocation)
+- `test_ldlq.py`: 10 tests (`L Lᵀ = H`, block-inverse fold, identity block diagonal, retry-damping schedule, input validation, XPU vs CPU parity)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 63 tests in 11.682s
+Ran 73 tests in 21.491s
 
 OK
 ```
@@ -286,7 +304,8 @@ OK
 ## Git Commit History
 
 ```text
-1a98582 2026-10-20 20:08:00 +0200  feat(mem): idle baseline + reserve-based memory-pressure policy; close V140-02/P0-20/P0-23
+6ab0e7c 2026-10-20 20:18:50 +0200  feat(ldlq): operator coverage probe, block_ldl reference, and Gate 0 report (P0-17/P0-21/P0-22/P0-29/G0)
+1a98582 2026-10-20 20:03:00 +0200  feat(mem): idle baseline + reserve-based memory-pressure policy; close V140-02/P0-20/P0-23
 40896bb 2026-10-20 19:48:23 +0200  feat(xpu): minimal SYCL extension probe via torch cpp_extension; close P0-18/P0-19
 d632227 2026-10-20 19:18:02 +0200  docs: add native dependency audit and close P0-15/P0-16
 229dca2 2026-10-20 19:05:33 +0200  fix(review): address review-2026-10-20T18:30:21+02:00 findings
@@ -311,8 +330,7 @@ bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Ste
 
 ## Critical Path Next Steps
 
-1. **P0-21 / P0-22 — Operator Coverage & Factorization Fallback:** Probe `cholesky`, `inv`, matmul/einsum and fp16 rounding on the 140V; measure any CPU fallback transfer/memory/wall-clock cost and record unsupported operations (G0-02 input).
-2. **G0-03 — `reports/gate_0.md`:** Record go/no-go, owners, and the Phase 1 estimate; carry P0-24/P0-25 (CUDA ground truth), O-1 (terminal-edge parity), and V140-04 (distinct-copy accounting) as explicit open items. O-6 is resolved on-device and no longer a blocker.
-3. **P1-03 / P1-04 / P1-15 — SYCL ACS Kernel Port:** Implement `quantize_tiles` on XPU following the audited contract, now with confidence in the fp16 FMA semantics (O-6), the extension build path (P0-18), and the reserved-memory policy (V140-02).
-4. **P1-11 / P1-12 — Adaptive Batch & Scratch Arena:** Wire `MemoryPolicy` into the batch capacity calculation and implement bounded, event-aware scratch reuse; validate with the measured B bounds from Step 13.
-5. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback (device-independent reference track).
+1. **P1-03 / P1-04 — SYCL ACS Kernel Port:** Implement `quantize_tiles` forward ACS search and GPU-resident traceback on XPU following the audited contract, using exact single-rounded `sycl::half` FMA semantics (`O-6`), the verified `icpx` build path (`P0-18`), and single-queue execution (`P1-08`).
+2. **P1-05 .. P1-08 — XPU Encoder Verification:** Verify path validity, distortion, tie-handling (`P1-06`), edge shapes/partial batches (`P1-07`), and live `exl3xpu.ref` decode parity across `K in {1, 2, 3, 4}` and all 3 codebooks.
+3. **P1-11 .. P1-16 / V140-04 / V140-05 — Bounded Scratch Arena & B Sweep:** Wire `MemoryPolicy` into `ScratchEstimator`, implement bounded event-aware scratch reuse and smaller-batch retry, complete distinct staging copy accounting (`V140-04`), and run the `B` sweep for Gate 1 (`reports/gate_1.md`).
+4. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback (`ldlq` consuming `block_ldl`).
