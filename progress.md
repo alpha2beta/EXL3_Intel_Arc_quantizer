@@ -1,15 +1,15 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 19:18:02 +02:00  
+> **Last Updated:** 2026-10-20 19:48:23 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Phase 0 platform manifest, audited algorithm contract, format primitives, live oracle parity, and native dependency audit established; contract-conformant Reference Trellis Encoder transcribed and verified (42 unit tests passing). XPU extension skeleton (P0-18) and Gate 0 report (G0-03) remain pending.  
+> **Current Status:** Phase 0 platform manifest, audited algorithm contract, format primitives, live oracle parity, native dependency audit, and a verified minimal SYCL XPU extension established. Open item O-6 (fp16 FMA semantics) measured on-device: exact single rounding confirmed. 49 unit tests passing. Remaining before Gate 0: V140-02/P0-20 idle baseline & scratch allocation, G0-03 report.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
 
 ## Executive Summary
 
-Steps 1 through 11 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
+Steps 1 through 12 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
 
 - Steps 1–5 established the initial CPU sandbox under review waiver `DEV-2026-10-20-01`.
 - Steps 6–7 fetched and audited the pinned upstream EXL3 source, establishing [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) and [`exl3_quant/trellis_format.py`](./exl3_quant/trellis_format.py).
@@ -17,6 +17,7 @@ Steps 1 through 11 of the foundational engineering work have been implemented, u
 - **Step 9 [2026-10-20 17:22:55 +0200]:** Replaced the provisional prototype encoder with the **contract-conformant `ReferenceTrellisEncoder`** directly transcribing `quantize_tiles_kernel.cuh:23-313` with NumPy vectorization (P1-01, P1-02, P1-05).
 - **Step 10 [2026-10-20 18:55:00 +0200]:** Added live oracle parity test suite ([`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py)) verifying bit-exact decode against the adjacent downstream runtime (`exl3xpu.ref`), and expanded manifest with model/corpus specifications and 140V memory risk analysis.
 - **Step 11 [2026-10-20 19:18:02 +0200]:** Published [`docs/native_dependency_audit.md`](./docs/native_dependency_audit.md), classifying all six `ext.*` entry points and the supporting runtime surface, with the XPU port decisions and blockers (P0-15, P0-16).
+- **Step 12 [2026-10-20 19:48:23 +0200]:** Built, verified, and committed the **minimal custom SYCL XPU extension** through `torch.utils.cpp_extension.load` (P0-18, P0-19), and **measured open item O-6 on-device**: the Arc 140V `sycl::fma(half)` performs exact fp16 single rounding — never fp32 double rounding — on 65,536 random and 11 adversarial-constructed inputs.
 
 ```
 +-------------------------------------------------------------------------------------------------------+
@@ -32,6 +33,7 @@ Steps 1 through 11 of the foundational engineering work have been implemented, u
 | 8. 140V Compatibility Manif. | P0-05, P0-08, V140-01    | Pinned Model/Corpus/Mem Risk    | docs/compatibility... |
 | 9. Legacy Bitpacker (Shim)   | Legacy Sandbox           | Superseded (Retained for test)  | test_bitpack.py (4)   |
 | 10. Native Dependency Audit  | P0-15, P0-16             | Published — 6 ext + 17 runtime  | docs/native_dep...    |
+| 11. XPU Extension Probe      | P0-18, P0-19, O-6        | Built & Verified (icpx SYCL)    | test_xpu_extension (7)|
 +------------------------------+--------------------------+---------------------------------+-----------------------+
 ```
 
@@ -210,21 +212,43 @@ Steps 1 through 11 of the foundational engineering work have been implemented, u
 
 ---
 
+### Step 12: Minimal Custom SYCL XPU Extension & O-6 Measurement (P0-18, P0-19, O-6, P0-23 partial)
+* **Time tag:** [2026-10-20 19:48:23 +0200]
+* **Commit:** `40896bb`
+* **Sources:** [`csrc/probe_xpu/probe_xpu.cpp`](./csrc/probe_xpu/probe_xpu.cpp) (bindings/validation), [`csrc/probe_xpu/probe_kernels.sycl`](./csrc/probe_xpu/probe_kernels.sycl) (device code), [`exl3_quant/xpu_probe.py`](./exl3_quant/xpu_probe.py) (build+probes), [`scripts/probe_xpu_extension.py`](./scripts/probe_xpu_extension.py) (CLI/artifacts), [`tests/test_xpu_extension.py`](./tests/test_xpu_extension.py) (7 tests)
+* **Intended-framework integration confirmed:** `torch.utils.cpp_extension.load(sources=[.cpp, .sycl], extra_sycl_cflags=[...])` compiles the mixed SYCL build automatically with `icpx` (oneAPI DPC++ 2026.0); clean rebuild verified via `rm -rf artifacts/build/probe_xpu` → 9.8 s icpx/ninja build.
+* **Build caveats discovered (required for reproducibility):**
+  * oneAPI `bin` must be on `PATH` (`icpx` discovery drives `SYCL_HOME` detection).
+  * Named kernel classes are required: torch's build adds `-fsycl-host-compiler`, which conflicts with `-fsycl-unnamed-lambda`.
+  * `c10::Half` needs an explicit `#include <c10/util/Half.h>` in the `.sycl` TU; torch `types.h` auto-insertion is not sufficient.
+* **P0-18 verifications — all pass on `xpu:0` (`artifacts/environment/extension_probe.json`):**
+  * **Device selection:** kernel queued via `c10::xpu::getCurrentXPUStream(t.get_device()).queue()` on the tensor's device; torch and SYCL device names agree (`Intel(R) Arc(TM) Graphics`).
+  * **Output correctness:** elementwise add is **bit-exact** versus a CPU reference over 65,536 fp32 values.
+  * **Queue ordering:** interleaved sequence kernel → torch `fill_` → kernel → torch `mul_` yields the expected `210.0` result, proving in-order submission on the shared current queue (P1-08 restriction: no secondary queues anywhere).
+  * **Tensor lifetime:** 64 MiB alloc → free → re-alloc → reuse produces correct results with no stale-data corruption; `mem_get_info` before/after recorded.
+* **P0-19 capability capture (`artifacts/environment/device_capabilities.json`):** torch props (64 EUs, 8 subslices, fp16 yes, fp64 yes) + SYCL-side caps (max work-group 1024, max subgroup 32, local mem 128 KiB, max allocation 30,692,810,752 B = full shared memory). SM analogue decision R11 (`gpu_subslice_count` = 8) recorded in the artifact.
+* **Open item O-6 measured on-device (adapted `docs/algorithm_contract.md` §O-6):**
+  * **Random block:** 65,536 fp16 `(dh, cost)` pairs — device `sycl::fma` and plain `a*a+c` both match exact-fp64-FMA→fp16 rounding with **0 mismatches**; also 0 mismatches for host fp32 emulation on this random set.
+  * **Adversarial block:** exhaustive structured grid search (dh mantissa patterns `0x3C00..0x3CFF` × tiny fp16 costs `0x0080..0x03FF`) found **11 pairs** where fp32 double rounding differs from exact single rounding — random sampling over `1<<24` samples found none, so these hand-picked exponent pairs are the only discriminating inputs.
+  * **Result on all 11 adversarial pairs:** `fma_matches_exact` = 11, `fma_matches_fp32_emul` = 0 — **the device performs exact fp16 single rounding and never exhibits fp32 double rounding.** Porting consequence: the CPU reference and the SYCL kernel will agree if both use exact-FMA semantics; fp32 double-rounding emulation in the reference would *introduce* error, not match the device.
+* **P0-23 (partial `[~]`):** smoke test = `tests/test_xpu_extension.py` (skips cleanly without XPU); clean rebuild verified; a dedicated build-docs page is still pending.
+
+---
+
 ## Test Suite Execution Evidence
 
-**42 unit tests** ran and passed cleanly as of [2026-10-20 18:55:00 +0200] across all test suites:
+**49 unit tests** ran and passed cleanly as of [2026-10-20 19:44:00 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
 - `test_encoder.py`: 8 tests (contract-conformant reference encoder, path cost tracking, bounded distortion)
 - `test_oracle_parity.py`: 4 tests (live bit-exact parity against `exl3xpu.ref`)
 - `test_bitpack.py`: 4 tests (sub-byte packing shim)
+- `test_xpu_extension.py`: 7 tests (device selection, correctness, ordering, lifetime, caps, O-6 random + adversarial; skip unless `torch.xpu.is_available()`)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-..........................................
-----------------------------------------------------------------------
-Ran 42 tests in 15.256s
+Ran 49 tests in 12.971s
 
 OK
 ```
@@ -234,6 +258,7 @@ OK
 ## Git Commit History
 
 ```text
+40896bb 2026-10-20 19:48:23 +0200  feat(xpu): minimal SYCL extension probe via torch cpp_extension; close P0-18/P0-19
 d632227 2026-10-20 19:18:02 +0200  docs: add native dependency audit and close P0-15/P0-16
 229dca2 2026-10-20 19:05:33 +0200  fix(review): address review-2026-10-20T18:30:21+02:00 findings
 e0194b1 2026-10-20 17:26:48 +0200  docs(progress): record Steps 8-9 with commit-aligned time tags [2026-10-20 17:22:55 +02:00]
@@ -257,8 +282,8 @@ bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Ste
 
 ## Critical Path Next Steps
 
-1. **P0-18 / P0-19 / P0-23 — XPU Extension Skeleton & Capability Capture:** Build and execute a minimal SYCL extension through `torch.xpu` (oneAPI 2026.0), verify queue ordering and tensor lifetime, and save subgroup/SLM/max-allocation limits in `artifacts/environment/`.
-2. **V140-02 / P0-20 / V140-03 — Idle Baseline, Reserve Policy & Scratch Sizing:** Measure the idle profile, enforce the 6 GiB reserve, reconcile it with the estimator's 2 GiB default, and validate the wave-cap choice (`gpu_subslice_count` vs `max_compute_units`).
+1. **V140-02 / P0-20 / V140-03 — Idle Baseline, Reserve Policy & Scratch Sizing:** Measure the idle profile in `artifacts/environment/`, enforce the 6 GiB reserve, reconcile it with the estimator's 2 GiB default, and test representative scratch allocations through the framework allocator; validate the wave-cap choice (`gpu_subslice_count` vs `max_compute_units`).
+2. **G0-03 — `reports/gate_0.md`:** Record go/no-go, owners, and the Phase 1 estimate; carry P0-24/P0-25 (CUDA ground truth) and O-1 (terminal-edge parity) as explicit blockers. Note: **O-6 is now resolved on-device** and no longer a blocker.
 3. **P0-21 / P0-22 — Operator Coverage & Factorization Fallback:** Probe `cholesky`, `inv`, matmul/einsum and fp16 rounding on the 140V; measure any CPU fallback.
-4. **G0-03 — `reports/gate_0.md`:** Record go/no-go, owners, and the Phase 1 estimate; carry P0-24/O-1/O-6 as explicit blockers.
+4. **P1-15 / P1-16 — SYCL ACS Kernel Port:** Implement `quantize_tiles` on XPU following the audited contract, now with confidence in the fp16 FMA semantics (O-6) and the extension build path (P0-18).
 5. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback (device-independent reference track).
