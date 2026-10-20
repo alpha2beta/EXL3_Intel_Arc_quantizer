@@ -1,7 +1,7 @@
 # Gate 1 Encoder Readiness Report (`G1-01` .. `G1-03`)
 
 > **Report ID:** `reports/gate_1.md`  
-> **Time Tag:** `2026-10-20T20:52:00+02:00`  
+> **Time Tag:** `2026-10-20T20:57:38+02:00`  
 > **Target Profile:** `lunar_lake_140v_258v_32gb` (Intel Core Ultra 7 258V / Arc 140V `0x64A0`, 32 GB LPDDR5x UMA)  
 > **Evidence Artifacts:**  
 > - [`artifacts/benchmarks/phase1_encoder_bench.json`](../artifacts/benchmarks/phase1_encoder_bench.json)  

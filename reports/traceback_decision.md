@@ -1,7 +1,7 @@
 # Traceback Placement Decision Report (`P1-17` .. `P1-21`, `V140-04`, `V140-05`)
 
 > **Report ID:** `reports/traceback_decision.md`  
-> **Time Tag:** `2026-10-20T20:52:00+02:00`  
+> **Time Tag:** `2026-10-20T20:57:38+02:00`  
 > **Target Profile:** `lunar_lake_140v_258v_32gb` (Intel Core Ultra 7 258V / Arc 140V `0x64A0`, 32 GB LPDDR5x UMA)  
 > **Evidence Artifact:** [`artifacts/benchmarks/phase1_encoder_bench.json`](../artifacts/benchmarks/phase1_encoder_bench.json)  
 > **Decision:** **Select GPU-resident traceback (`gpu_resident` / `gpu_resident_split`) as the production default** on Intel Arc 140V.

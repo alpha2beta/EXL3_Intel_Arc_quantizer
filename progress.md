@@ -1,15 +1,15 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 20:18:50 +02:00  
+> **Last Updated:** 2026-10-20 20:57:38 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0 complete (conditional GO to Phase 1 recorded in `reports/gate_0.md`). Operator coverage, `block_ldl` reference/fallback benchmark, verified minimal SYCL extension, O-6 on-device resolution, and measured memory baseline/reserve policy established. 73 unit tests passing.  
+> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`). SYCL `quantize_tiles` encoder (`csrc/quantize_xpu/`), bounded `ScratchArena`, traceback placement benchmark (`reports/traceback_decision.md`), and Xe2 (`lnl-m`) ISA resource analysis established with 100% bit-exact parity against `ReferenceTrellisEncoder` and `exl3xpu.ref`. 84 unit tests passing.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
 
 ## Executive Summary
 
-Steps 1 through 14 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
+Steps 1 through 15 of the foundational and Phase 1 engineering work have been implemented, unit-tested, and verified against the audited contract:
 
 - Steps 1–5 established the initial CPU sandbox under review waiver `DEV-2026-10-20-01`.
 - Steps 6–7 fetched and audited the pinned upstream EXL3 source, establishing [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) and [`exl3_quant/trellis_format.py`](./exl3_quant/trellis_format.py).
@@ -20,6 +20,7 @@ Steps 1 through 14 of the foundational engineering work have been implemented, u
 - **Step 12 [2026-10-20 19:48:23 +0200]:** Built, verified, and committed the **minimal custom SYCL XPU extension** through `torch.utils.cpp_extension.load` (P0-18, P0-19), and **measured open item O-6 on-device**: the Arc 140V `sycl::fma(half)` performs exact fp16 single rounding — never fp32 double rounding — on 65,536 random and 11 adversarial-constructed inputs.
 - **Step 13 [2026-10-20 20:03:00 +0200]:** Established the **idle memory baseline** and the **configurable reserve/abort policy** (V140-02), tested representative scratch allocations through the framework allocator up to 3.02 GiB (P0-20, V140-03), and documented the measured **counter-lag** behaviour of the shared-memory accountant (V140-04 partial).
 - **Step 14 [2026-10-20 20:18:50 +0200]:** Implemented the contract §9.1 **`block_ldl`** transcription and equation test suite (P0-22), probed **17 operator/dtype pairs** with per-op XPU->CPU fallback attribution and benchmarked `block_ldl` up to `n=4096` (P0-21, P0-22), and published [`reports/gate_0.md`](./reports/gate_0.md) (G0-01..G0-03).
+- **Step 15 [2026-10-20 20:57:38 +0200]:** Implemented the **SYCL XPU tile encoder** (`csrc/quantize_xpu/`, `exl3_quant/xpu_quantizer.py`), bounded **`ScratchArena`** with smaller-batch retry, 4-mode **traceback placement comparison** ([`reports/traceback_decision.md`](./reports/traceback_decision.md)), IGC Xe2 (`lnl-m`) ISA resource analysis, and closed **Gate 1** ([`reports/gate_1.md`](./reports/gate_1.md), P1-03..P1-29, V140-04, V140-05, G1-01..G1-03).
 
 ```
 +-------------------------------------------------------------------------------------------------------+
@@ -38,6 +39,7 @@ Steps 1 through 14 of the foundational engineering work have been implemented, u
 | 11. XPU Extension Probe      | P0-18, P0-19, O-6        | Built & Verified (icpx SYCL)    | test_xpu_extension (7)|
 | 12. Memory Policy & Baseline | V140-02/03/04, P0-20     | Measured — Reserve Enforced     | test_memory_policy(14)|
 | 13. Block LDL & Op Coverage  | P0-21, P0-22, G0-01..03  | Gate 0 Closed (Conditional GO)  | test_ldlq.py (10)     |
+| 14. XPU SYCL Tile Encoder    | P1-03..P1-29, G1-01..03  | Gate 1 Closed (100% Bit-Exact)  | test_xpu_quantizer(11)|
 +------------------------------+--------------------------+---------------------------------+-----------------------+
 ```
 
@@ -279,9 +281,28 @@ Steps 1 through 14 of the foundational engineering work have been implemented, u
 
 ---
 
+### Step 15: SYCL XPU Tile Encoder, Bounded `ScratchArena`, Traceback Placement Comparison & Gate 1 Report (P1-03..P1-29, V140-04, V140-05, G1-01..G1-03)
+* **Time tag:** [2026-10-20 20:57:38 +0200]
+* **Commit:** `56cc74f`
+* **Sources:** [`csrc/quantize_xpu/quantize_kernels.sycl`](./csrc/quantize_xpu/quantize_kernels.sycl), [`csrc/quantize_xpu/quantize_xpu.cpp`](./csrc/quantize_xpu/quantize_xpu.cpp), [`exl3_quant/xpu_quantizer.py`](./exl3_quant/xpu_quantizer.py), [`scripts/benchmark_phase1_encoder.py`](./scripts/benchmark_phase1_encoder.py), [`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) (11 tests), [`artifacts/benchmarks/phase1_encoder_bench.json`](./artifacts/benchmarks/phase1_encoder_bench.json), [`reports/traceback_decision.md`](./reports/traceback_decision.md), [`reports/gate_1.md`](./reports/gate_1.md)
+* **Correctness & parity (P1-03..P1-08, P0-26):**
+  * Aligned `ReferenceTrellisEncoder.forward` and the SYCL kernel on the audited contract's exact fp16 subtraction (`dh = val - w` in fp16, matching `__hsub2` in `quantize_tiles_kernel.cuh:97, 128`) followed by single-rounded fp16 FMA (`sycl::fma`).
+  * Verified **100% bit-exact parity** on `output_indices`, `reconstructed`, `packed`, `end_state`, and `path_cost` across all `65,536` codebook states (`CB_3INST`, `CB_MCG`, `CB_MUL1`), bitrates `K in {1, 2, 3, 4}`, tile lengths `L in {256, 160}`, edge cases (`zeros`, `constant`, `outliers`, `alternating`), partial final batches (`19` tiles with `B=6`), multi-wave launches, and live `exl3xpu.ref` decoding.
+* **Bounded `ScratchArena` & batch sweep (P1-11..P1-16, V140-04):**
+  * Replaced upstream's unbounded `@lru_cache get_temp_buffers` (`R16`) with a single-residency, stream-synchronized `ScratchArena` enforcing `MemoryPolicy`.
+  * Verified automatic halving retry (`B=16 -> 8 -> 4` under simulated failure; `K=1, B=256 -> 128` under the `6.0 GiB` reserve) and zero-leak eviction across alternating `K in (2, 2, 3, 4, 2, 3, 2)`.
+  * Completed `V140-04`: `ScratchArenaLogEntry` explicitly records `distinct_staging_bytes` (`128 MiB` for `d2h_cpu`/`usm_host` at `K=2, N=16` vs `16 KiB` for `gpu_resident`).
+* **Traceback comparison & Xe2 ISA profiling (P1-17..P1-29, V140-05):**
+  * Benchmarked `gpu_resident` (`28.09 ms` at `K=2`, `16.05 ms` at `K=3`), `gpu_resident_split` (`25.61 ms` at `K=2`, `13.77 ms` at `K=3`, GPU traceback `0.23–0.25 ms`), `d2h_cpu` (`79.20 ms` at `K=2`, `50.85 ms` D2H copy), and `usm_host` (`41.34 ms` at `K=2`, zero D2H copy via `sycl::malloc_host`). Selected GPU-resident traceback in [`reports/traceback_decision.md`](./reports/traceback_decision.md).
+  * Analyzed IGC Xe2 (`lnl-m`) assembly dumps (`P1-24`, `P1-27`): `0` bytes of GRF spills in `128-GRF` mode (`-ze-opt-large-register-file` `256-GRF` rejected because it halves Xe-core EU thread capacity with zero spill reduction).
+  * Confirmed the SLM occupancy transition (`P1-26`): SLM cost storage is `+49%` faster at `K=3, 4` (`1,181–1,188 tiles/s`, `39.6–39.9 G transitions/s`, 2–4 WGs/Xe-core), whereas global cost storage is `+17.4%` faster at `K=2` (`724.0 tiles/s`) where `66.4 KiB` SLM caps occupancy to 1 WG/Xe-core.
+  * Closed **Gate 1** in [`reports/gate_1.md`](./reports/gate_1.md) (**GO to Phase 2**).
+
+---
+
 ## Test Suite Execution Evidence
 
-**73 unit tests** ran and passed cleanly as of [2026-10-20 20:18:50 +0200] across all test suites:
+**84 unit tests** ran and passed cleanly as of [2026-10-20 20:57:38 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -291,10 +312,11 @@ Steps 1 through 14 of the foundational engineering work have been implemented, u
 - `test_xpu_extension.py`: 7 tests (device selection, correctness, ordering, lifetime, caps, O-6 random + adversarial; skip unless `torch.xpu.is_available()`)
 - `test_memory_policy.py`: 14 tests (meminfo parsing, reserve arithmetic, admission boundaries, outstanding commitments, abort path, post-commit breach, live 32 MiB GPU allocation)
 - `test_ldlq.py`: 10 tests (`L Lᵀ = H`, block-inverse fold, identity block diagonal, retry-damping schedule, input validation, XPU vs CPU parity)
+- `test_xpu_quantizer.py`: 11 tests (XPU codebook parity, `K=1..4` & 3-codebook parity, `L=160` support, live `exl3xpu.ref` parity, edge cases & tie verification, partial chunks & waves, input rejection, async stream ordering, all 4 traceback modes & SG16/32 & SLM/global, bounded `ScratchArena` eviction/reuse, and smaller-batch retry)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 73 tests in 21.491s
+Ran 84 tests in 57.393s
 
 OK
 ```
@@ -304,6 +326,8 @@ OK
 ## Git Commit History
 
 ```text
+56cc74f 2026-10-20 20:57:38 +0200  feat(xpu): SYCL tile encoder, ScratchArena, traceback comparison, and Gate 1 report (Phase 1)
+1feefcc 2026-10-20 20:20:09 +0200  docs(progress): record Step 14 (operator coverage, block_ldl, Gate 0 report) [2026-10-20 20:18:50 +02:00]
 6ab0e7c 2026-10-20 20:18:50 +0200  feat(ldlq): operator coverage probe, block_ldl reference, and Gate 0 report (P0-17/P0-21/P0-22/P0-29/G0)
 1a98582 2026-10-20 20:03:00 +0200  feat(mem): idle baseline + reserve-based memory-pressure policy; close V140-02/P0-20/P0-23
 40896bb 2026-10-20 19:48:23 +0200  feat(xpu): minimal SYCL extension probe via torch cpp_extension; close P0-18/P0-19
@@ -330,7 +354,6 @@ bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Ste
 
 ## Critical Path Next Steps
 
-1. **P1-03 / P1-04 — SYCL ACS Kernel Port:** Implement `quantize_tiles` forward ACS search and GPU-resident traceback on XPU following the audited contract, using exact single-rounded `sycl::half` FMA semantics (`O-6`), the verified `icpx` build path (`P0-18`), and single-queue execution (`P1-08`).
-2. **P1-05 .. P1-08 — XPU Encoder Verification:** Verify path validity, distortion, tie-handling (`P1-06`), edge shapes/partial batches (`P1-07`), and live `exl3xpu.ref` decode parity across `K in {1, 2, 3, 4}` and all 3 codebooks.
-3. **P1-11 .. P1-16 / V140-04 / V140-05 — Bounded Scratch Arena & B Sweep:** Wire `MemoryPolicy` into `ScratchEstimator`, implement bounded event-aware scratch reuse and smaller-batch retry, complete distinct staging copy accounting (`V140-04`), and run the `B` sweep for Gate 1 (`reports/gate_1.md`).
-4. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ error feedback (`ldlq` consuming `block_ldl`).
+1. **P2-04 / P2-05 / P2-06 — Regularization, Scales/Signs & Sylvester Hadamard ($H_{128}$):** Implement upstream Hessian regularization, `su`/`sv` scale/sign extraction, and exact $H_{128}$ Hadamard pre/post transforms (`exl3_quant/`).
+2. **P2-08 .. P2-12 — Blockwise One-Sided `ldlq` Integration:** Implement the bottom-up `ldlq` error-feedback traversal (`quantize.py:493-609`) combining `block_ldl` (`exl3_quant/ldlq.py`), `XPUTrellisEncoder` (`exl3_quant/xpu_quantizer.py`), and `ScratchArena`.
+3. **P2-01 .. P2-03, P2-13 .. P2-18, V140-06 & Gate 2:** Execute calibration/Hessian capture and full single-layer conversion on Arc 140V, validate packed `.safetensors` output through `exl3xpu.ref`, profile peak memory across repeated layer conversions, and publish `reports/gate_2.md`.
