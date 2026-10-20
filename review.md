@@ -251,5 +251,36 @@ transcription.
 |---|---|---|---|---|
 | `review-2026-10-20T13:50:25+02:00` | 2026-10-20 13:50:25 +02:00 | `bc048fe` | 4 blocking findings (B1–B4); 2 factual errors in progress.md; 6 code-level issues; core implementation solid but contract-unverified | `review.md` (this file) |
 | ↳ addendum A1–A8 (same review ID) | 2026-10-20 (post-audit) | `bc048fe` + upstream `4d7b69c7…` | B1/B2/B3 upgraded to **confirmed incorrect**; new findings A4 (format is not a bit-permutation), A5 (wrong encoder output unit), A7 (LDLQ contract extractable); A8 lists the offline-executable task set | `review.md` + `docs/algorithm_contract.md` |
+| `review-2026-10-20T14:28:01+02:00` | 2026-10-20 14:28:01 +02:00 | `b4aac24` | 🟢 **PASS / EXEMPLARY CORRECTION**: Steps 6–7 audit upstream contract; format primitives bit-exact; provisional prototypes confirmed incorrect and slated for replacement | `review.md` (conclusion below) |
 
 <!-- Future reviews: append a row above and create a new timestamped review file. -->
+
+---
+
+## Review Conclusion: Progress Evaluation — Steps 6 & 7 [2026-10-20 14:28:01 +02:00]
+
+> **Review ID:** `review-2026-10-20T14:28:01+02:00`  
+> **Reviewed Target:** `progress.md` at commit `b4aac24` (and preceding audit commits `7647cd6`, `cab8503`)  
+> **Evaluator:** Antigravity (Pair Programming Agent)  
+> **Verdict:** 🟢 **PASS / EXEMPLARY CORRECTION** — Upstream contract successfully established; Phase 0 audit objectives achieved; format primitives verified bit-exact.
+
+### 1. Executive Assessment
+The latest progress documented in [`progress.md`](./progress.md) marks the most significant qualitative leap in the project. The earlier speculative prototype work (Steps 3–4) has been decisively superseded by a thorough, line-level source audit of pinned upstream ExLlamaV3 (`turboderp-org/exllamav3 @ 4d7b69c7…`) and the `exl3xpu` CPU reference oracle (`sybil-solutions/exl3xpu @ 15ded2f3`).
+
+The project now possesses an authoritative, 13-section technical contract ([`docs/algorithm_contract.md`](./docs/algorithm_contract.md)) and fully verified format primitives ([`exl3_quant/trellis_format.py`](./exl3_quant/trellis_format.py)) accompanied by 17 format conformance unit tests. All 34 tests across the repository pass cleanly in 0.199s on host CPU.
+
+### 2. Key Audit Milestones Verified
+1. **Root-Cause Clarification of Earlier Deviations:**
+   - Proved mathematically and empirically that `exl3_quant/bitpack.py` is format-incompatible: the EXL3 container is a **circular state-history window** over 16-bit states with `SWAP16` half-word ordering, not an independent-symbol bitstream.
+   - Proved that `mul1` is an algebraic pseudorandom hash over 16-bit states (`0x83DCD12D`, `dp4a`, `__hfma`) yielding 913 discrete levels, rather than a uniform linear grid.
+   - Proved that the encoder emits **16-bit states**, not sub-byte symbol indices.
+2. **Component Validation:**
+   - **`ScratchEstimator`:** Confirmed **100% correct** against upstream `get_temp_buffers` (`quantize.py:52-63`). Sizing fixtures from `tasks.md` lines 121–129 are verified.
+   - **Trellis Format Primitives:** Transcribed bit-exactly into `exl3_quant/trellis_format.py` (covering `codebook_lut`, `tensor_core_perm`, `pack_trellis`, `swap16_storage`, `decode_states`).
+   - **Format Conformance Testing:** Verified bit-exact round-trip layout identity for all supported $K \in \{1, 2, 3, 4, 5, 6, 8\}$, while confirming that negative tests catch bit flips, endianness errors, and parameter distortions.
+
+### 3. Open Risks & Immediate Directives
+1. **Deprecate Provisional Code:** `exl3_quant/reference_encoder.py` and `exl3_quant/bitpack.py` are now known to be broken. They must be replaced by an audited CPU Viterbi encoder transcribing `quantize_tiles_kernel.cuh` (fp16 metric, two-pass tail-biting ring, per-state LUT) and `trellis_format.pack_trellis`.
+2. **Publish `docs/compatibility_manifest.md` (P0-08):** Formalize model target, codebook, $K$, calibration corpus, and numerical acceptance thresholds.
+3. **Hardware Boundary Confirmed:** Tier-4 acceptance (numerical parity against CUDA Viterbi search) is the sole item requiring a CUDA reference run. All remaining Phase 0/1/2 mathematical, transform, and packaging scaffolding is confirmed 100% executable on the current host CPU.
+
