@@ -1,8 +1,8 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 20:57:38 +02:00  
+> **Last Updated:** 2026-10-20 22:02:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`). SYCL `quantize_tiles` encoder (`csrc/quantize_xpu/`), bounded `ScratchArena`, traceback placement benchmark (`reports/traceback_decision.md`), and Xe2 (`lnl-m`) ISA resource analysis established with 100% bit-exact parity against `ReferenceTrellisEncoder` and `exl3xpu.ref`. 84 unit tests passing.  
+> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`), and the Phase 1 hardening review (`review-2026-10-20T21:06:51+02:00`) fully remediated: `ScratchArena` reclamation defects B1/B2 fixed with regression tests, and residuals M2/M3/L2/L5 plus the M1 negative test closed. 87 unit tests passing. Next: Phase 2 numerical preprocessing (`P2-04`/`P2-06`).  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -300,9 +300,22 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 
 ---
 
+### Step 16: Phase 1 Hardening — `ScratchArena` Reclamation Fixes & Review Residuals (B1, B2, M1–M3, L1–L7)
+* **Time tag:** [2026-10-20 22:02:00 +0200]
+* **Commits:** `3006a32` (B1/B2/M1 fixes + regression tests), `fcdedd4` (M2/M3/L2/L5/M1-test residuals)
+* **Trigger:** [`review-2026-10-20T21:06:51+02:00`](./review.md) — Phase 1 accepted, arena reclamation blocking for Phase 2.
+* **B1 — retry double residency (fixed):** `ScratchArena.acquire` now clears `costs`/`edges` and calls `empty_cache()` inside the `except` before halving `B`. Independently reproduced: live allocation at the second attempt is now `0.0 MiB` (previously `32.2 MiB` for a `K=3, B=8 → 4` retry). Regression test: `test_retry_path_no_double_residency_b1`.
+* **B2 — failed-acquisition leak (fixed):** failure now frees the buffers and raises a freshly constructed `MemoryPressureError` (`raise clean_err from None`) detached from the allocation frame. Independently reproduced in a clean process: `0.000 MiB` live while the exception (with traceback) is retained, `resident_bytes == 0`. Regression test: `test_failed_acquisition_frees_all_scratch_b2`.
+* **M1 — post-commit enforcement (strengthened):** `MemoryPolicy.check_after_commit` now treats **allocator-visible growth** (`device_allocated` delta ≥ expected) as authoritative and the OS/device free counters as advisory — matching the measured Arc 140V counter lag. Added the previously missing negative test `test_allocator_growth_assertion`.
+* **M2 — benchmark provenance (closed):** `scripts/benchmark_phase1_encoder.py --cold-build` now forces a clean rebuild; the artifact records a measured `cold_build_seconds = 17.22 s` plus `cold_build_provenance`, and the ISA section carries explicit `provenance`. The hand-edited `13.78 s` value is gone.
+* **M3 — production extension docs (closed):** `docs/extension_build.md` documents `csrc/quantize_xpu/` (kernel inventory, build lifecycle, actual torch-injected flags) and the validated `IGC_ShaderDumpEnable=1 → OCL_asm*.asm` path; duplicate `## 4.` headings and absolute `file://` links were removed, and the non-functional `ocloc disasm ...spv` command was replaced.
+* **L-series:** L1 (test-matrix wording), L3 (split-mode wave note), L4 (`postprocess_seconds`), L5 (`distinct_staging_bytes` conservatism documented), L6 (NaN divergence in the contract), L7 (README/R16) closed; L2 resolved by dropping the mislabeled `mean_wave_dispatch_ms` field from the artifact.
+
+---
+
 ## Test Suite Execution Evidence
 
-**84 unit tests** ran and passed cleanly as of [2026-10-20 20:57:38 +0200] across all test suites:
+**87 unit tests** ran and passed cleanly as of [2026-10-20 22:02:00 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -310,13 +323,13 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_oracle_parity.py`: 4 tests (live bit-exact parity against `exl3xpu.ref`)
 - `test_bitpack.py`: 4 tests (sub-byte packing shim)
 - `test_xpu_extension.py`: 7 tests (device selection, correctness, ordering, lifetime, caps, O-6 random + adversarial; skip unless `torch.xpu.is_available()`)
-- `test_memory_policy.py`: 14 tests (meminfo parsing, reserve arithmetic, admission boundaries, outstanding commitments, abort path, post-commit breach, live 32 MiB GPU allocation)
+- `test_memory_policy.py`: 15 tests (meminfo parsing, reserve arithmetic, admission boundaries, outstanding commitments, abort path, post-commit breach, allocator-growth assertion, live 32 MiB GPU allocation)
 - `test_ldlq.py`: 10 tests (`L Lᵀ = H`, block-inverse fold, identity block diagonal, retry-damping schedule, input validation, XPU vs CPU parity)
 - `test_xpu_quantizer.py`: 11 tests (XPU codebook parity, `K=1..4` & 3-codebook parity, `L=160` support, live `exl3xpu.ref` parity, edge cases & tie verification, partial chunks & waves, input rejection, async stream ordering, all 4 traceback modes & SG16/32 & SLM/global, bounded `ScratchArena` eviction/reuse, and smaller-batch retry)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 84 tests in 57.393s
+Ran 87 tests in 46.733s
 
 OK
 ```
@@ -326,6 +339,8 @@ OK
 ## Git Commit History
 
 ```text
+fcdedd4 2026-10-20 22:02:00 +0200  docs(test): close Phase 1 hardening residuals (M2/M3/L2/L5/M1-test)
+3006a32 2026-10-20 21:45:00 +0200  fix(review): address review-2026-10-20T21:06:51+02:00 findings
 56cc74f 2026-10-20 20:57:38 +0200  feat(xpu): SYCL tile encoder, ScratchArena, traceback comparison, and Gate 1 report (Phase 1)
 1feefcc 2026-10-20 20:20:09 +0200  docs(progress): record Step 14 (operator coverage, block_ldl, Gate 0 report) [2026-10-20 20:18:50 +02:00]
 6ab0e7c 2026-10-20 20:18:50 +0200  feat(ldlq): operator coverage probe, block_ldl reference, and Gate 0 report (P0-17/P0-21/P0-22/P0-29/G0)
