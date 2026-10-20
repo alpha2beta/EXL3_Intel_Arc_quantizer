@@ -204,8 +204,17 @@ class TestLiveCapture(unittest.TestCase):
             torch.xpu.synchronize()
             post = capture_snapshot()
             policy.check_after_commit(post)
-            self.assertGreaterEqual(post.device_allocated_bytes, size)
-            self.assertLess(post.device_free_bytes, pre.device_free_bytes)
+            self.assertGreaterEqual(
+                post.device_allocated_bytes - pre.device_allocated_bytes, size
+            )
+            self.assertLess(
+                policy.usable_bytes(
+                    post, outstanding_bytes=post.device_allocated_bytes
+                ),
+                policy.usable_bytes(
+                    pre, outstanding_bytes=pre.device_allocated_bytes
+                ),
+            )
         finally:
             del buffer
             torch.xpu.empty_cache()

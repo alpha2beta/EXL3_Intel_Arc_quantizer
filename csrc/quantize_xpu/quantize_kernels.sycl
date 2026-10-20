@@ -1,0 +1,841 @@
+// SYCL device kernels for EXL3 tile quantization on Intel Arc XPU
+// (P1-03, P1-04, P1-17..P1-19, P1-24..P1-27).
+//
+// Normative contract: docs/algorithm_contract.md sections 3-6, transcribed from
+// upstream exllamav3 quantize_tiles_kernel.cuh:23-313 and codebook.cuh:56-90.
+//
+// Key invariants:
+//   1. All branch metrics and forward path cost accumulations run in fp16
+//      (sycl::half) using exact single-rounded sycl::fma(dh, dh, prev_cost),
+//      proven bit-exact on Arc 140V in P0-18 / O-6.
+//   2. Tie-breaking is strict `<` in ascending candidate order k = 0..max_q-1,
+//      and terminal argmin_cost breaks ties toward the lowest edge index e.
+//   3. Two-pass tail-biting schedule:
+//        Pass 1: forward(L/2, -1) -> best_edge = argmin_cost -> backward(L/2)
+//        Pass 2: forward(0, end_state) -> backward(0, write=true, end_state)
+//   4. All kernels submit to c10::xpu::getCurrentXPUStream(device).queue();
+//      no secondary SYCL queues are created (P1-08).
+
+#include <c10/util/Half.h>
+#include <c10/xpu/XPUStream.h>
+
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
+
+namespace {
+
+constexpr int WG_SIZE = 512;
+constexpr int MAX_SUBGROUPS = WG_SIZE / 16;  // 32 when SG=16, 16 when SG=32
+constexpr uint16_t H_INF_BITS = 0x7C00u;
+
+inline sycl::queue& current_queue(int64_t device_index) {
+  return c10::xpu::getCurrentXPUStream(
+             static_cast<c10::DeviceIndex>(device_index))
+      .queue();
+}
+
+inline sycl::half h_inf() {
+  return sycl::bit_cast<sycl::half>(H_INF_BITS);
+}
+
+inline bool is_finite_cost(sycl::half c) {
+  const uint16_t bits = sycl::bit_cast<uint16_t>(c);
+  return (bits & 0x7C00u) != 0x7C00u;
+}
+
+// Procedural codebook evaluation (docs/algorithm_contract.md section 3).
+// cb == 0: CB_3INST, cb == 1: CB_MCG, cb == 2: CB_MUL1.
+inline sycl::half decode_cb(int cb, uint16_t state) {
+  if (cb == 2) {
+    const uint32_t x = static_cast<uint32_t>(state) * 0x83DCD12Du;
+    const uint32_t bsum = (x & 0xFFu) + ((x >> 8) & 0xFFu) +
+                          ((x >> 16) & 0xFFu) + ((x >> 24) & 0xFFu);
+    const uint16_t h_bits = static_cast<uint16_t>(0x6400u + bsum);
+    const sycl::half h = sycl::bit_cast<sycl::half>(h_bits);
+    const sycl::half inv =
+        sycl::bit_cast<sycl::half>(static_cast<uint16_t>(0x1EEEu));
+    const sycl::half bias =
+        sycl::bit_cast<sycl::half>(static_cast<uint16_t>(0xC931u));
+    return sycl::fma(h, inv, bias);
+  }
+  const uint32_t x_raw =
+      (cb == 0) ? (static_cast<uint32_t>(state) * 89226354u + 64248484u)
+                : (static_cast<uint32_t>(state) * 0xCBAC1FEDu);
+  const uint32_t x = (x_raw & 0x8FFF8FFFu) ^ 0x3B603B60u;
+  const sycl::half lo =
+      sycl::bit_cast<sycl::half>(static_cast<uint16_t>(x & 0xFFFFu));
+  const sycl::half hi =
+      sycl::bit_cast<sycl::half>(static_cast<uint16_t>(x >> 16));
+  return lo + hi;
+}
+
+inline int ring_index(int i, int roll, int L) {
+  int ri = i + roll;
+  if (ri >= L) ri -= L;
+  return ri;
+}
+
+// Forward ACS pass over all L steps for a single tile (one work-group).
+template <typename CostPtr>
+inline void run_forward_acs(
+    const sycl::nd_item<1>& item,
+    const sycl::half* tile_weights,
+    CostPtr cost_buf_0,
+    CostPtr cost_buf_1,
+    int16_t* slot_edges,
+    int K,
+    int cb,
+    int L,
+    int roll,
+    int pre_state) {
+  const int tid = static_cast<int>(item.get_local_linear_id());
+  const int Kr = 16 - K;
+  const int max_q = 1 << K;
+  const int edges = 65536 >> K;
+  const sycl::half inf_val = h_inf();
+
+  // Step 0: local branch metric only, with optional pre_state wrap mask.
+  {
+    const int ri0 = ring_index(0, roll, L);
+    const sycl::half w0 = tile_weights[ri0];
+    int16_t* edge_row0 = slot_edges + ri0 * edges;
+
+    for (int e = tid; e < edges; e += WG_SIZE) {
+      sycl::half min_cost = inf_val;
+      uint16_t min_pred = 0;
+      for (int k = 0; k < max_q; ++k) {
+        const uint16_t sigma = static_cast<uint16_t>((k << Kr) | e);
+        const uint16_t pred = static_cast<uint16_t>(sigma >> K);
+        const sycl::half val = decode_cb(cb, sigma);
+        const sycl::half dh = val - w0;
+        sycl::half err = dh * dh;
+        if (pre_state >= 0 && static_cast<int>(pred) != pre_state) {
+          err = inf_val;
+        }
+        if (k == 0 || err < min_cost) {
+          min_cost = err;
+          min_pred = pred;
+        }
+      }
+      cost_buf_0[e] = min_cost;
+      edge_row0[e] = static_cast<int16_t>(min_pred);
+    }
+  }
+  sycl::group_barrier(item.get_group());
+
+  // Steps 1 .. L-1: fused fp16 multiply-add accumulation.
+  for (int i = 1; i < L; ++i) {
+    const int ri = ring_index(i, roll, L);
+    const sycl::half w = tile_weights[ri];
+    int16_t* edge_row = slot_edges + ri * edges;
+    CostPtr cost_in = (i & 1) ? cost_buf_0 : cost_buf_1;
+    CostPtr cost_out = (i & 1) ? cost_buf_1 : cost_buf_0;
+
+    for (int e = tid; e < edges; e += WG_SIZE) {
+      sycl::half min_cost = inf_val;
+      uint16_t min_pred = 0;
+      for (int k = 0; k < max_q; ++k) {
+        const uint16_t sigma = static_cast<uint16_t>((k << Kr) | e);
+        const uint16_t pred = static_cast<uint16_t>(sigma >> K);
+        const sycl::half val = decode_cb(cb, sigma);
+        const sycl::half dh = val - w;
+        const sycl::half prev_c = cost_in[pred];
+        const sycl::half err = sycl::fma(dh, dh, prev_c);
+        if (k == 0 || err < min_cost) {
+          min_cost = err;
+          min_pred = pred;
+        }
+      }
+      cost_out[e] = min_cost;
+      edge_row[e] = static_cast<int16_t>(min_pred);
+    }
+    sycl::group_barrier(item.get_group());
+  }
+}
+
+// Parallel argmin over edges with strict `<` tie-breaking (lowest edge wins;
+// returns 0 if all costs are non-finite / H_INF).
+template <int SG, typename CostPtr>
+inline int run_argmin_cost(
+    const sycl::nd_item<1>& item,
+    CostPtr cost_final,
+    int edges,
+    sycl::half* slm_red_cost,
+    int32_t* slm_red_edge,
+    int32_t* slm_red_valid,
+    int32_t* slm_Broadcast) {
+  const int tid = static_cast<int>(item.get_local_linear_id());
+  auto sg = item.get_sub_group();
+  const int sg_id = static_cast<int>(sg.get_group_linear_id());
+  const int sg_lane = static_cast<int>(sg.get_local_linear_id());
+  const int num_sg = WG_SIZE / SG;
+
+  sycl::half my_cost = h_inf();
+  int32_t my_edge = 0;
+  bool my_valid = false;
+
+  for (int e = tid; e < edges; e += WG_SIZE) {
+    const sycl::half c = cost_final[e];
+    if (is_finite_cost(c)) {
+      if (!my_valid || c < my_cost || (c == my_cost && e < my_edge)) {
+        my_cost = c;
+        my_edge = e;
+        my_valid = true;
+      }
+    }
+  }
+
+  for (int offset = SG / 2; offset > 0; offset >>= 1) {
+    const int other_valid =
+        sycl::shift_group_left(sg, my_valid ? 1 : 0, offset);
+    const uint16_t other_bits = sycl::shift_group_left(
+        sg, sycl::bit_cast<uint16_t>(my_cost), offset);
+    const sycl::half other_cost = sycl::bit_cast<sycl::half>(other_bits);
+    const int32_t other_edge = sycl::shift_group_left(sg, my_edge, offset);
+    if (other_valid) {
+      if (!my_valid || other_cost < my_cost ||
+          (other_cost == my_cost && other_edge < my_edge)) {
+        my_cost = other_cost;
+        my_edge = other_edge;
+        my_valid = true;
+      }
+    }
+  }
+
+  if (sg_lane == 0) {
+    slm_red_cost[sg_id] = my_cost;
+    slm_red_edge[sg_id] = my_edge;
+    slm_red_valid[sg_id] = my_valid ? 1 : 0;
+  }
+  sycl::group_barrier(item.get_group());
+
+  if (tid == 0) {
+    sycl::half best_cost = h_inf();
+    int32_t best_edge = 0;
+    bool best_valid = false;
+    for (int s = 0; s < num_sg; ++s) {
+      if (slm_red_valid[s]) {
+        const sycl::half c = slm_red_cost[s];
+        const int32_t e = slm_red_edge[s];
+        if (!best_valid || c < best_cost || (c == best_cost && e < best_edge)) {
+          best_cost = c;
+          best_edge = e;
+          best_valid = true;
+        }
+      }
+    }
+    slm_Broadcast[0] = best_valid ? best_edge : 0;
+  }
+  sycl::group_barrier(item.get_group());
+  return slm_Broadcast[0];
+}
+
+struct DecodeCodebookKernel {
+  int cb;
+  sycl::half* out;
+  void operator()(sycl::item<1> it) const {
+    const uint16_t state = static_cast<uint16_t>(it.get_linear_id());
+    out[state] = decode_cb(cb, state);
+  }
+};
+
+template <int SG, bool USE_SLM>
+struct FusedQuantizeKernel {
+  const float* input_tiles;
+  float* output_tiles;
+  int16_t* output_indices;
+  sycl::half* temp_costs;
+  int16_t* temp_edges;
+  int tile_offset;
+  int K;
+  int cb;
+  int L;
+  sycl::local_accessor<sycl::half, 1> slm_costs;
+  sycl::local_accessor<sycl::half, 1> slm_tile;
+  sycl::local_accessor<sycl::half, 1> slm_red_cost;
+  sycl::local_accessor<int32_t, 1> slm_red_edge;
+  sycl::local_accessor<int32_t, 1> slm_red_valid;
+  sycl::local_accessor<int32_t, 1> slm_state;
+
+  [[sycl::reqd_sub_group_size(SG)]] void operator()(
+      sycl::nd_item<1> item) const {
+    const int slot = static_cast<int>(item.get_group(0));
+    const int tile_idx = tile_offset + slot;
+    const int tid = static_cast<int>(item.get_local_linear_id());
+    const int edges = 65536 >> K;
+
+    const float* in_tile = input_tiles + static_cast<int64_t>(tile_idx) * L;
+    float* out_tile = output_tiles + static_cast<int64_t>(tile_idx) * L;
+    int16_t* out_idx = output_indices + static_cast<int64_t>(tile_idx) * L;
+    int16_t* slot_edges =
+        temp_edges + static_cast<int64_t>(slot) * L * edges;
+    sycl::half* global_costs0 =
+        temp_costs + static_cast<int64_t>(slot) * 2 * edges;
+    sycl::half* global_costs1 = global_costs0 + edges;
+
+    sycl::half* tile_w =
+        slm_tile.template get_multi_ptr<sycl::access::decorated::no>().get();
+    sycl::half* red_cost =
+        slm_red_cost.template get_multi_ptr<sycl::access::decorated::no>().get();
+    int32_t* red_edge =
+        slm_red_edge.template get_multi_ptr<sycl::access::decorated::no>().get();
+    int32_t* red_valid =
+        slm_red_valid.template get_multi_ptr<sycl::access::decorated::no>().get();
+    int32_t* state_buf =
+        slm_state.template get_multi_ptr<sycl::access::decorated::no>().get();
+
+    for (int r = tid; r < L; r += WG_SIZE) {
+      tile_w[r] = static_cast<sycl::half>(in_tile[r]);
+    }
+    sycl::group_barrier(item.get_group());
+
+    sycl::half* cost0 = nullptr;
+    sycl::half* cost1 = nullptr;
+    if constexpr (USE_SLM) {
+      sycl::half* slm_base =
+          slm_costs.template get_multi_ptr<sycl::access::decorated::no>().get();
+      cost0 = slm_base;
+      cost1 = slm_base + edges;
+    } else {
+      cost0 = global_costs0;
+      cost1 = global_costs1;
+    }
+
+    // Pass 1: forward(L / 2, pre_state = -1)
+    run_forward_acs(item, tile_w, cost0, cost1, slot_edges, K, cb, L, L / 2, -1);
+
+    // Since L is even (256 or 160), step L - 1 writes to cost1.
+    if constexpr (USE_SLM) {
+      for (int e = tid; e < edges; e += WG_SIZE) {
+        global_costs0[e] = cost1[e];
+      }
+    }
+
+    const int best_edge = run_argmin_cost<SG>(
+        item, cost1, edges, red_cost, red_edge, red_valid, state_buf);
+
+    // Pass 1 backward(L / 2, write = false, best_edge) -> end_state
+    if (tid == 0) {
+      int edge = best_edge;
+      for (int i = L - 1; i >= 0; --i) {
+        const int ri = ring_index(i, L / 2, L);
+        const int prev =
+            static_cast<uint16_t>(slot_edges[ri * edges + edge]);
+        edge = prev;
+        if (ri == 0) break;
+      }
+      state_buf[1] = edge;
+    }
+    sycl::group_barrier(item.get_group());
+    const int end_state = state_buf[1];
+
+    // Pass 2: forward(0, pre_state = end_state)
+    run_forward_acs(item, tile_w, cost0, cost1, slot_edges, K, cb, L, 0,
+                    end_state);
+
+    if constexpr (USE_SLM) {
+      for (int e = tid; e < edges; e += WG_SIZE) {
+        global_costs1[e] = cost1[e];
+      }
+    }
+
+    // Pass 2 backward(0, write = true, end_state)
+    if (tid == 0) {
+      int edge = end_state;
+      for (int i = L - 1; i >= 0; --i) {
+        const int ri = i;
+        const int prev =
+            static_cast<uint16_t>(slot_edges[ri * edges + edge]);
+        const uint16_t encoded =
+            static_cast<uint16_t>((prev << K) | edge);
+        edge = prev;
+        out_idx[ri] = static_cast<int16_t>(encoded);
+        out_tile[ri] = static_cast<float>(decode_cb(cb, encoded));
+      }
+    }
+  }
+};
+
+template <int SG, bool USE_SLM>
+struct ForwardOnlyKernel {
+  const float* input_tiles;
+  sycl::half* temp_costs;
+  int16_t* temp_edges;
+  const int32_t* pre_states;
+  int K;
+  int cb;
+  int L;
+  int roll;
+  int cost_slot;
+  sycl::local_accessor<sycl::half, 1> slm_costs;
+  sycl::local_accessor<sycl::half, 1> slm_tile;
+
+  [[sycl::reqd_sub_group_size(SG)]] void operator()(
+      sycl::nd_item<1> item) const {
+    const int slot = static_cast<int>(item.get_group(0));
+    const int tid = static_cast<int>(item.get_local_linear_id());
+    const int edges = 65536 >> K;
+
+    const float* in_tile = input_tiles + static_cast<int64_t>(slot) * L;
+    int16_t* slot_edges =
+        temp_edges + static_cast<int64_t>(slot) * L * edges;
+    sycl::half* global_costs0 =
+        temp_costs + static_cast<int64_t>(slot) * 2 * edges;
+    sycl::half* global_costs1 = global_costs0 + edges;
+
+    sycl::half* tile_w =
+        slm_tile.template get_multi_ptr<sycl::access::decorated::no>().get();
+    for (int r = tid; r < L; r += WG_SIZE) {
+      tile_w[r] = static_cast<sycl::half>(in_tile[r]);
+    }
+    sycl::group_barrier(item.get_group());
+
+    sycl::half* cost0 = nullptr;
+    sycl::half* cost1 = nullptr;
+    if constexpr (USE_SLM) {
+      sycl::half* slm_base =
+          slm_costs.template get_multi_ptr<sycl::access::decorated::no>().get();
+      cost0 = slm_base;
+      cost1 = slm_base + edges;
+    } else {
+      cost0 = global_costs0;
+      cost1 = global_costs1;
+    }
+
+    const int pre_state = pre_states[slot];
+    run_forward_acs(item, tile_w, cost0, cost1, slot_edges, K, cb, L, roll,
+                    pre_state);
+
+    sycl::half* dst = (cost_slot == 0) ? global_costs0 : global_costs1;
+    if (dst != cost1) {
+      for (int e = tid; e < edges; e += WG_SIZE) {
+        dst[e] = cost1[e];
+      }
+    }
+  }
+};
+
+template <int SG>
+struct BackwardOnlyKernel {
+  const sycl::half* temp_costs;
+  const int16_t* temp_edges;
+  float* output_tiles;
+  int16_t* output_indices;
+  int32_t* end_states;
+  int K;
+  int cb;
+  int L;
+  int roll;
+  int cost_slot;
+  bool write_output;
+  sycl::local_accessor<sycl::half, 1> slm_red_cost;
+  sycl::local_accessor<int32_t, 1> slm_red_edge;
+  sycl::local_accessor<int32_t, 1> slm_red_valid;
+  sycl::local_accessor<int32_t, 1> slm_state;
+
+  [[sycl::reqd_sub_group_size(SG)]] void operator()(
+      sycl::nd_item<1> item) const {
+    const int slot = static_cast<int>(item.get_group(0));
+    const int tid = static_cast<int>(item.get_local_linear_id());
+    const int edges = 65536 >> K;
+
+    const int16_t* slot_edges =
+        temp_edges + static_cast<int64_t>(slot) * L * edges;
+    const sycl::half* slot_costs =
+        temp_costs + (static_cast<int64_t>(slot) * 2 + cost_slot) * edges;
+
+    sycl::half* red_cost =
+        slm_red_cost.template get_multi_ptr<sycl::access::decorated::no>().get();
+    int32_t* red_edge =
+        slm_red_edge.template get_multi_ptr<sycl::access::decorated::no>().get();
+    int32_t* red_valid =
+        slm_red_valid.template get_multi_ptr<sycl::access::decorated::no>().get();
+    int32_t* state_buf =
+        slm_state.template get_multi_ptr<sycl::access::decorated::no>().get();
+
+    if (!write_output) {
+      const int best_edge = run_argmin_cost<SG>(
+          item, slot_costs, edges, red_cost, red_edge, red_valid, state_buf);
+      if (tid == 0) {
+        int edge = best_edge;
+        for (int i = L - 1; i >= 0; --i) {
+          const int ri = ring_index(i, roll, L);
+          const int prev =
+              static_cast<uint16_t>(slot_edges[ri * edges + edge]);
+          edge = prev;
+          if (ri == 0) break;
+        }
+        end_states[slot] = edge;
+      }
+    } else if (tid == 0) {
+      float* out_tile = output_tiles + static_cast<int64_t>(slot) * L;
+      int16_t* out_idx = output_indices + static_cast<int64_t>(slot) * L;
+      int edge = end_states[slot];
+      for (int i = L - 1; i >= 0; --i) {
+        const int ri = ring_index(i, roll, L);
+        const int prev =
+            static_cast<uint16_t>(slot_edges[ri * edges + edge]);
+        const uint16_t encoded =
+            static_cast<uint16_t>((prev << K) | edge);
+        edge = prev;
+        out_idx[ri] = static_cast<int16_t>(encoded);
+        out_tile[ri] = static_cast<float>(decode_cb(cb, encoded));
+      }
+    }
+  }
+};
+
+template <int SG, bool USE_SLM>
+void submit_fused_wave(
+    sycl::queue& q,
+    const float* input_tiles,
+    float* output_tiles,
+    int16_t* output_indices,
+    sycl::half* temp_costs,
+    int16_t* temp_edges,
+    int tile_offset,
+    int wave_tiles,
+    int K,
+    int cb,
+    int L) {
+  const int edges = 65536 >> K;
+  const size_t slm_cost_elems = USE_SLM ? static_cast<size_t>(2 * edges) : 1;
+  q.submit([&](sycl::handler& h) {
+    sycl::local_accessor<sycl::half, 1> slm_costs(
+        sycl::range<1>(slm_cost_elems), h);
+    sycl::local_accessor<sycl::half, 1> slm_tile(sycl::range<1>(256), h);
+    sycl::local_accessor<sycl::half, 1> slm_red_cost(
+        sycl::range<1>(MAX_SUBGROUPS), h);
+    sycl::local_accessor<int32_t, 1> slm_red_edge(
+        sycl::range<1>(MAX_SUBGROUPS), h);
+    sycl::local_accessor<int32_t, 1> slm_red_valid(
+        sycl::range<1>(MAX_SUBGROUPS), h);
+    sycl::local_accessor<int32_t, 1> slm_state(sycl::range<1>(4), h);
+
+    h.parallel_for<FusedQuantizeKernel<SG, USE_SLM>>(
+        sycl::nd_range<1>(
+            sycl::range<1>(static_cast<size_t>(wave_tiles) * WG_SIZE),
+            sycl::range<1>(WG_SIZE)),
+        FusedQuantizeKernel<SG, USE_SLM>{
+            input_tiles, output_tiles, output_indices, temp_costs, temp_edges,
+            tile_offset, K, cb, L, slm_costs, slm_tile, slm_red_cost,
+            slm_red_edge, slm_red_valid, slm_state});
+  });
+}
+
+template <int SG, bool USE_SLM>
+void submit_forward_only(
+    sycl::queue& q,
+    const float* input_tiles,
+    sycl::half* temp_costs,
+    int16_t* temp_edges,
+    const int32_t* pre_states,
+    int num_tiles,
+    int K,
+    int cb,
+    int L,
+    int roll,
+    int cost_slot) {
+  const int edges = 65536 >> K;
+  const size_t slm_cost_elems = USE_SLM ? static_cast<size_t>(2 * edges) : 1;
+  q.submit([&](sycl::handler& h) {
+    sycl::local_accessor<sycl::half, 1> slm_costs(
+        sycl::range<1>(slm_cost_elems), h);
+    sycl::local_accessor<sycl::half, 1> slm_tile(sycl::range<1>(256), h);
+    h.parallel_for<ForwardOnlyKernel<SG, USE_SLM>>(
+        sycl::nd_range<1>(
+            sycl::range<1>(static_cast<size_t>(num_tiles) * WG_SIZE),
+            sycl::range<1>(WG_SIZE)),
+        ForwardOnlyKernel<SG, USE_SLM>{
+            input_tiles, temp_costs, temp_edges, pre_states, K, cb, L, roll,
+            cost_slot, slm_costs, slm_tile});
+  });
+}
+
+template <int SG>
+void submit_backward_only(
+    sycl::queue& q,
+    const sycl::half* temp_costs,
+    const int16_t* temp_edges,
+    float* output_tiles,
+    int16_t* output_indices,
+    int32_t* end_states,
+    int num_tiles,
+    int K,
+    int cb,
+    int L,
+    int roll,
+    int cost_slot,
+    bool write_output) {
+  q.submit([&](sycl::handler& h) {
+    sycl::local_accessor<sycl::half, 1> slm_red_cost(
+        sycl::range<1>(MAX_SUBGROUPS), h);
+    sycl::local_accessor<int32_t, 1> slm_red_edge(
+        sycl::range<1>(MAX_SUBGROUPS), h);
+    sycl::local_accessor<int32_t, 1> slm_red_valid(
+        sycl::range<1>(MAX_SUBGROUPS), h);
+    sycl::local_accessor<int32_t, 1> slm_state(sycl::range<1>(4), h);
+    h.parallel_for<BackwardOnlyKernel<SG>>(
+        sycl::nd_range<1>(
+            sycl::range<1>(static_cast<size_t>(num_tiles) * WG_SIZE),
+            sycl::range<1>(WG_SIZE)),
+        BackwardOnlyKernel<SG>{
+            temp_costs, temp_edges, output_tiles, output_indices, end_states,
+            K, cb, L, roll, cost_slot, write_output, slm_red_cost, slm_red_edge,
+            slm_red_valid, slm_state});
+  });
+}
+
+}  // namespace
+
+void decode_codebook_impl(int64_t cb, c10::Half* out, int64_t device_index) {
+  sycl::queue& q = current_queue(device_index);
+  sycl::half* o = reinterpret_cast<sycl::half*>(out);
+  q.submit([&](sycl::handler& h) {
+    h.parallel_for<DecodeCodebookKernel>(
+        sycl::range<1>(65536), DecodeCodebookKernel{static_cast<int>(cb), o});
+  });
+}
+
+void quantize_tiles_fused_impl(
+    const float* input_tiles,
+    float* output_tiles,
+    int16_t* output_indices,
+    c10::Half* temp_costs,
+    int16_t* temp_edges,
+    int64_t num_tiles,
+    int64_t batch_cap,
+    int64_t K,
+    int64_t cb,
+    int64_t L,
+    int64_t sg_size,
+    bool force_global_costs,
+    int64_t wave_cap_override,
+    int64_t device_index) {
+  sycl::queue& q = current_queue(device_index);
+  sycl::half* costs_ptr = reinterpret_cast<sycl::half*>(temp_costs);
+  const bool use_slm = (!force_global_costs) && (K >= 2);
+
+  // R11 decision: gpu_subslice_count = 8 on Arc 140V -> default wave cap 16.
+  const int64_t default_cap = 16;
+  const int64_t cap = (wave_cap_override > 0)
+                          ? std::min(batch_cap, wave_cap_override)
+                          : std::min(batch_cap, default_cap);
+
+  for (int64_t offset = 0; offset < num_tiles; offset += cap) {
+    const int wave = static_cast<int>(std::min(cap, num_tiles - offset));
+    if (sg_size == 16) {
+      if (use_slm) {
+        submit_fused_wave<16, true>(
+            q, input_tiles, output_tiles, output_indices, costs_ptr, temp_edges,
+            static_cast<int>(offset), wave, static_cast<int>(K),
+            static_cast<int>(cb), static_cast<int>(L));
+      } else {
+        submit_fused_wave<16, false>(
+            q, input_tiles, output_tiles, output_indices, costs_ptr, temp_edges,
+            static_cast<int>(offset), wave, static_cast<int>(K),
+            static_cast<int>(cb), static_cast<int>(L));
+      }
+    } else {
+      if (use_slm) {
+        submit_fused_wave<32, true>(
+            q, input_tiles, output_tiles, output_indices, costs_ptr, temp_edges,
+            static_cast<int>(offset), wave, static_cast<int>(K),
+            static_cast<int>(cb), static_cast<int>(L));
+      } else {
+        submit_fused_wave<32, false>(
+            q, input_tiles, output_tiles, output_indices, costs_ptr, temp_edges,
+            static_cast<int>(offset), wave, static_cast<int>(K),
+            static_cast<int>(cb), static_cast<int>(L));
+      }
+    }
+  }
+}
+
+void quantize_tiles_forward_impl(
+    const float* input_tiles,
+    c10::Half* temp_costs,
+    int16_t* temp_edges,
+    const int32_t* pre_states,
+    int64_t num_tiles,
+    int64_t K,
+    int64_t cb,
+    int64_t L,
+    int64_t roll,
+    int64_t cost_slot,
+    int64_t sg_size,
+    bool force_global_costs,
+    int64_t device_index) {
+  sycl::queue& q = current_queue(device_index);
+  sycl::half* costs_ptr = reinterpret_cast<sycl::half*>(temp_costs);
+  const bool use_slm = (!force_global_costs) && (K >= 2);
+  if (sg_size == 16) {
+    if (use_slm) {
+      submit_forward_only<16, true>(
+          q, input_tiles, costs_ptr, temp_edges, pre_states,
+          static_cast<int>(num_tiles), static_cast<int>(K),
+          static_cast<int>(cb), static_cast<int>(L), static_cast<int>(roll),
+          static_cast<int>(cost_slot));
+    } else {
+      submit_forward_only<16, false>(
+          q, input_tiles, costs_ptr, temp_edges, pre_states,
+          static_cast<int>(num_tiles), static_cast<int>(K),
+          static_cast<int>(cb), static_cast<int>(L), static_cast<int>(roll),
+          static_cast<int>(cost_slot));
+    }
+  } else {
+    if (use_slm) {
+      submit_forward_only<32, true>(
+          q, input_tiles, costs_ptr, temp_edges, pre_states,
+          static_cast<int>(num_tiles), static_cast<int>(K),
+          static_cast<int>(cb), static_cast<int>(L), static_cast<int>(roll),
+          static_cast<int>(cost_slot));
+    } else {
+      submit_forward_only<32, false>(
+          q, input_tiles, costs_ptr, temp_edges, pre_states,
+          static_cast<int>(num_tiles), static_cast<int>(K),
+          static_cast<int>(cb), static_cast<int>(L), static_cast<int>(roll),
+          static_cast<int>(cost_slot));
+    }
+  }
+}
+
+void quantize_tiles_backward_impl(
+    const c10::Half* temp_costs,
+    const int16_t* temp_edges,
+    float* output_tiles,
+    int16_t* output_indices,
+    int32_t* end_states,
+    int64_t num_tiles,
+    int64_t K,
+    int64_t cb,
+    int64_t L,
+    int64_t roll,
+    int64_t cost_slot,
+    bool write_output,
+    int64_t sg_size,
+    int64_t device_index) {
+  sycl::queue& q = current_queue(device_index);
+  const sycl::half* costs_ptr = reinterpret_cast<const sycl::half*>(temp_costs);
+  if (sg_size == 16) {
+    submit_backward_only<16>(
+        q, costs_ptr, temp_edges, output_tiles, output_indices, end_states,
+        static_cast<int>(num_tiles), static_cast<int>(K), static_cast<int>(cb),
+        static_cast<int>(L), static_cast<int>(roll),
+        static_cast<int>(cost_slot), write_output);
+  } else {
+    submit_backward_only<32>(
+        q, costs_ptr, temp_edges, output_tiles, output_indices, end_states,
+        static_cast<int>(num_tiles), static_cast<int>(K), static_cast<int>(cb),
+        static_cast<int>(L), static_cast<int>(roll),
+        static_cast<int>(cost_slot), write_output);
+  }
+}
+
+// P1-19 prototype: direct USM host-accessible edge writes + CPU traceback.
+// Returns {search_seconds, traceback_seconds}.
+std::vector<double> quantize_tiles_usm_host_impl(
+    const float* input_tiles,
+    c10::Half* temp_costs,
+    float* output_tiles_host,
+    int16_t* output_indices_host,
+    const float* lut_host,
+    int64_t num_tiles,
+    int64_t K,
+    int64_t cb,
+    int64_t L,
+    int64_t sg_size,
+    int64_t device_index) {
+  sycl::queue& q = current_queue(device_index);
+  const int64_t edges = 65536 >> K;
+  const size_t total_edges = static_cast<size_t>(num_tiles * L * edges);
+
+  int16_t* usm_edges = sycl::malloc_host<int16_t>(total_edges, q);
+  int32_t* usm_states = sycl::malloc_host<int32_t>(static_cast<size_t>(num_tiles), q);
+  sycl::half* usm_costs = sycl::malloc_host<sycl::half>(
+      static_cast<size_t>(num_tiles * 2 * edges), q);
+  if (!usm_edges || !usm_states || !usm_costs) {
+    if (usm_edges) sycl::free(usm_edges, q);
+    if (usm_states) sycl::free(usm_states, q);
+    if (usm_costs) sycl::free(usm_costs, q);
+    throw std::runtime_error("USM host allocation failed");
+  }
+
+  for (int64_t t = 0; t < num_tiles; ++t) usm_states[t] = -1;
+  q.wait_and_throw();
+
+  auto t_s0 = std::chrono::steady_clock::now();
+  quantize_tiles_forward_impl(
+      input_tiles, reinterpret_cast<c10::Half*>(usm_costs), usm_edges,
+      usm_states, num_tiles, K, cb, L, L / 2, 0, sg_size, false, device_index);
+  q.wait_and_throw();
+  auto t_s1 = std::chrono::steady_clock::now();
+
+  auto t_b0 = std::chrono::steady_clock::now();
+  for (int64_t t = 0; t < num_tiles; ++t) {
+    const sycl::half* c1 = usm_costs + t * 2 * edges;
+    sycl::half best_c = h_inf();
+    int best_e = 0;
+    bool valid = false;
+    for (int e = 0; e < edges; ++e) {
+      if (is_finite_cost(c1[e])) {
+        if (!valid || c1[e] < best_c) {
+          best_c = c1[e];
+          best_e = e;
+          valid = true;
+        }
+      }
+    }
+    const int16_t* slot_edges = usm_edges + t * L * edges;
+    int edge = valid ? best_e : 0;
+    for (int i = static_cast<int>(L) - 1; i >= 0; --i) {
+      const int ri = ring_index(i, static_cast<int>(L / 2), static_cast<int>(L));
+      edge = static_cast<uint16_t>(slot_edges[ri * edges + edge]);
+      if (ri == 0) break;
+    }
+    usm_states[t] = edge;
+  }
+  auto t_b1 = std::chrono::steady_clock::now();
+
+  auto t_s2 = std::chrono::steady_clock::now();
+  quantize_tiles_forward_impl(
+      input_tiles, reinterpret_cast<c10::Half*>(usm_costs), usm_edges,
+      usm_states, num_tiles, K, cb, L, 0, 1, sg_size, false, device_index);
+  q.wait_and_throw();
+  auto t_s3 = std::chrono::steady_clock::now();
+
+  auto t_b2 = std::chrono::steady_clock::now();
+  for (int64_t t = 0; t < num_tiles; ++t) {
+    const int16_t* slot_edges = usm_edges + t * L * edges;
+    int edge = usm_states[t];
+    for (int i = static_cast<int>(L) - 1; i >= 0; --i) {
+      const int ri = i;
+      const int prev = static_cast<uint16_t>(slot_edges[ri * edges + edge]);
+      const uint16_t encoded = static_cast<uint16_t>((prev << K) | edge);
+      edge = prev;
+      output_indices_host[t * L + ri] = static_cast<int16_t>(encoded);
+      output_tiles_host[t * L + ri] = lut_host[encoded];
+    }
+  }
+  auto t_b3 = std::chrono::steady_clock::now();
+
+  // Copy final costs back to temp_costs for inspection consistency.
+  q.memcpy(temp_costs, usm_costs,
+           static_cast<size_t>(num_tiles * 2 * edges) * sizeof(sycl::half))
+      .wait();
+
+  sycl::free(usm_edges, q);
+  sycl::free(usm_states, q);
+  sycl::free(usm_costs, q);
+
+  const double search_s =
+      std::chrono::duration<double>(t_s1 - t_s0).count() +
+      std::chrono::duration<double>(t_s3 - t_s2).count();
+  const double trace_s =
+      std::chrono::duration<double>(t_b1 - t_b0).count() +
+      std::chrono::duration<double>(t_b3 - t_b2).count();
+  return {search_s, trace_s};
+}

@@ -159,8 +159,8 @@ class ReferenceTrellisEncoder:
         for k in range(self.max_q):
             val = self.k_vals[k]
             pred = self.k_preds[k]
-            # fp16 subtract and square via float64 exact intermediate
-            dh = val.astype(np.float64) - np.float64(w)
+            # fp16 subtract (__hsub2) followed by exact fp16 square (__hmul2)
+            dh = (val - w).astype(np.float64)
             err = (dh * dh).astype(np.float16)
 
             if pre_state >= 0:
@@ -186,9 +186,8 @@ class ReferenceTrellisEncoder:
             for k in range(self.max_q):
                 val = self.k_vals[k]
                 pred = self.k_preds[k]
-                dh = val.astype(np.float64) - np.float64(w)
-                # Exact __hfma2(dh, dh, cost_in[pred]) emulation via float64 intermediate:
-                # Single rounding to fp16 guarantees no intermediate double-rounding.
+                # fp16 subtract (__hsub2) followed by exact single-rounded fp16 FMA (__hfma2)
+                dh = (val - w).astype(np.float64)
                 err = (dh * dh + prev_cost[pred].astype(np.float64)).astype(np.float16)
 
                 if k == 0:
