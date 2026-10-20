@@ -33,6 +33,7 @@ from exl3_quant.memory_policy import (
     capture_snapshot,
 )
 from exl3_quant.reference_encoder import EncodingResult, ReferenceTrellisEncoder
+from exl3_quant.scratch_estimator import ScratchEstimator
 from exl3_quant.trellis_format import (
     CB_3INST,
     CB_MCG,
@@ -404,6 +405,75 @@ class TestScratchArenaLifecycle(unittest.TestCase):
             self.assertEqual(adm_b, 4)
         finally:
             ceil_arena.release()
+
+    def test_retry_path_no_double_residency_b1(self):
+        """B1 regression: halving retry drops attempt n before allocating attempt n+1."""
+        torch.xpu.empty_cache()
+        pre_alloc = torch.xpu.memory_allocated()
+
+        class PostCommitFailureAtB8Policy(MemoryPolicy):
+            def check_after_commit(
+                self, snapshot, pre_snapshot=None, expected_bytes=0, context=""
+            ):
+                if "B=8" in context:
+                    raise MemoryPressureError(
+                        "simulated post-commit failure at B=8", 0, 0, snapshot, context
+                    )
+                super().check_after_commit(
+                    snapshot, pre_snapshot, expected_bytes, context
+                )
+
+        arena = ScratchArena(policy=PostCommitFailureAtB8Policy())
+        alloc_seen = []
+
+        def hook(b):
+            alloc_seen.append((b, torch.xpu.memory_allocated()))
+
+        try:
+            costs, edges, admitted_b = arena.acquire(
+                k=3, requested_b=8, allocator_hook=hook
+            )
+            self.assertEqual(admitted_b, 4)
+            # When b=4 was being admitted, the previous b=8 buffers must already be freed
+            self.assertEqual(len(alloc_seen), 2)
+            self.assertEqual(alloc_seen[0][0], 8)
+            self.assertEqual(alloc_seen[1][0], 4)
+            # Before B=4 allocates, memory_allocated must be 0 (no lingering B=8 buffers)
+            self.assertEqual(alloc_seen[1][1], pre_alloc)
+
+            # At B=4, scratch is 4 * (2 * 8192 * 2 + 256 * 8192 * 2) = 16.125 MiB
+            est4 = ScratchEstimator.estimate_scratch(k=3, b=4, t=256)
+            self.assertEqual(torch.xpu.memory_allocated(), pre_alloc + est4.total_bytes)
+        finally:
+            arena.release()
+            torch.xpu.empty_cache()
+
+    def test_failed_acquisition_frees_all_scratch_b2(self):
+        """B2 regression: failed acquisition leaves 0 resident bytes and frees buffers."""
+        torch.xpu.empty_cache()
+        pre_alloc = torch.xpu.memory_allocated()
+
+        class AlwaysFailingPostCommitPolicy(MemoryPolicy):
+            def check_after_commit(
+                self, snapshot, pre_snapshot=None, expected_bytes=0, context=""
+            ):
+                raise MemoryPressureError(
+                    "simulated post-commit failure", 0, 0, snapshot, context
+                )
+
+        arena = ScratchArena(policy=AlwaysFailingPostCommitPolicy())
+        caught = False
+        try:
+            arena.acquire(k=3, requested_b=1)
+        except MemoryPressureError as exc:
+            caught = True
+            # Even while holding exc in frame locals, memory must be completely released
+            post_alloc = torch.xpu.memory_allocated()
+            self.assertEqual(post_alloc, pre_alloc)
+            self.assertEqual(arena.resident_bytes, 0)
+            self.assertIn("simulated post-commit failure", str(exc))
+
+        self.assertTrue(caught)
 
 
 if __name__ == "__main__":

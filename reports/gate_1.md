@@ -24,7 +24,7 @@
 
 ### 2.1 Correctness & Numerical Parity (`P1-01` .. `P1-08`)
 - **Procedural Codebook (`P1-02`):** `ext.decode_codebook` matches `codebook_lut(cb)` across all `65,536` 16-bit states with **0 bit-level mismatches** for `CB_3INST`, `CB_MCG`, and `CB_MUL1`.
-- **Forward ACS & GPU Traceback (`P1-03`, `P1-04`, `P1-05`):** Having aligned `ReferenceTrellisEncoder` and the SYCL kernel on the audited contract's exact fp16 subtraction (`__hsub2`) followed by single-rounded fp16 FMA (`__hfma2` / `sycl::fma`), `XPUTrellisEncoder` matches `ReferenceTrellisEncoder` **bit-for-bit** on `output_indices`, `reconstructed`, `packed`, `end_state`, and `path_cost` across all tested bitrates (`K = 1, 2, 3, 4`), codebooks (`0, 1, 2`), and tile lengths (`L = 256, 160`).
+- **Forward ACS & GPU Traceback (`P1-03`, `P1-04`, `P1-05`):** Having aligned `ReferenceTrellisEncoder` and the SYCL kernel on the audited contract's exact fp16 subtraction (`__hsub2`) followed by single-rounded fp16 FMA (`__hfma2` / `sycl::fma`), `XPUTrellisEncoder` matches `ReferenceTrellisEncoder` **bit-for-bit** on `output_indices`, `reconstructed`, `packed`, `end_state`, and `path_cost` across the verified test matrix: bitrates `K ∈ {2, 3, 4}` across all 3 codebooks (`3inst`, `mcg`, `mul1`); `K=1` with `CB_MUL1`; and tile lengths `L ∈ {256, 160}`. (All 3 codebooks are additionally verified on `K=1` for procedural codebook decoding).
 - **Tie-Breaking & Edge Cases (`P0-26`, `P1-06`):** Parallel subgroup + SLM `argmin_cost` uses lexicographical comparison on `(valid, cost, edge_index)` so the lowest edge index strictly wins ties regardless of subgroup or work-group geometry. Verified on all-zeros, constant, alternating, and outlier tiles, plus `verify_tile_encoding_quality` tie-aware path validation.
 - **Batching, Waves & Stream Ordering (`P1-07`, `P1-08`):** Verified identical results across single tiles, partial final chunks (`19` tiles with `B = 6`), multi-wave dispatches, and interleaved `torch.xpu` operations on the current XPU stream.
 
@@ -43,7 +43,7 @@
   - Both `SIMD16` and `SIMD32` compile with **`0` bytes of GRF register spills** under the default `128-GRF` mode (`-abortOnSpill 4` passed).
   - `SIMD16` and `SIMD32` perform within `2–5%` of each other in SLM mode (`652.6` vs `616.7 tiles/s` at `K=2`; `1,181.4` vs `1,158.8 tiles/s` at `K=3`). Both remain supported via `sg_size in {16, 32}`.
   - Large GRF mode (`-ze-opt-large-register-file`, `256 GRF`, `P1-27`) yielded identical instruction and flag-spill counts while halving Xe-core thread capacity (`32` vs `64` EU threads); rejected.
-- **Dispatch Duration & Watchdog Budget (`P1-28`):** Mean wave dispatch duration at `wave_cap = 16` is `25.4 ms` at `K = 2` and `13.8 ms` at `K = 3`, more than **19$\times$ below** the `500 ms` watchdog guideline.
+- **Dispatch Duration & Watchdog Budget (`P1-28`):** Mean wave dispatch duration at `wave_cap = 16` is `25.4 ms` at `K = 2` and `13.8 ms` at `K = 3`, more than **19$\times$ below** the `500 ms` watchdog guideline. (Note: wave-cap chunking applies to `gpu_resident` fused kernel dispatches; `gpu_resident_split` submits a single full grid for all batch tiles and does not apply per-wave throttling, L3).
 
 ---
 

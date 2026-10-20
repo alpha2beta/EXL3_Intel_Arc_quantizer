@@ -367,6 +367,8 @@ class ScratchArena:
             snap = capture_snapshot(self.device_index)
             out_bytes = int(torch.xpu.memory_allocated(self.device_index))
             effective_outstanding = out_bytes + distinct_staging_bytes
+            costs = None
+            edges = None
             try:
                 # Single-allocation ceiling applies to each individual buffer
                 # (edges_bytes is the larger of the two buffers); cumulative
@@ -401,7 +403,10 @@ class ScratchArena:
                 )
                 post = capture_snapshot(self.device_index)
                 self.policy.check_after_commit(
-                    post, context=f"K={k} B={cand_b} post-commit"
+                    post,
+                    pre_snapshot=snap,
+                    expected_bytes=est.total_bytes,
+                    context=f"K={k} B={cand_b} post-commit",
                 )
 
                 self._key = (self.device_index, k, tile_len, cand_b)
@@ -429,6 +434,16 @@ class ScratchArena:
                 )
                 return self._temp_costs, self._temp_edges, cand_b
             except Exception as exc:
+                # B1 & B2: explicitly drop any allocated buffers and clear framework cache
+                # so attempt n does not double residency during attempt n+1 (B1),
+                # and failed acquisition does not leave unreclaimable memory (B2).
+                if costs is not None or edges is not None:
+                    del costs, edges
+                    costs = None
+                    edges = None
+                    if torch.xpu.is_available():
+                        torch.xpu.empty_cache()
+
                 last_err = exc
                 if cand_b == 1:
                     break
@@ -452,17 +467,28 @@ class ScratchArena:
                 )
                 cand_b = next_b
 
+        # B2: Construct a clean MemoryPressureError detached from the function frame
+        # so caller retention of the exception does not keep frame locals or memory alive.
         if isinstance(last_err, MemoryPressureError):
-            raise last_err
-        snap = capture_snapshot(self.device_index)
-        out_bytes = int(torch.xpu.memory_allocated(self.device_index))
-        raise MemoryPressureError(
-            f"scratch allocation failed even at B=1 for K={k}: {last_err}",
-            ScratchEstimator.estimate_scratch(k=k, b=1, t=tile_len).total_bytes,
-            self.policy.usable_bytes(snap, out_bytes + distinct_staging_bytes),
-            snap,
-            context=f"K={k} B=1 minimum batch failure",
-        )
+            clean_err = MemoryPressureError(
+                message=str(last_err),
+                need_bytes=last_err.need_bytes,
+                usable_bytes=last_err.usable_bytes,
+                snapshot=last_err.snapshot,
+                context=last_err.context,
+            )
+        else:
+            snap = capture_snapshot(self.device_index)
+            out_bytes = int(torch.xpu.memory_allocated(self.device_index))
+            clean_err = MemoryPressureError(
+                f"scratch allocation failed even at B=1 for K={k}: {last_err}",
+                ScratchEstimator.estimate_scratch(k=k, b=1, t=tile_len).total_bytes,
+                self.policy.usable_bytes(snap, out_bytes + distinct_staging_bytes),
+                snap,
+                context=f"K={k} B=1 minimum batch failure",
+            )
+        del last_err
+        raise clean_err from None
 
 
 @dataclass
@@ -479,6 +505,7 @@ class BatchEncodingBreakdown:
     search_seconds: float
     traceback_seconds: float
     transfer_seconds: float
+    postprocess_seconds: float
     traceback_mode: str
     sg_size: int
     force_global_costs: bool
@@ -881,6 +908,7 @@ class XPUTrellisEncoder:
         total_seconds = time.perf_counter() - t_total0
         del in_xpu, out_tiles_xpu, out_indices_xpu
 
+        t_post0 = time.perf_counter()
         reconstructed_perm = out_tiles_np.astype(np.float16)
         if pre_permute:
             reconstructed_all = reconstructed_perm[:, self.inv_perm]
@@ -930,6 +958,7 @@ class XPUTrellisEncoder:
                     cb=self.cb,
                 )
             )
+        postprocess_seconds = time.perf_counter() - t_post0
 
         return BatchEncodingBreakdown(
             results=results,
@@ -938,10 +967,11 @@ class XPUTrellisEncoder:
             output_indices=out_indices_np,
             admitted_b=admitted_b,
             num_chunks=num_chunks,
-            total_seconds=total_seconds,
+            total_seconds=total_seconds + postprocess_seconds,
             search_seconds=t_search,
             traceback_seconds=t_traceback,
             transfer_seconds=t_transfer,
+            postprocess_seconds=postprocess_seconds,
             traceback_mode=traceback_mode,
             sg_size=self.sg_size,
             force_global_costs=self.force_global_costs,

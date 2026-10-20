@@ -26,7 +26,7 @@
     }
   },
   "build_and_warmup": {
-    "cold_build_seconds": 0.0,
+    "cold_build_seconds": 13.78,
     "warm_load_seconds": 0.020883664008579217,
     "invocation_load_seconds": 0.0658,
     "first_call_warmup_ms": 66.599
@@ -1026,6 +1026,7 @@
   "isa_resource_report_p1_24": {
     "target_device": "lnl-m (Intel Arc 140V, Xe2, device 0x64A0)",
     "compiler": "icpx 2026.0.0 + IGC ocloc (Xe2)",
+    "provenance": "manual IGC shader dump via IGC_ShaderDumpEnable=1 / ocloc lnl-m (see docs/extension_build.md §5)",
     "work_group_size": 512,
     "slm_limit_bytes": 131072,
     "kernels_128grf_default": {

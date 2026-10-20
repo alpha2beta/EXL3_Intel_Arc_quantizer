@@ -11,7 +11,7 @@ Compatible with upstream [ExLlamaV3](https://github.com/turboderp-org/exllamav3)
 | Metric | Status / Value | Verification Source |
 |---|---|---|
 | **Phase / Maturity** | **Gate 0 & Gate 1 Closed** (Phase 2 Single-Layer Conversion Next) | [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md) |
-| **Unit Test Suite** | **84 / 84 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
+| **Unit Test Suite** | **86 / 86 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
 | **Primary Prototype Target** | Intel Core Ultra 7 258V / Arc 140V (32 GB UMA) | [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) |
 | **Downstream Oracle Parity** | **100% Bit-Exact** (CPU Ref & XPU SYCL vs `exl3xpu.ref`) | [`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py), [`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) |
 | **Upstream Pinned Commit** | `turboderp-org/exllamav3 @ 4d7b69c7` | [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) |
@@ -87,9 +87,9 @@ The test harness enforces exact discrete checks, perturbation detection, and liv
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Complete Test Breakdown (84 Tests Total)
+### Complete Test Breakdown (86 Tests Total)
 
-- **[`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) (11 tests):** End-to-end XPU quantizer verification: all 65,536 codebook states, bit-exact parity vs `ReferenceTrellisEncoder` across $K \in \{1, 2, 3, 4\}$ and all 3 codebooks, $L=160$ n-gram rows, live oracle decode via `exl3xpu.ref`, edge cases & ties (zeros, constant, outliers), partial batches & waves, input validation, stream-queue ordering, all 4 traceback placements & kernel variants (`SG16`/`SG32`, SLM/global), `ScratchArena` bounded eviction across $K$, and automatic batch halving retry.
+- **[`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) (13 tests):** End-to-end XPU quantizer verification: all 65,536 codebook states, bit-exact parity vs `ReferenceTrellisEncoder` across $K \in \{1, 2, 3, 4\}$ and all 3 codebooks, $L=160$ n-gram rows, live oracle decode via `exl3xpu.ref`, edge cases & ties (zeros, constant, outliers), partial batches & waves, input validation, stream-queue ordering, all 4 traceback placements & kernel variants (`SG16`/`SG32`, SLM/global), `ScratchArena` bounded eviction across $K$, automatic batch halving retry, no double scratch residency during retry (B1), and zero resident scratch leakage on failed acquisition (B2).
 - **[`tests/test_xpu_extension.py`](./tests/test_xpu_extension.py) (7 tests):** Custom SYCL XPU extension sanity, stream execution, memory lifetime, device cap queries, and on-device measurement of Open Item `O-6` (exact fp16 single-rounding FMA verified against 65,536 random and 11 adversarial inputs).
 - **[`tests/test_memory_policy.py`](./tests/test_memory_policy.py) (14 tests):** OS `/proc/meminfo` parsing, reserve budget arithmetic, admission boundary enforcement, outstanding allocation tracking, `MemoryPressureError` context, post-commit breach detection, and live GPU allocation under reserve constraints.
 - **[`tests/test_ldlq.py`](./tests/test_ldlq.py) (10 tests):** Algebraic verification of `block_ldl` ($L L^T = H$, block-diagonal inversion fold, identity block diagonals), adaptive retry-damping schedule on ill-conditioned Hessians, input validation, and XPU vs CPU parity.
@@ -117,7 +117,7 @@ The project maintains an evidence-backed governance model:
 - [`docs/native_dependency_audit.md`](./docs/native_dependency_audit.md) — Complete classification of all upstream `ext.*` conversion sites and XPU porting strategy.
 - [`docs/extension_build.md`](./docs/extension_build.md) — Build and linkage requirements for oneAPI 2026.0 / PyTorch XPU C++ extensions.
 - [`docs/deviation_log.md`](./docs/deviation_log.md) — Formal deviation log and review waivers (`DEV-2026-10-20-01`).
-- [`tasks.md`](./tasks.md) — Implementation task list and phase gates (Phase 0 to Phase 4).
+- [`tasks.md`](./tasks.md) — Implementation task list and phase gates (Gate 0 through Gate 3; Phase 4 has no gate).
 - [`progress.md`](./progress.md) — Detailed implementation progress log with per-entry commit timestamps.
 - [`review.md`](./review.md) — Independent code review conclusions and formal remediation responses.
 

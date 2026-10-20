@@ -35,7 +35,59 @@ rm -rf artifacts/build/probe_xpu
 PYTHONPATH=. python scripts/probe_xpu_extension.py
 ```
 
-## 3. Environment smoke test
+## 3. Production Tile Quantizer Extension (`csrc/quantize_xpu/`)
+
+The primary production extension implementing Phase 1 Trellis Viterbi search and circular traceback:
+
+### 3.1 Source Components & Kernel Inventory
+
+- [`csrc/quantize_xpu/quantize_xpu.cpp`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/csrc/quantize_xpu/quantize_xpu.cpp): PyBind11 C++ entry points, parameter validation, queue bindings, and tensor lifetime management.
+- [`csrc/quantize_xpu/quantize_kernels.sycl`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/csrc/quantize_xpu/quantize_kernels.sycl): Native SYCL 2020 kernel classes templated on subgroup size (`SG ∈ {16, 32}`) and cost storage mode (`UseSLM ∈ {true, false}`):
+  - `FusedQuantizeKernel<SG, UseSLM>`: Two-pass tail-biting forward ACS dynamic programming and circular traceback fused into a single submission.
+  - `ForwardOnlyKernel<SG, UseSLM>`: Standalone forward ACS pass for split and CPU/USM traceback pipelines.
+  - `BackwardOnlyKernel`: Standalone GPU-resident circular traceback pass.
+  - `DecodeCodebookKernel`: Direct GPU procedural codebook lookup table generation.
+
+### 3.2 Compilation and Build Lifecycle
+
+Compiled via `torch.utils.cpp_extension.load` encapsulated in [`exl3_quant.xpu_quantizer.build_quantize_extension`](file:///home/yanchun/Projects/EXL3_Intel_Arc_quantizer/exl3_quant/xpu_quantizer.py):
+
+```python
+from exl3_quant.xpu_quantizer import build_quantize_extension
+
+# Force a clean cold rebuild (~13.8 s) into artifacts/build/quantize_xpu/
+ext = build_quantize_extension(verbose=True, force_rebuild=True)
+```
+
+- **Cold Build Duration:** ~13.78 seconds.
+- **Warm Cached Load:** ~21 milliseconds.
+- **Target Architecture:** Intel Xe2-LPG (`lnl-m`, Device ID `0x64A0`).
+- **Compiler Flags:** `-O2 -fsycl -fsycl-targets=spir64_gen -Xsycl-target-backend "-device lnl-m"`.
+
+### 3.3 Shader Dump and ISA Inspection Procedure
+
+To inspect register allocation (128 GRF vs 256 GRF), spills, and SLM usage on Lunar Lake:
+
+```bash
+# Set environment variables for the Intel Graphics Compiler (IGC) shader dump
+export IGC_ShaderDumpEnable=1
+export IGC_DumpToCustomDir=artifacts/isa_dump
+mkdir -p artifacts/isa_dump
+
+# Rebuild extension to capture gen ISA assembly and shader resource reports
+python -c "from exl3_quant.xpu_quantizer import build_quantize_extension; build_quantize_extension(force_rebuild=True)"
+```
+
+Alternatively, disassemble using `ocloc`:
+```bash
+ocloc disasm -file artifacts/build/quantize_xpu/quantize_kernels.spv -device lnl-m -dump artifacts/isa_dump
+```
+
+Inspected IGC metrics for `FusedQuantizeKernel<32, true>`:
+- 128 GRF mode, 0 spill bytes to DRAM, 16 EU threads per workgroup.
+- SLM allocation: 66.4 KiB ($K=2$), 33.6 KiB ($K=3$), 17.2 KiB ($K=4$).
+
+## 4. Environment smoke test
 
 ```bash
 PYTHONPATH=. python -m unittest discover -s tests -p "test_*.py"

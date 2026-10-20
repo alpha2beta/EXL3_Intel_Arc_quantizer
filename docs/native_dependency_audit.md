@@ -191,7 +191,7 @@ enters scope.
 | **R13** | `cuda_sync_active` | `quantize.py:9`, `util/misc.py:35-43` | **XPU-native** | `torch.xpu.synchronize()` over active devices | PIPELINE | P0-18 |
 | **R14** | `mem_get_info`, `memory_reserved`, `set_per_process_memory_fraction`, `empty_cache` | `util/memory.py` | **XPU-native, semantics unverified** | All symbols exist on `torch.xpu`; shared-memory accounting must be validated, not assumed | ENV | V140-02, V140-04 |
 | **R15** | `malloc_trim` (glibc arenas) | `util/memory.py:78` | **Reusable** | Host-side; unchanged on Linux | ENV | V140-02 |
-| **R16** | `@lru_cache get_temp_buffers` | `quantize.py:53` | **Custom port required** | Unbounded multi-GiB residency across K/device changes; replace with a bounded arena (P1-12) | KERNEL | P1-12, P1-15 |
+| **R16** | `@lru_cache get_temp_buffers` | `quantize.py:53` | **Resolved (`ScratchArena`)** | Unbounded residency replaced by `ScratchArena` (`exl3_quant/xpu_quantizer.py`) with single-slot reuse and stream synchronization | KERNEL | P1-12, P1-15 |
 | **R17** | `torch.linalg.cholesky` / `inv`, `einsum`, matmul, `norm` | `quantize.py:350-481, 732-739`; `convert_model.py:387` | **XPU-native (probe)** | Coverage/dtype policy unverified on Arc; CPU fallback permitted only with measured cost | PIPELINE | P0-21, P0-22 |
 
 ---

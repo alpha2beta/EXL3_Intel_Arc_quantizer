@@ -289,6 +289,7 @@ backward(0, true, end_state);              # .cuh:312   emit indices + reconstru
 - `argmin_cost()` (`.cuh:231-284`) picks the terminal edge from the cost buffer; it
   returns edge `0` when every cost is `inf`/NaN, to stay in bounds on degenerate input
   (`.cuh:280-283`).
+  * **NaN / Degenerate Handling Note (L6):** Upstream Python/NumPy reference implementations using `np.argmin` propagate NaNs (returning the index of the first NaN encountered). In contrast, the SYCL reduction treats NaNs as invalid (since NaN comparisons `err < min_cost` evaluate to false) and returns edge `0` only if all candidates are invalid or inf. In standard quantization workflows this divergence is mathematically unreachable because squared differences $dh^2 + \text{prev}$ with non-negative codebook errors never generate NaNs on valid fp32/fp16 weights.
 
 ### 5.3 Backward traceback
 

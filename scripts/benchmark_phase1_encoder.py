@@ -307,7 +307,8 @@ def compare_kernel_variants(tiles: np.ndarray) -> dict:
                         "wave_cap": wave_cap,
                         "num_waves": num_waves,
                         "total_search_ms": round(bd.search_seconds * 1e3, 3),
-                        "mean_wave_dispatch_ms": round(ms_per_wave, 3),
+                        "mean_wave_slice_ms": round(ms_per_wave, 3),
+                        "mean_wave_dispatch_ms": round(ms_per_wave, 3),  # total_search_ms / num_waves (equal wave chunks) (L2)
                         "within_500ms_watchdog_budget": ms_per_wave < 500.0,
                         "tiles_per_sec": round(num_tiles / bd.total_seconds, 2),
                     }
@@ -361,6 +362,7 @@ def static_isa_report() -> dict:
     return {
         "target_device": "lnl-m (Intel Arc 140V, Xe2, device 0x64A0)",
         "compiler": "icpx 2026.0.0 + IGC ocloc (Xe2)",
+        "provenance": "manual IGC shader dump via IGC_ShaderDumpEnable=1 / ocloc lnl-m (see docs/extension_build.md §5)",
         "work_group_size": 512,
         "slm_limit_bytes": 131072,
         "kernels_128grf_default": {

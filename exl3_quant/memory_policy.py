@@ -237,9 +237,40 @@ class MemoryPolicy:
                 need_bytes, usable, snapshot, context)
         return usable
 
-    def check_after_commit(self, snapshot: MemorySnapshot,
-                           context: str = "post-commit") -> None:
-        """Abort if the reserve was breached despite the pre-check."""
+    def check_after_commit(
+        self,
+        snapshot: MemorySnapshot,
+        pre_snapshot: Optional[MemorySnapshot] = None,
+        expected_bytes: int = 0,
+        context: str = "post-commit",
+    ) -> None:
+        """Verify allocation commitment and detect reserve breaches (M1).
+
+        Primary enforcement:
+          Verifies allocator-visible growth (`snapshot.device_allocated_bytes -
+          pre_snapshot.device_allocated_bytes >= expected_bytes`) when `pre_snapshot`
+          and `expected_bytes` are provided. This is the trustworthy process-level
+          signal on Intel Arc unified memory.
+
+        Advisory secondary check:
+          Checks whether OS/device counters breached the reserve floor
+          (`binding_available_bytes < reserve - safety_slack`). On integrated Arc
+          140V (UMA), device/OS free counters do not reliably decrement for framework
+          allocations due to driver-level memory pooling; this check is advisory and
+          serves as an external guard against background system processes.
+        """
+        if pre_snapshot is not None and expected_bytes > 0:
+            growth = snapshot.device_allocated_bytes - pre_snapshot.device_allocated_bytes
+            if growth < expected_bytes:
+                raise MemoryPressureError(
+                    f"allocator commitment failure{self._ctx(context)}: expected at least "
+                    f"{format_bytes(expected_bytes)} allocated growth, observed only {format_bytes(growth)}",
+                    expected_bytes,
+                    self.usable_bytes(snapshot),
+                    snapshot,
+                    context,
+                )
+
         floor = self.reserve_bytes - self.safety_slack_bytes
         if snapshot.binding_available_bytes < floor:
             raise MemoryPressureError(
