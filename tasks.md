@@ -61,8 +61,8 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [x] **P0-12** Extract exact one-sided LDLQ equations, block sizes, factor orientation, diagonal normalization, damping, and residual-update order. *(Audited in `docs/algorithm_contract.md` §9)*
 - [x] **P0-13** Extract transform dimensions, signs, scaling, tile permutation/inverse, and the order in which they are applied. *(Audited in `docs/algorithm_contract.md` §2, §8, implemented in `exl3_quant/trellis_format.py`)*
 - [x] **P0-14** Audit output tensor names, dtypes, shapes, scales, metadata, bit ordering, and all native versus device-independent packing operations. *(Audited in `docs/algorithm_contract.md` §7, §10, implemented in `exl3_quant/trellis_format.py`)*
-- [ ] **P0-15** Classify each dependency as reusable, XPU-native, custom-port-required, explicit CPU fallback, or unsupported; include owner and validation method.
-- [ ] **P0-16** Save `docs/native_dependency_audit.md` and `docs/algorithm_contract.md`; leave unresolved native behavior explicitly blocked rather than inventing defaults. *(Algorithm contract published; native dependency audit in progress under P0-15)*
+- [x] **P0-15** Classify each dependency as reusable, XPU-native, custom-port-required, explicit CPU fallback, or unsupported; include owner and validation method. *(Classified in `docs/native_dependency_audit.md` §2–§3; runtime validation remains under P0-17–P0-23)*
+- [x] **P0-16** Save `docs/native_dependency_audit.md` and `docs/algorithm_contract.md`; leave unresolved native behavior explicitly blocked rather than inventing defaults. *(Both documents published; O-1/O-6 and P0-24 parity recorded as blockers in `docs/native_dependency_audit.md` §8)*
 
 ### 0.3 Establish a reproducible environment
 
