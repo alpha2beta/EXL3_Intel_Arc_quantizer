@@ -67,12 +67,12 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 ### 0.3 Establish a reproducible environment
 
 - [ ] **P0-17** Pin Linux, Intel driver/Compute Runtime, Level Zero, compiler/SYCL (oneAPI 2026.0), PyTorch XPU (2.14.0+xpu), Python, and build dependencies on the actual 140V platform; record versions and installation provenance.
-- [ ] **P0-18** Build and execute a minimal custom XPU extension through the intended framework integration; verify device selection, output correctness, queue ordering, and tensor lifetime.
-- [ ] **P0-19** Query supported subgroup sizes, local memory, work-group limits, and maximum allocation size; save device capabilities in `artifacts/environment/`.
+- [x] **P0-18** Build and execute a minimal custom XPU extension through the intended framework integration; verify device selection, output correctness, queue ordering, and tensor lifetime. *(`csrc/probe_xpu/` built via `torch.utils.cpp_extension.load` (icpx 2026.0); all four verifications pass — see `artifacts/environment/extension_probe.json`)*
+- [x] **P0-19** Query supported subgroup sizes, local memory, work-group limits, and maximum allocation size; save device capabilities in `artifacts/environment/`. *(`artifacts/environment/device_capabilities.json`: torch props + SYCL-side caps — max WG 1024, max subgroup 32, local 128 KiB, max alloc 30,692,810,752 B; SM analogue = `gpu_subslice_count` 8 per R11)*
 - [ ] **P0-20** Test representative scratch allocations through the actual framework allocator; start small and bound tests by available memory and a configurable reserve (e.g. 6–8 GiB).
 - [ ] **P0-21** Probe required calibration and factorization operations/dtypes on Arc 140V; record unsupported operations and intentional CPU fallbacks.
 - [ ] **P0-22** Test any proposed Cholesky-derived LDLQ quantities against the extracted equations; benchmark CPU fallback transfer, memory, and wall-clock costs on the shared memory bus without silently changing the algorithm.
-- [ ] **P0-23** Add an environment smoke test and reproducible build/test instructions; verify a clean rebuild.
+- [~] **P0-23** Add an environment smoke test and reproducible build/test instructions; verify a clean rebuild. *(Smoke = `tests/test_xpu_extension.py` + `scripts/probe_xpu_extension.py`; clean rebuild verified (`rm -rf artifacts/build/probe_xpu` → 9.8 s icpx build). Dedicated build docs page still pending)*
 
 ### 0.4 Create reference fixtures and a test harness
 

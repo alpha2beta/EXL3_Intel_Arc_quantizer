@@ -1,0 +1,88 @@
+// SYCL device code for the minimal XPU extension probe (P0-18).
+//
+// NOTE: this file is injected into torch.utils.cpp_extension.load via
+// `sycl_sources`; torch/types.h and sycl/sycl.hpp are prepended by the build
+// system, so only the probe-specific includes appear here.
+
+#include <c10/util/Half.h>
+#include <c10/xpu/XPUStream.h>
+
+#include <cstddef>
+#include <string>
+#include <vector>
+
+// Named kernel classes: required because torch's build adds
+// `-fsycl-host-compiler`, which conflicts with `-fsycl-unnamed-lambda`.
+class ProbeVecAdd;
+class ProbeHfma;
+
+namespace {
+
+// Always queue on the device that owns the tensor, on the *current* torch
+// stream. No secondary queues are created (P1-08 initial restriction).
+inline sycl::queue& current_queue(int64_t device_index) {
+  return c10::xpu::getCurrentXPUStream(
+      static_cast<c10::DeviceIndex>(device_index)).queue();
+}
+
+}  // namespace
+
+void probe_vec_add_impl(const float* src, float* dst, double addend,
+                        int64_t n, int64_t device_index) {
+  sycl::queue& q = current_queue(device_index);
+  q.submit([&](sycl::handler& h) {
+    h.parallel_for<class ProbeVecAdd>(sycl::range<1>(static_cast<size_t>(n)),
+                   [=](sycl::item<1> it) {
+      const size_t i = it.get_linear_id();
+      dst[i] = src[i] + static_cast<float>(addend);
+    });
+  });
+  // Keep the probe synchronous and simple; in-place ordering tests rely on
+  // this submission being ordered on the current queue.
+  q.wait_and_throw();
+}
+
+void probe_hfma_impl(const c10::Half* dh, const c10::Half* cost, c10::Half* out,
+                     int64_t mode, int64_t n, int64_t device_index) {
+  sycl::queue& q = current_queue(device_index);
+  const sycl::half* a = reinterpret_cast<const sycl::half*>(dh);
+  const sycl::half* c = reinterpret_cast<const sycl::half*>(cost);
+  sycl::half* o = reinterpret_cast<sycl::half*>(out);
+  q.submit([&](sycl::handler& h) {
+    h.parallel_for<class ProbeHfma>(sycl::range<1>(static_cast<size_t>(n)),
+                   [=](sycl::item<1> it) {
+      const size_t i = it.get_linear_id();
+      const sycl::half da = a[i];
+      const sycl::half dc = c[i];
+      if (mode == 0) {
+        // Explicit fused FMA (open item O-6).
+        o[i] = sycl::fma(da, da, dc);
+      } else {
+        // Plain expression; observe whether the compiler fuses it anyway.
+        o[i] = da * da + dc;
+      }
+    });
+  });
+  q.wait_and_throw();
+}
+
+std::string probe_queue_device_name_impl(int64_t device_index) {
+  return current_queue(device_index)
+      .get_device()
+      .get_info<sycl::info::device::name>();
+}
+
+std::vector<int64_t> probe_device_caps_impl(int64_t device_index) {
+  // Standard SYCL 2020 device info only; torch.xpu properties supply the rest.
+  const sycl::device d = current_queue(device_index).get_device();
+  const auto sub_groups = d.get_info<sycl::info::device::sub_group_sizes>();
+  int64_t max_sub = 0;
+  for (const auto s : sub_groups) max_sub = std::max(max_sub, (int64_t)s);
+  return {
+      (int64_t)d.get_info<sycl::info::device::global_mem_size>(),
+      (int64_t)d.get_info<sycl::info::device::max_mem_alloc_size>(),
+      (int64_t)d.get_info<sycl::info::device::local_mem_size>(),
+      (int64_t)d.get_info<sycl::info::device::max_work_group_size>(),
+      max_sub,
+  };
+}

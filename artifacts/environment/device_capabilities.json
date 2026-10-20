@@ -1,0 +1,38 @@
+{
+  "note": "multi_processor_count does not exist on torch.xpu; SM analogue candidate is gpu_subslice_count (decision R11)",
+  "sycl_via_probe_extension": {
+    "sycl_global_mem_size": 30692810752,
+    "sycl_local_mem_size": 131072,
+    "sycl_max_mem_alloc_size": 30692810752,
+    "sycl_max_sub_group_size": 32,
+    "sycl_max_work_group_size": 1024
+  },
+  "torch": {
+    "device_name": "Intel(R) Arc(TM) Graphics",
+    "driver_version": "1.17.39758",
+    "gpu_eu_count": 64,
+    "gpu_subslice_count": 8,
+    "has_atomic64": true,
+    "has_fp16": true,
+    "has_fp64": true,
+    "has_subgroup_matrix_multiply_accumulate": true,
+    "is_integrated_gpu": true,
+    "last_level_cache_size": 8388608,
+    "local_mem_size": 131072,
+    "max_compute_units": 64,
+    "max_num_sub_groups": 64,
+    "max_work_group_size": 1024,
+    "mem_get_info_free": 8465444864,
+    "mem_get_info_total": 30692810752,
+    "memory_bus_width": 64,
+    "memory_clock_rate": 0,
+    "platform_name": "Intel(R) oneAPI Unified Runtime over Level-Zero V2",
+    "runtime_version": "20.4.4",
+    "sub_group_sizes": [
+      16,
+      32
+    ],
+    "total_memory": 30692810752,
+    "version": "2.14.0+xpu"
+  }
+}

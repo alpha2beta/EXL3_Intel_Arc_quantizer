@@ -579,7 +579,7 @@ native behaviour is left blocked rather than replaced with an invented default.
 | **O-3** | Whether `codebook_scale = 1.24371088` is applied anywhere else besides `su` (`.py:1215`) | `quantize.py` was read end-to-end for the encode path, but `convert_model.py` may add its own scaling | `convert_model.py` scale/sign path is audited (P0-09) |
 | **O-4** | `H_INF` + NaN behaviour on degenerate tiles | Kernel guards only the argmin index (`.cuh:280-283`); metric arithmetic with `inf` inputs is undefined | Degenerate-input fixtures exist (P0-26) |
 | **O-5** | Numerical ground truth for the encoder itself (tier 4) | Requires the CUDA reference (P0-24) | CUDA machine available |
-| **O-6** | Exact fp16 emulation of `__hfma2` on the target (does the XPU backend fuse?) | Backend-specific | SYCL extension skeleton (P0-18) and a parity kernel |
+| **O-6** | Exact fp16 emulation of `__hfma2` on the target (does the XPU backend fuse?) | **Resolved (measured on Arc 140V, 2026-10-20)**: `sycl::fma(half)` — and the plain `a*a+c` expression, which the compiler fuses anyway — match *exact fp16 single rounding* on all inputs tested, including 11 adversarial pairs where fp32 double-rounding differs from exact. Device NEVER showed the fp32 double-rounding behaviour, so the CPU-side port must use exact fp64-FMA→fp16 rounding (not fp32 double-rounding emulation) to achieve parity. Evidence: `artifacts/environment/extension_probe.json` (`hfma_o6_probe`: 65,536 random pairs, 0 mismatches; `hfma_o6_adversarial`: 8→11 discriminating pairs, `fma_matches_exact` = n, `fma_matches_fp32_emul` = 0). Source: `csrc/probe_xpu/probe_kernels.sycl` (`ProbeHfma`), `exl3_quant/xpu_probe.run_hfma_probe` / `run_hfma_adversarial_probe` | 
 
 ---
 

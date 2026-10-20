@@ -1,0 +1,37 @@
+{
+  "build_seconds": 0.02,
+  "device_selection": {
+    "device_count": 1,
+    "names_agree": true,
+    "sycl_queue_device_name": "Intel(R) Arc(TM) Graphics",
+    "torch_device_name": "Intel(R) Arc(TM) Graphics",
+    "vec_add_correct": true
+  },
+  "hfma_o6_probe": {
+    "expr_vs_exact_mismatches": 0,
+    "first_emul_mismatch": null,
+    "first_expr_mismatch": null,
+    "first_fma_mismatch": null,
+    "fma_vs_exact_mismatches": 0,
+    "fma_vs_expr_mismatches": 0,
+    "host_fp32_emul_vs_exact_mismatches": 0,
+    "n": 65536,
+    "seed": 2026
+  },
+  "output_correctness": {
+    "bit_exact_vs_cpu": true,
+    "max_abs_diff": 0.0,
+    "n": 65536
+  },
+  "queue_ordering": {
+    "interleaved_sequence_correct": true,
+    "restriction": "current torch XPU queue only; no secondary queues (P1-08)"
+  },
+  "tensor_lifetime": {
+    "mem_free_after_bytes": 8465444864,
+    "mem_free_before_bytes": 8588656640,
+    "reuse_correct": true,
+    "total_bytes": 30692810752
+  },
+  "xpu_available": true
+}
