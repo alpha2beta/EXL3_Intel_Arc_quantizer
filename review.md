@@ -254,6 +254,7 @@ transcription.
 | `review-2026-10-20T14:28:01+02:00` | 2026-10-20 14:28:01 +02:00 | `b4aac24` | 🟢 **PASS / EXEMPLARY CORRECTION**: Steps 6–7 audit upstream contract; format primitives bit-exact; provisional prototypes confirmed incorrect and slated for replacement | `review.md` (conclusion below) |
 | `review-2026-10-20T18:30:21+02:00` | 2026-10-20 18:30:21 +02:00 | `e0194b1` | 🟡 **QUALIFIED PASS**: 37/37 tests and 140V profile verified; encoder transcription faithful, but waiver/checklist completion claims outrun evidence (H1–H5); parity blocked on P0-24 and open item O-1 | `review.md` (conclusion below) |
 | ↳ response to `review-2026-10-20T18:30:21+02:00` | 2026-10-20 19:05:00 +02:00 | HEAD | 🟢 **ALL FINDINGS ADDRESSED**: Remediated H1–H5 and M1–M6; live oracle parity test suite added (`tests/test_oracle_parity.py`, 42/42 tests pass); checklist and manifest strictly aligned with evidence boundary | `review.md` (response below) |
+| `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:06:51 +02:00 | `9080b5a` | 🟡 **QUALIFIED PASS**: Phase 1 encoder is bit-exact and genuinely measured (84/84 tests), but `ScratchArena` has 2 blocking memory-reclamation defects (B1, B2) and 3 medium provenance/enforcement gaps (M1–M3) that must close before Phase 2 | `review.md` (conclusion below) |
 
 <!-- Future reviews: append a row above and create a new timestamped review file. -->
 
@@ -443,5 +444,80 @@ Ran 42 tests in 15.256s
 
 OK
 ```
+
+---
+
+## Review Conclusion: Phase 1 (Steps 13–15) [2026-10-20 21:06:51 +02:00]
+
+> **Review ID:** `review-2026-10-20T21:06:51+02:00`  
+> **Reviewed Commit:** `9080b5a` (`docs(progress): record Step 15 …`) on top of `56cc74f` (Phase 1 implementation)  
+> **Files Reviewed:** `csrc/quantize_xpu/{quantize_kernels.sycl,quantize_xpu.cpp}`, `exl3_quant/{xpu_quantizer,memory_policy,ldlq,reference_encoder}.py`, `scripts/{benchmark_phase1_encoder,probe_operators}.py`, `tests/test_xpu_quantizer.py`, `artifacts/benchmarks/phase1_encoder_bench.json`, `reports/{gate_0,gate_1,traceback_decision}.md`, `docs/{extension_build,algorithm_contract,compatibility_manifest}.md`, `tasks.md`, `progress.md`, `README.md`  
+> **Verdict:** 🟡 **QUALIFIED PASS** — the encoder itself is the strongest work in the repo so far; the scratch-memory layer has two real reclamation defects and three evidence/provenance gaps.
+
+### 1. Verification performed
+
+- `python -m unittest discover -s tests -p "test_*.py"` → **84 tests, OK** (independently re-run, 57.4 s).
+- Re-derived the parity claim by inspection: `ReferenceTrellisEncoder.forward` and `run_forward_acs` now agree on `dh` being **fp16-rounded before** the FMA (`__hsub2` at `quantize_tiles_kernel.cuh:97,128`), and the SYCL side uses `sycl::fma` (O-6: exact single rounding, measured in Step 12). `test_parity_across_k_and_codebooks` asserts `path_cost` **exactly**, which is the right invariant.
+- Inspected `artifacts/benchmarks/phase1_encoder_bench.json` and cross-checked the numbers quoted in `reports/gate_1.md` / `reports/traceback_decision.md`; the latency, throughput and SLM-occupancy claims reproduce.
+- **Executed two targeted experiments against `ScratchArena`** (not covered by the suite) — see B1/B2 below. Both defects reproduced on the Arc 140V.
+- Confirmed the R11 wave-cap claim empirically: `wave_cap 4 → 8` doubles throughput at `K=2` (`315.2 → 628.7 tiles/s`), then plateaus, matching `gpu_subslice_count = 8` with 1 work-group per Xe-core at 66.4 KiB SLM.
+
+### 2. Blocking findings (fix before Phase 2)
+
+**B1 — Retry path transiently doubles scratch residency.** In `ScratchArena.acquire` (`exl3_quant/xpu_quantizer.py:395-453`), a failed attempt's `costs`/`edges` remain bound to function locals while the loop halves `B` and allocates the next pair. Measured (K=3, B=8 → 4):
+
+```text
+[hook] B=8 live=0.0 MiB      # needs 32 MiB
+[check_after_commit #1] K=3 B=8 post-commit  -> raises
+[hook] B=4 live=32.2 MiB     # previous attempt still fully resident
+```
+
+The recovery path therefore consumes `prev + next` instead of `max(prev, next)` — at `B=128, K=2` that is a ~2 GiB transient precisely when the policy has already decided memory is tight. Fix: explicitly drop both tensors and `torch.xpu.empty_cache()` inside the `except` before shrinking, and assert in a test that live allocated bytes at attempt *n+1* equal the new attempt's size only.
+
+**B2 — Failed acquisition leaves untracked, unreclaimable scratch.** If the final attempt fails *after* allocating, `acquire` raises while `_key`/`_temp_costs`/`_temp_edges` are unset, so `arena.resident_bytes == 0` and `release()` frees nothing. Measured:
+
+```text
+arena.resident_bytes      : 0.0 MiB      (arena believes it owns nothing)
+torch.xpu.memory_allocated: 8.0625 MiB   (actually still live)
+after dropping the exception: 0.0 MiB
+```
+
+The buffers stay alive for as long as the caller retains the `MemoryPressureError` (its traceback keeps the frame locals). A conversion loop that logs the exception and retries with a smaller configuration silently carries a full scratch buffer. Fix: free in a `finally`/`except` before raising, and re-raise a context-built exception that does not reference the allocation frame. Test: after catching, `torch.xpu.memory_allocated` must return to the pre-call value.
+
+### 3. Medium findings
+
+**M1 — `check_after_commit` is presented as a working second line of defence but is inert on this driver.** Because the driver counters do not decrement for XPU commitments (measured in Step 13: −9 MiB device-free, −200 MiB `MemAvailable` for a touched 1 GiB tensor), a post-allocation floor test can essentially never fire. `docs/compatibility_manifest.md` §4.1/§9, `docs/extension_build.md` §4 and both gate reports describe it as enforcing the reserve. Fix: make it assert allocator-visible growth (`post.device_allocated − pre.device_allocated >= expected`) — the only trustworthy process-level signal — and describe the OS/device counters as advisory.
+
+**M2 — Benchmark provenance is partly hand-written.** `static_isa_report()` (`scripts/benchmark_phase1_encoder.py:359-380`) returns hard-coded IGC numbers, so re-running the benchmark does **not** reproduce the `P1-24`/`P1-27` resource report; and `build_and_warmup.cold_build_seconds` is `0.0` in the artifact because the extension was cached, while `reports/gate_1.md` cites `13.78 s` from a separate manual run. Fix: record the cold build with `force_rebuild=True`, and either generate the ISA report from a real dump or label it `"provenance": "manual IGC dump, see command"`.
+
+**M3 — The production extension has no build documentation.** `docs/extension_build.md` covers only `csrc/probe_xpu/`. `csrc/quantize_xpu/` (13.8 s cold build, 5 kernel classes, `SAVE-TEMPS`/`IGC_ShaderDumpEnable=1` + `ocloc` `lnl-m` ISA-dump procedure) is undocumented, which weakens `P0-23`'s "reproducible build/test instructions" claim now that it is the main artifact.
+
+### 4. Low findings
+
+- **L1 — Overstated test cross-product.** `reports/gate_1.md` §2.1 reads "bitrates (K=1,2,3,4), codebooks (0,1,2)"; `tests/test_xpu_quantizer.py` exercises `K=1` only with `CB_MUL1`. State the actual product.
+- **L2 — Mislabeled timing metric.** `kernel_variants.wave_cap_sweep[].mean_wave_dispatch_ms` is `total_search_ms / num_waves`, i.e. an average of totals, not a per-dispatch duration (identical only because waves are equal-sized).
+- **L3 — Split mode ignores `wave_cap_override`.** `gpu_resident_split` submits one grid for all tiles, so the wave-cap sweep describes fused mode only; say so or chunk split launches too.
+- **L4 — Unexplained timing gap.** `encode_batch_detailed` computes `path_cost` in NumPy *after* the timed region, so `total_ms` exceeds `search + traceback + transfer` by 0.2–0.5 ms; expose it as `postprocess_ms`.
+- **L5 — Staging accounting is conservative-but-approximate.** `distinct_staging_bytes` uses `desired_b` rather than the per-chunk actual buffer for `d2h_cpu`/`usm_host`; the number is an upper bound, not a measurement.
+- **L6 — Tie/NaN divergence is unreachable but undocumented.** Upstream `argmin_cost` uses `np.argmin` (NaN-propagating); the SYCL reduction treats NaN as invalid and skips it. Current metrics can never produce NaN (`err = dh² + prev`), but the divergence should be stated in the contract.
+- **L7 — Stale doc nits.** `README.md:120` says gates span "Phase 0 to Phase 4" (there is no Gate 4); `docs/native_dependency_audit.md` R16 still describes the arena as pending.
+
+### 5. What is genuinely solid
+
+- **Bit-exact parity is real and broad:** 65,536/65,536 codebook states × 3 codebooks; `K ∈ {1,2,3,4}`; `L ∈ {256,160}`; zeros/constant/alternating/outlier tiles; partial chunks (`19` tiles, `B=6`); all four traceback placements and both subgroup geometries. Exact `path_cost` equality, not just tolerance.
+- **The fp16 semantics question is settled properly.** O-6 was measured with adversarial inputs, and the reference encoder was corrected to match the audited `__hsub2 → __hfma2` chain rather than papering over it.
+- **The R11 wave-cap decision is now evidence-backed**, not a guess: throughput scales linearly to 8 concurrent work-groups and flattens, exactly as `gpu_subslice_count = 8` predicts.
+- **The SLM-vs-global crossover is a genuine optimization insight** (SLM wins at `K=3,4`; global wins at `K=2` because `66.4 KiB` SLM caps occupancy), and it is reported with the occupancy reasoning rather than just a number.
+- **Bounded arena design direction is right** (single residency, stream sync, halving retry, structured `MemoryPressureError`) — B1/B2 are implementation defects, not design errors.
+- **Traceback selection is well-argued** with latency, transfer volume, and physical-memory duplication (`128 MiB` staging) all measured.
+
+### 6. Recommended next actions
+
+1. **Fix B1 + B2 with regression tests** (one commit): free-on-failure, free-before-retry, and assertions on `torch.xpu.memory_allocated` for both paths.
+2. **Strengthen M1** to assert allocator-visible growth, and align the docs' wording with what the check can actually guarantee.
+3. **Close M3 + M2**: document `csrc/quantize_xpu/` (build, ISA dump), regenerate the artifact with a real cold build, and label/generate the ISA section.
+4. **Then start Phase 2 at `P2-04`/`P2-06`** (regularization + exact Sylvester `H_128` reference path), which is the gating input for `P2-08` LDLQ integration.
+
+**Decision: do not start Phase 2 on top of the current arena.** The Phase 1 encoder is accepted; the next commit must be the memory-reclamation fix (B1/B2) plus the two evidence fixes, after which Phase 2 begins with $H_{128}$ / regularization.
 
 
