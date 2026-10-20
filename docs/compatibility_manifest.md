@@ -62,10 +62,11 @@
 ### 4.1 Physical vs Accounting Boundaries
 
 1. **One Physical Pool:** 32 GB system memory is dynamically partitioned between CPU host processes and the integrated GPU driver. There is no discrete VRAM bank.
-2. **Runtime Memory Query:** `torch.xpu.mem_get_info()` reports `(free, total)`. Under idle baseline on this system, queried total is `30,692,810,752` bytes (~28.6 GiB) with ~10.7 GiB free.
-3. **No Double Counting:** CPU RSS, GPU allocations, shared mappings, and driver accounting overlap. Do not sum RSS and GPU-allocated bytes as independent physical quantities.
-4. **Guardrail Reserve:** A minimum configurable reserve of **6.0 GiB** system memory must remain untouched by live allocations to prevent OS thrashing, page faults, and swap swapping.
-5. **Level Zero Single Allocation Boundary:** Tested allocations must obey Level Zero max single allocation queries.
+2. **Runtime Memory Query:** `torch.xpu.mem_get_info()` reports `(free, total)`. Queried total is `30,692,810,752` bytes (~28.6 GiB); measured idle free is **~8.0–8.4 GiB** (it varies with background workloads) while `/proc/meminfo` reports **~13.0–13.9 GiB** `MemAvailable`. The gap is the driver's own pool, which is not visible as free system memory.
+3. **Counters Lag Commitments (measured 2026-10-20):** a touched 1 GiB XPU tensor moved `mem_get_info` free by only **~9 MiB** and `MemAvailable` by **~200 MiB**, while `torch.xpu.memory_allocated` moved by **exactly 1024 MiB**. Admission checks must therefore subtract the framework's live allocation total (`memory_allocated`) explicitly; free counters alone over-admit. See `exl3_quant/memory_policy.py` and `artifacts/environment/scratch_allocations.json`.
+4. **No Double Counting:** CPU RSS, GPU allocations, shared mappings, and driver accounting overlap. Do not sum RSS and GPU-allocated bytes as independent physical quantities. Measured device-free and `MemAvailable` deltas track each other (within noise) during allocations, confirming one shared backing.
+5. **Guardrail Reserve:** A minimum configurable reserve of **6.0 GiB** system memory must remain untouched by live allocations to prevent OS thrashing, page faults, and swap swapping. Enforced by `MemoryPolicy` (`vram_reserve` configurable per run).
+6. **Level Zero Single Allocation Boundary:** Tested allocations must obey Level Zero max single allocation queries (measured `max_mem_alloc_size` = `30,692,810,752` B, i.e. the full reported device total).
 
 ---
 
@@ -122,10 +123,14 @@ The following modes are explicitly excluded from the Arc 140V initial prototype:
 
 ## 9. Arc 140V Live Headroom & Allocation Risk (V140-02, V140-07)
 
-- **Queried Free Memory:** ~10.0 GiB under typical idle system baseline.
+- **Measured Idle Baseline [2026-10-20 20:01:23 +0200]:** `MemAvailable` 13.0–13.9 GiB, `mem_get_info` free 8.0–8.4 GiB, swap free 29.5 GiB (≈1.4 GiB already used by other processes). Sampling: 10 snapshots at 1 s intervals (`artifacts/environment/idle_baseline.json`).
 - **Configured System Reserve:** 6.0 GiB (mandatory to avoid kernel swapping and driver thrashing).
-- **Usable Live Headroom:** **$\approx$ 4.0 GiB** for aggregate framework, activations, and scratch memory.
-- **Scratch Buffer Sizing Risk:**
-  - $K=2, B=256$: `temp_edges` alone occupies 2.0 GiB (50% of available headroom).
-  - $K=1, B=256$: `temp_edges` occupies 4.0 GiB (exceeds single allocation limit and consumes 100% headroom).
-- **Policy Directive:** On Arc 140V, dynamic scratch batch capacity must clamp $B \le 128$ for $K=2$ ($1.0 \text{ GiB}$) and $B \le 64$ for $K=1$ ($1.0 \text{ GiB}$) during full-layer execution to leave sufficient headroom for activations, Hessian accumulation, and PyTorch workspace.
+- **Usable Live Headroom:** **≈ 2.0–2.4 GiB** = `min(device free, MemAvailable) − 6.0 GiB`, before subtracting live framework allocations. This is lower than the earlier 4.0 GiB estimate because the measured device free is ~8.0–8.4 GiB, not ~10 GiB.
+- **Measured Allocations Through the Framework Allocator** (`artifacts/environment/scratch_allocations*.json`, `K=1`, `T=256`):
+  - `B=1` (16.1 MiB), `B=16` (258 MiB), `B=64` (1.01 GiB): allocated and touched successfully at the 6 GiB reserve (3–51 ms allocation).
+  - `B=128` (2.02 GiB): succeeds only when device free ≥ ~8.0 GiB; with a 4 GiB reserve it completes in 79 ms.
+  - `B=192` (3.02 GiB): succeeds at a 4 GiB reserve (1.55 s allocation), denied at 6 GiB.
+  - `B=256` (4.03 GiB): denied at both reserves (measured bound `B ≤ 222` at 4 GiB reserve; `B ≈ 94` at 6 GiB on the sampled idle state).
+  - Oversized 20 GiB request: refused by policy before any allocation.
+  - No swap growth in any case; `torch.xpu.memory_allocated` matched the requested bytes exactly.
+- **Policy Directive:** On Arc 140V, clamp scratch batch capacity to what the *live* budget admits (`MemoryPolicy.check`), with `B ≤ 64` for `K=1` (1.0 GiB) during full-layer execution to leave headroom for activations, Hessian accumulation, and PyTorch workspace. Do not hard-code batch sizes from the 32 GB label; the device-visible free pool is the binding constraint.

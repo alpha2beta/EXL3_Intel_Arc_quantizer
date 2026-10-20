@@ -69,10 +69,10 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [ ] **P0-17** Pin Linux, Intel driver/Compute Runtime, Level Zero, compiler/SYCL (oneAPI 2026.0), PyTorch XPU (2.14.0+xpu), Python, and build dependencies on the actual 140V platform; record versions and installation provenance.
 - [x] **P0-18** Build and execute a minimal custom XPU extension through the intended framework integration; verify device selection, output correctness, queue ordering, and tensor lifetime. *(`csrc/probe_xpu/` built via `torch.utils.cpp_extension.load` (icpx 2026.0); all four verifications pass — see `artifacts/environment/extension_probe.json`)*
 - [x] **P0-19** Query supported subgroup sizes, local memory, work-group limits, and maximum allocation size; save device capabilities in `artifacts/environment/`. *(`artifacts/environment/device_capabilities.json`: torch props + SYCL-side caps — max WG 1024, max subgroup 32, local 128 KiB, max alloc 30,692,810,752 B; SM analogue = `gpu_subslice_count` 8 per R11)*
-- [ ] **P0-20** Test representative scratch allocations through the actual framework allocator; start small and bound tests by available memory and a configurable reserve (e.g. 6–8 GiB).
+- [x] **P0-20** Test representative scratch allocations through the actual framework allocator; start small and bound tests by available memory and a configurable reserve (e.g. 6–8 GiB). *(B=1→256 estimator configs allocated/touched through `torch.xpu` under `MemoryPolicy`; 16.1 MiB→3.02 GiB succeeded depending on reserve; 4.03 GiB denied; evidence in `artifacts/environment/scratch_allocations*.json`)*
 - [ ] **P0-21** Probe required calibration and factorization operations/dtypes on Arc 140V; record unsupported operations and intentional CPU fallbacks.
 - [ ] **P0-22** Test any proposed Cholesky-derived LDLQ quantities against the extracted equations; benchmark CPU fallback transfer, memory, and wall-clock costs on the shared memory bus without silently changing the algorithm.
-- [~] **P0-23** Add an environment smoke test and reproducible build/test instructions; verify a clean rebuild. *(Smoke = `tests/test_xpu_extension.py` + `scripts/probe_xpu_extension.py`; clean rebuild verified (`rm -rf artifacts/build/probe_xpu` → 9.8 s icpx build). Dedicated build docs page still pending)*
+- [x] **P0-23** Add an environment smoke test and reproducible build/test instructions; verify a clean rebuild. *(`tests/test_xpu_extension.py` smoke tests; `docs/extension_build.md` procedure; clean rebuild verified `rm -rf artifacts/build/probe_xpu` → 9.8 s icpx build)*
 
 ### 0.4 Create reference fixtures and a test harness
 
@@ -86,9 +86,9 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 ### 0.5 Arc 140V Prototype Profile Checkboxes
 
 - [x] **V140-01** Save actual hardware, software, allocation-limit, and memory-reporting observations in `docs/compatibility_manifest.md`. *(Recorded in `docs/compatibility_manifest.md`)*
-- [ ] **V140-02** Establish an idle system baseline and configurable memory-pressure abort policy before large scratch tests.
-- [ ] **V140-03** Validate scratch sizing at small B; increase batch capacity under measured system and runtime constraints.
-- [ ] **V140-04** Demonstrate that CPU/GPU accounting does not double-count shared backing or omit distinct copies.
+- [x] **V140-02** Establish an idle system baseline and configurable memory-pressure abort policy before large scratch tests. *(10-sample idle baseline in `artifacts/environment/idle_baseline.json`; `exl3_quant/memory_policy.py` enforces a configurable reserve with pre-allocation and post-commit checks; abort path tested in `tests/test_memory_policy.py` and by the oversized-request probe)*
+- [x] **V140-03** Validate scratch sizing at small B; increase batch capacity under measured system and runtime constraints. *(`K=1, T=256`: B=1/16/64 verified at 6 GiB reserve; B=128/192 verified at 4 GiB reserve (up to 3.02 GiB); B=256 denied by policy; measured bounds B≈94 @6 GiB and B≤222 @4 GiB. Throughput/numerical sweep remains P1-14)*
+- [~] **V140-04** Demonstrate that CPU/GPU accounting does not double-count shared backing or omit distinct copies. *(Allocation path: device-free and `MemAvailable` deltas track each other (one shared backing) and `memory_allocated` matches requested bytes exactly; measured driver pool hides commitments, so admission subtracts live allocations. Distinct host↔device staging copies cannot be exercised until the kernel stage exists)*
 - [ ] **V140-05** Compare traceback candidates with identical fixtures and complete latency/pressure measurements.
 - [ ] **V140-06** Pass the complete single-layer numerical and memory gate on 140V.
 - [ ] **V140-07** Decide full-model admission from measured calibration/layer/runtime peaks, not the 32 GB label.

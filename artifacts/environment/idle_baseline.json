@@ -1,0 +1,186 @@
+{
+  "device": {
+    "device_total_bytes": 30692810752,
+    "gpu_available": true
+  },
+  "interval_seconds": 1.0,
+  "note": "Arc 140V is an integrated GPU: XPU memory is backed by the same DRAM the OS reports, so device and system counters overlap and are not additive. MemAvailable includes reclaimable page cache, which is why it exceeds device free here.",
+  "policy": {
+    "reserve_bytes": 6442450944,
+    "reserve_gib": 6.0,
+    "usable_bytes_at_idle": 2586968064,
+    "usable_source": "min(device_free, system_available) - reserve"
+  },
+  "raw_samples": [
+    {
+      "binding_available_bytes": 9022369792,
+      "cached_bytes": 5538189312,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9022369792,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635480576,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 15293788160,
+      "system_free_bytes": 9422774272,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9022087168,
+      "cached_bytes": 5538189312,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9022087168,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635480576,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14893113344,
+      "system_free_bytes": 9022087168,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9022087168,
+      "cached_bytes": 5538189312,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9022087168,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635480576,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14893113344,
+      "system_free_bytes": 9022087168,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9022087168,
+      "cached_bytes": 5538193408,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9022087168,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635484672,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14893113344,
+      "system_free_bytes": 9022087168,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9022087168,
+      "cached_bytes": 5538193408,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9022087168,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635484672,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14893113344,
+      "system_free_bytes": 9022087168,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9022087168,
+      "cached_bytes": 5538193408,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9022087168,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635484672,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14893113344,
+      "system_free_bytes": 9022087168,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9022087168,
+      "cached_bytes": 5538193408,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9022087168,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635484672,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14893113344,
+      "system_free_bytes": 9022087168,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9024479232,
+      "cached_bytes": 5538193408,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9024479232,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635484672,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14895505408,
+      "system_free_bytes": 9024479232,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9027235840,
+      "cached_bytes": 5538193408,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9027235840,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635484672,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14898262016,
+      "system_free_bytes": 9027235840,
+      "system_total_bytes": 33153904640
+    },
+    {
+      "binding_available_bytes": 9029419008,
+      "cached_bytes": 5538193408,
+      "device_allocated_bytes": 0,
+      "device_free_bytes": 9029419008,
+      "device_reserved_bytes": 0,
+      "device_total_bytes": 30692810752,
+      "gpu_available": true,
+      "swap_free_bytes": 31635484672,
+      "swap_total_bytes": 33153871872,
+      "system_available_bytes": 14900445184,
+      "system_free_bytes": 9029419008,
+      "system_total_bytes": 33153904640
+    }
+  ],
+  "samples": 10,
+  "summary": {
+    "cached_bytes": {
+      "max": 5538193408,
+      "median": 5538193408,
+      "min": 5538189312
+    },
+    "device_free_bytes": {
+      "max": 9029419008,
+      "median": 9022087168,
+      "min": 9022087168
+    },
+    "swap_free_bytes": {
+      "max": 31635484672,
+      "median": 31635484672,
+      "min": 31635480576
+    },
+    "system_available_bytes": {
+      "max": 15293788160,
+      "median": 14893113344,
+      "min": 14893113344
+    },
+    "system_free_bytes": {
+      "max": 9422774272,
+      "median": 9022087168,
+      "min": 9022087168
+    }
+  },
+  "time_local": "2026-10-20T19:56:33+02:00",
+  "time_utc": "2026-10-20T17:56:33+00:00"
+}
