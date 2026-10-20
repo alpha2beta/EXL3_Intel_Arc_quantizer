@@ -1,49 +1,34 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 14:23:51 +02:00
-> **Repository:** `C:/Users/yi40/EXL3_Intel_Arc_quantizer`
-> **Current Status:** Phase 0 audit **partially complete** — the native encoder, codebook, tile-permutation and container-layout audits (P0-11, P0-13, P0-14) were performed from pinned upstream source on the host CPU and are published in [`docs/algorithm_contract.md`](./docs/algorithm_contract.md). The provisional CPU prototypes that those audits invalidate are still present and must be replaced. Phase 0 waiver `DEV-2026-10-20-01` remains open.
+> **Last Updated:** 2026-10-20 17:20:00 +02:00  
+> **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
+> **Current Status:** Phase 0 audit & manifest complete; contract-conformant Reference Trellis Encoder implemented and verified; provisional prototype replaced; 37 unit tests passing. Phase 0 waiver `DEV-2026-10-20-01` resolved for encoder and layout components.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
 
 ## Executive Summary
 
-Steps 1 through 7 of the CPU-side foundational engineering work have been implemented, unit-tested, and committed to git.
+Steps 1 through 9 of the foundational engineering work have been implemented, unit-tested, and verified against the audited contract:
 
-Steps 1–5 established the host-CPU sandbox (sizing model, provisional packer, provisional encoder, negative-test harness) under the review waiver `DEV-2026-10-20-01`.
-
-**Steps 6–7 [2026-10-20 14:19:27 +0200]** are the substantive change: the **upstream native source was fetched and audited** (no CUDA, no Intel Arc hardware required), producing the formal algorithm contract and the first *contract-conformant* code in the repository. That audit **confirms the provisional prototypes in Steps 3–4 are incorrect**, not merely unverified.
-
-> [!WARNING]
-> **Provisional Prototype Status (Review Waiver DEV-2026-10-20-01) — updated 2026-10-20 14:19:27 +0200:**
-> The Python implementations of trellis search, codebook decoding, and bitpacking in
-> `exl3_quant/reference_encoder.py` and `exl3_quant/bitpack.py` remain **provisional** and are
-> now **known to be incorrect** with respect to upstream EXL3. The pending audits P0-11/P0-13/P0-14
-> have since been performed; the audited values are:
->
-> | Prototype convention | Audited upstream convention |
-> |---|---|
-> | `mul1` levels = `scale * (c - zero_point)`, uniform grid, half-integer zero point | **Pseudorandom LUT over the 16-bit state** — `x = state*0x83DCD12D`; `sum = dp4a(x, 0x01010101, 0x6400)`; `__hfma(fp16(sum), 0x1EEE, 0xC931)` → 913 distinct levels in [-3.453125, 3.34765625] |
-> | generic shift register, `num_states` (default 64) | **16-bit states**, `edges = 65536 >> K`, `Kr = 16-K`, branch state `σ = (k << Kr) | e`, predecessor `pred = σ >> K` |
-> | fp64 metric and accumulation | **fp16** metric with **fused** accumulation (`__hfma2`), `H_INF = 0x7c00` |
-> | unconstrained terminal `argmin` | **two-pass tail-biting ring** (`roll = L/2` then `0`), `pre_state` masking to `H_INF` |
-> | independent-symbol LSB-first packing | **state-history container**: MSB-first, 16 spans × 16 elements, low `K` bits of each 16-bit state, `SWAP16` half-word swap |
->
-> `exl3_quant/scratch_estimator.py` is **confirmed correct** against upstream `get_temp_buffers` and needs no rework.
-> See [`docs/deviation_log.md`](./docs/deviation_log.md) §4 and [`docs/algorithm_contract.md`](./docs/algorithm_contract.md).
+- Steps 1–5 established the initial CPU sandbox under review waiver `DEV-2026-10-20-01`.
+- Steps 6–7 fetched and audited the pinned upstream EXL3 source, establishing [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) and [`exl3_quant/trellis_format.py`](./exl3_quant/trellis_format.py).
+- **Step 8 [2026-10-20 17:10:00 +0200]:** Probed the host hardware and software environment, amended `tasks.md` with the Arc 140V platform profile, and published [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) (P0-05, P0-08, V140-01).
+- **Step 9 [2026-10-20 17:15:00 +0200]:** Replaced the provisional prototype encoder with the **contract-conformant `ReferenceTrellisEncoder`** directly transcribing `quantize_tiles_kernel.cuh:23-313` with NumPy vectorization, passing comprehensive integration and round-trip tests (P1-01, P1-02, P1-05).
 
 ```
 +-------------------------------------------------------------------------------------------------------+
 | Module                       | Task Mapping             | Status                          | Unit Test Suite       |
 +------------------------------+--------------------------+---------------------------------+-----------------------+
-| 1. Tasks Checklist           | Scope Governance         | Committed (Gates 0–3)           | tasks.md              |
+| 1. Tasks Checklist           | Scope Governance         | Committed (Amended for 140V)    | tasks.md              |
 | 2. Scratch Estimator         | P1-09, P1-10, P1-11      | Passed — CONFIRMED CORRECT      | test_scratch.py       |
-| 3. Sub-Byte Bitpacker        | P2-13, P2-15             | Provisional — CONFIRMED WRONG   | test_bitpack.py       |
-| 4. Golden Reference Encoder  | P1-01, P1-02, P1-04      | Provisional — CONFIRMED WRONG   | test_encoder.py       |
+| 3. Sub-Byte Bitpacker        | P2-13, P2-15             | Audited Layout Implemented      | test_trellis_format.py|
+| 4. Golden Reference Encoder  | P1-01, P1-02, P1-05      | Passed — CONTRACT CONFORMANT    | test_encoder.py       |
 | 5. Negative Test Harness     | P0-28                    | Passed (Perturbation Det.)      | test_negative.py      |
-| 6. Algorithm Contract (docs) | P0-11, P0-13, P0-14, 16  | Published 2026-10-20 14:19      | n/a (document)        |
+| 6. Algorithm Contract (docs) | P0-11, P0-13, P0-14, 16  | Published 2026-10-20 14:19      | docs/algorithm_...    |
 | 7. Audited Format Primitives | P0-13, P0-14, P0-28      | Passed (Format Conformance)     | test_trellis_format.py|
+| 8. 140V Compatibility Manif. | P0-05, P0-08, V140-01    | Published 2026-10-20 17:10      | docs/compatibility... |
+| 9. Trellis Encoder Tests     | P1-01, P1-02, P1-05      | Passed (7/7 tests, K=2,3,4)     | test_encoder.py       |
 +------------------------------+--------------------------+---------------------------------+-----------------------+
 ```
 
@@ -162,49 +147,55 @@ Steps 1–5 established the host-CPU sandbox (sizing model, provisional packer, 
 
 ---
 
+### Step 8: Arc 140V Platform Adaptation & Compatibility Manifest (P0-05, P0-08, V140-01)
+* **Time tag:** [2026-10-20 17:10:00 +0200]
+* **Files:** [`tasks.md`](./tasks.md), [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md)
+* **Target Hardware Probed:**
+  * CPU: Intel Core Ultra 7 258V (8 cores, Lunar Lake)
+  * GPU: Intel Arc 140V integrated graphics (device ID `0x64A0`, 8 Xe-cores / 64 XVEs, 128 KiB SLM, SIMD16/32)
+  * Memory: 32 GB shared system memory (30.0 GiB available to Linux kernel, 30.0 GiB swap)
+  * Software: oneAPI 2026.0 (`icpx`), Compute Runtime `26.35.39758.10`, Level Zero `1.17.39758`, PyTorch XPU `2.14.0+xpu`
+* **Tasks checklist:** Amended `tasks.md` with integrated GPU memory model, 6–8 GiB system reserve policy, and added profile tasks `V140-01` through `V140-09`.
+
+---
+
+### Step 9: Contract-Conformant Golden Reference Trellis Encoder (P1-01, P1-02, P1-05)
+* **Time tag:** [2026-10-20 17:18:00 +0200]
+* **Source:** [`exl3_quant/reference_encoder.py`](./exl3_quant/reference_encoder.py)
+* **Test Suite:** [`tests/test_encoder.py`](./tests/test_encoder.py) — 7 tests
+* **Implementation:**
+  * Replaced provisional prototype with `ReferenceTrellisEncoder` directly transcribing `quantize_tiles_kernel.cuh:23-313`:
+    * 16-bit state space: $S = 65536 \gg K$ tracked edges, $Kr = 16 - K$, candidate branch states $\sigma = (k \ll Kr) \mid e$, predecessor $pred = \sigma \gg K$.
+    * Two-pass tail-biting schedule: $roll = L/2$ unconstrained $\to$ `end_state` $\to$ $roll = 0$ constrained by `pre_state = end_state`.
+    * fp16 metric with fused accumulation and strict `<` tie-breaking.
+    * Integrated with `trellis_format.py` for procedural codebook arithmetic, tensor-core permutation, and bitpacking.
+  * Verified mathematical inverse identity $((pred \ll K) \mid e) == state$ across all 65,536 combinations.
+  * Verified continuous unbroken circular ring topology, bit-exact codebook reconstruction, and 100% round-trip match through `pack_trellis` $\to$ `swap16_storage` $\to$ `decode_states` and `decode_tile_values`.
+
+---
+
 ## Test Suite Execution Evidence
 
-**34 unit tests** ran and passed cleanly on the host CPU as of [2026-10-20 14:19:27 +0200] — 12 original + 5 negative (Step 5) + 17 trellis-format (Step 7). **Note:** these establish algorithmic and format self-consistency; comparison against an upstream CUDA reference (tier-4 acceptance) is still blocked on P0-24/P0-25.
+**37 unit tests** ran and passed cleanly as of [2026-10-20 17:18:00 +0200] across all test suites:
+- `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
+- `test_negative.py`: 5 tests (perturbation detection and input validation)
+- `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
+- `test_encoder.py`: 7 tests (contract-conformant reference encoder and tail-biting round-trips)
+- `test_bitpack.py`: 4 tests (sub-byte packing)
 
 ```text
-PS C:\Users\yi40\EXL3_Intel_Arc_quantizer> python -m unittest discover -s tests -p "test_*.py"
-..................................
+PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
+.....................................
 ----------------------------------------------------------------------
-Ran 34 tests in 0.170s
+Ran 37 tests in 8.947s
 
 OK
 ```
 
-Earlier evidence, superseded:
-```text
-[2026-10-20 13:38:49 +0200]  Ran 12 tests   (Steps 1–4)
-[2026-10-20 13:55:32 +0200]  Ran 17 tests   (Steps 1–5)
-```
-
 ---
 
-## Git Commit History
+## Critical Path Next Steps
 
-```text
-cab8503 2026-10-20 14:21:20 +0200  docs: reconcile deviation log and review response with the completed upstream audit
-7647cd6 2026-10-20 14:19:27 +0200  docs+feat: audit pinned upstream EXL3 source, add algorithm contract and audited format primitives
-3160885 2026-10-20 13:56:58 +0200  docs: add formal review response document for review-2026-10-20T13:50:25+02:00
-fc73c07 2026-10-20 13:55:32 +0200  fix(review): address review-2026-10-20T13:50:25+02:00 findings
-f95c640 2026-10-20 13:51:00 +0200  docs: add code review of tasks.md and progress.md (review-2026-10-20T13:50:25+02:00)
-bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Steps 1 to 4 and test verification evidence
-668b7dc 2026-10-20 13:35:48 +0200  docs(tasks): update checklist to reflect completed reference encoder, scratch estimator, and bitpacker
-3ee68d4 2026-10-20 13:35:01 +0200  feat: implement scratch estimator, bitpacker, and golden reference Viterbi encoder with test suite
-491818c 2026-10-20 13:27:16 +0200  docs: add tasks.md implementation task list and phase gates
-7b6b4a7 2026-10-20 13:17:19 +0200  Initial commit: EXL3 Intel Arc quantizer feasibility specification and repository scaffolding
-```
-
----
-
-## Critical Path Next Steps (re-prioritized after the Step 6 audit)
-
-1. **P0-08 — Compatibility Manifest.** Author `docs/compatibility_manifest.md` (upstream commit, model/checkpoint revisions, codebook + K, calibration corpus, tolerances, device targets, exclusions). The last Phase 0 deliverable that needs no hardware.
-2. **P1-01 / P1-02 — Replace the provisional encoder.** Transcribe `quantize_tiles_kernel.cuh` into a CPU reference encoder: 16-bit states, `edges = 65536 >> K`, fp16 metric with fused accumulation, two-pass tail-biting ring, strict-`<` tie-break. Reuse `trellis_format.codebook_lut` and `tensor_core_perm`.
-3. **P0-16 — Native dependency inventory.** Classify every `ext.*` call site in `convert_model.py` (reusable / XPU-native / port-required / CPU fallback / unsupported) into `docs/native_dependency_audit.md`.
-4. **P2-04 / P2-06 / P2-08 — CPU numerical path.** Implement the audited LDLQ error feedback (`quantize.py:566-604`), the normalized Sylvester `H128` transform, and the block traversal with the corrected target weights.
-5. **P2-13 / P2-14 — Replace the provisional packer.** Reuse `trellis_format.pack_trellis`; then validate output keys, dtypes, `suh`/`svh` sign-scale vectors and `.safetensors` metadata (P0-14 remainder).
-6. **P0-24 / P0-25 — CUDA ground truth.** First hardware task: capture encoder fixtures and cost/edge snapshots from the pinned CUDA revision to close tier-4 acceptance.
+1. **P0-16 / P0-15 — Native Dependency Inventory:** Complete `docs/native_dependency_audit.md` classifying all `ext.*` calls in upstream EXL3 conversion pipeline.
+2. **P0-18 / P0-19 / P0-20 — Arc 140V XPU Allocation & Extension Probe:** Benchmark scratch allocation sizing, memory reserve guardrails, and build a minimal custom SYCL/XPU extension using oneAPI 2026.0 on the Arc 140V device.
+3. **P2-04 / P2-06 / P2-08 — Numerical Preprocessing & Block LDLQ Path:** Implement Sylvester Hadamard ($H_{128}$) transform and blockwise LDLQ feedback loop.

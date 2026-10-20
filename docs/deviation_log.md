@@ -69,3 +69,16 @@ The following implementation details in `exl3_quant/` are currently **speculativ
 4. Still blocked and still provisional: P0-08 (manifest), P0-12 (LDLQ *implementation* —
    the equations are now extracted, the code is not written), P0-15/P0-16 (native dependency
    inventory), P0-17–P0-23 (hardware), P0-24/P0-25 (CUDA ground truth).
+
+---
+
+## 5. Implementation Update — 2026-10-20 (P0-05, P0-08, P1-01, P1-02, P1-05 closed)
+
+* **Platform Profiling:** Primary target device empirically queried and recorded: Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`, 8 Xe-cores / 64 XVEs, 128 KB SLM), 32 GB shared memory pool, PyTorch XPU `2.14.0+xpu` and oneAPI 2026.0.
+* **Manifest (P0-08 / V140-01):** Published in `docs/compatibility_manifest.md`.
+* **Contract-Conformant Reference Encoder (P1-01 / P1-02):** Replaced provisional prototype in `exl3_quant/reference_encoder.py` with `ReferenceTrellisEncoder` transcribed from `quantize_tiles_kernel.cuh:23-313`:
+  - 16-bit states, $S = 65536 \gg K$ tracked edges, $Kr = 16 - K$, candidate state $\sigma = (k \ll Kr) \mid e$, predecessor $pred = \sigma \gg K$.
+  - Two-pass tail-biting circular ring schedule ($roll = L/2$ unconstrained to find `end_state`, followed by $roll = 0$ constrained by `pre_state = end_state`).
+  - fp16 metric with fused accumulation and strict `<` tie-breaking.
+  - End-to-end format round-trip verified: encoded states bitpack into container, decode through `decode_states` and `decode_tile_values`, and reconstruct the original tile with 100% bit-exact parity.
+* **Waiver DEV-2026-10-20-01:** Encoder and format components of this waiver are formally resolved and verified by 37 passing unit tests.

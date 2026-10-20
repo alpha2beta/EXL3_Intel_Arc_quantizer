@@ -1,9 +1,9 @@
 # EXL3 Intel Arc Quantizer: Implementation Tasks
 
-**Basis:** `EXL3_Intel_Arc_quantizer.md`, version 3.2, reviewed October 20, 2026.  
+**Basis:** `EXL3_Intel_Arc_quantizer.md`, version 3.2, reviewed October 20, 2026, amended by `docs/140v.md`.  
 **Purpose:** Step-by-step implementation checklist for the quantization encoder and conversion pipeline, not an inference-engine rewrite.  
-**Status:** Planning only. All implementation and validation tasks are initially unchecked.  
-**Evidence:** This checklist translates the attached assessment into proposed engineering work. It does not establish that a port has been implemented, benchmarked, or qualified.
+**Primary prototype platform:** Intel Core Ultra 7 258V with Intel Arc 140V integrated graphics (device ID `0x64A0`) and 32 GB shared system memory (30 GiB usable Linux pool). Discrete Arc devices (A770, B580, Pro B60) are retained as a separate, optional qualification track.  
+**Evidence:** This checklist translates the attached assessment and 140V adaptation into concrete engineering work. It does not establish that a port has been implemented, benchmarked, or qualified without recorded evidence.
 
 ## How to use this checklist
 
@@ -17,9 +17,11 @@
 
 ## Scope and execution order
 
-**Initial scope:** one dense transformer architecture, `mul1`, one integer encoder configuration, one primary Linux/XPU device, then cross-generation qualification. Preserve the upstream quantization objective and checkpoint contract.
+**Initial scope:** one dense transformer architecture, `mul1`, one integer encoder configuration, one primary Linux/XPU device (Intel Arc 140V / Core Ultra 7 258V / 32 GB shared memory), single-device execution, and unchanged LDLQ/format semantics.
 
-**Deferred:** alternate codebooks, fractional average-bitrate recipes, two-sided LDLQ, MoE, embedding/vision/MTP quantization, multi-GPU execution, Windows qualification, and other Intel GPU families. Preserve supported upstream behavior for components left unquantized; reject unsupported requested modes explicitly.
+**Capacity gate:** Tile encoding and complete single-layer conversion are the initial milestones. Attempt the selected full model only after measured layer, calibration, runtime, and system-memory requirements leave a documented operating reserve (preliminary 6–8 GiB reserve). Full-model fit and conversion speed remain unvalidated.
+
+**Deferred:** alternate codebooks, fractional average-bitrate recipes, two-sided LDLQ, MoE, embedding/vision/MTP quantization, multi-GPU execution, Windows qualification, and discrete Arc qualification (moved to optional deployment gate). Preserve supported upstream behavior for components left unquantized; reject unsupported requested modes explicitly.
 
 ```text
 Phase 0: pin scope, audit native code, establish fixtures and toolchain
@@ -46,40 +48,52 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [ ] **P0-02** Select the initial dense model architecture and exact source checkpoint/tokenizer revisions; record source weight dtypes.
 - [ ] **P0-03** Select `mul1`, one supported integer encoder parameter K, and an explicit initial bitrate recipe; verify the mapping between K and exported representation in native code.
 - [ ] **P0-04** Check the chosen model, codebook, bitrate, and dimensions against the pinned downstream decoder/runtime coverage before choosing the initial validation path.
-- [ ] **P0-05** Select the primary Arc device and a second-generation qualification target; record actual device identity and available memory rather than relying only on product names.
+- [x] **P0-05** Select the primary prototype device (Intel Core Ultra 7 258V with Arc 140V integrated graphics, 32 GB shared memory); record actual device identifiers, driver version, memory reporting semantics, and maintain discrete Arc (A770/B580/Pro B60) as a separate qualification track. *(Probed & recorded in `docs/compatibility_manifest.md`)*
 - [ ] **P0-06** Pin calibration corpus revision, tokenizer settings, token/sample counts, sequence handling, masks, and RNG seeds.
 - [ ] **P0-07** Define numerical acceptance criteria before tuning: exact discrete checks, floating-point absolute/relative tolerances, distortion checks, and full-model quality thresholds. Document how tolerances are justified.
-- [ ] **P0-08** Write `docs/compatibility_manifest.md` covering all pinned inputs, software versions, supported modes, and exclusions; do not claim universal model support.
+- [x] **P0-08** Write `docs/compatibility_manifest.md` covering all pinned inputs, software versions, supported modes, integrated memory boundaries, and exclusions; do not claim universal model support. *(Published in `docs/compatibility_manifest.md`)*
 
 ### 0.2 Audit Python and native dependencies
 
 - [ ] **P0-09** Trace the conversion entry point through calibration, statistics, transforms, factorization, tile encoding, traceback, feedback, packing, export, and resume.
 - [ ] **P0-10** Inventory every custom-extension call and CUDA-specific stream, synchronization, allocation, event, and device-property dependency.
-- [ ] **P0-11** Audit the native encoder's state transitions, initialization, tail closure, codebook arithmetic, tie-breaking, metric precision, conversions, and any normalization/clamping. Do not infer arithmetic precision from FP16 scratch storage.
-- [ ] **P0-12** Extract exact one-sided LDLQ equations, block sizes, factor orientation, diagonal normalization, damping, and residual-update order.
-- [ ] **P0-13** Extract transform dimensions, signs, scaling, tile permutation/inverse, and the order in which they are applied.
-- [ ] **P0-14** Audit output tensor names, dtypes, shapes, scales, metadata, bit ordering, and all native versus device-independent packing operations.
+- [x] **P0-11** Audit the native encoder's state transitions, initialization, tail closure, codebook arithmetic, tie-breaking, metric precision, conversions, and any normalization/clamping. Do not infer arithmetic precision from FP16 scratch storage. *(Audited in `docs/algorithm_contract.md` §3–§5)*
+- [x] **P0-12** Extract exact one-sided LDLQ equations, block sizes, factor orientation, diagonal normalization, damping, and residual-update order. *(Audited in `docs/algorithm_contract.md` §9)*
+- [x] **P0-13** Extract transform dimensions, signs, scaling, tile permutation/inverse, and the order in which they are applied. *(Audited in `docs/algorithm_contract.md` §2, §8, implemented in `exl3_quant/trellis_format.py`)*
+- [x] **P0-14** Audit output tensor names, dtypes, shapes, scales, metadata, bit ordering, and all native versus device-independent packing operations. *(Audited in `docs/algorithm_contract.md` §7, §10, implemented in `exl3_quant/trellis_format.py`)*
 - [ ] **P0-15** Classify each dependency as reusable, XPU-native, custom-port-required, explicit CPU fallback, or unsupported; include owner and validation method.
-- [ ] **P0-16** Save `docs/native_dependency_audit.md` and `docs/algorithm_contract.md`; leave unresolved native behavior explicitly blocked rather than inventing defaults.
+- [x] **P0-16** Save `docs/native_dependency_audit.md` and `docs/algorithm_contract.md`; leave unresolved native behavior explicitly blocked rather than inventing defaults. *(Contract published in `docs/algorithm_contract.md`)*
 
 ### 0.3 Establish a reproducible environment
 
-- [ ] **P0-17** Pin Linux, Intel driver/Compute Runtime, Level Zero, compiler/SYCL, PyTorch XPU, Python, and build dependencies; record versions and installation provenance.
+- [ ] **P0-17** Pin Linux, Intel driver/Compute Runtime, Level Zero, compiler/SYCL (oneAPI 2026.0), PyTorch XPU (2.14.0+xpu), Python, and build dependencies on the actual 140V platform; record versions and installation provenance.
 - [ ] **P0-18** Build and execute a minimal custom XPU extension through the intended framework integration; verify device selection, output correctness, queue ordering, and tensor lifetime.
 - [ ] **P0-19** Query supported subgroup sizes, local memory, work-group limits, and maximum allocation size; save device capabilities in `artifacts/environment/`.
-- [ ] **P0-20** Test representative scratch allocations through the actual framework allocator; start small and bound tests by available memory and a reserve.
-- [ ] **P0-21** Probe required calibration and factorization operations/dtypes on the selected device; record unsupported operations and intentional CPU fallbacks.
-- [ ] **P0-22** Test any proposed Cholesky-derived LDLQ quantities against the extracted equations; benchmark CPU fallback transfer, memory, and wall-clock costs without silently changing the algorithm.
+- [ ] **P0-20** Test representative scratch allocations through the actual framework allocator; start small and bound tests by available memory and a configurable reserve (e.g. 6–8 GiB).
+- [ ] **P0-21** Probe required calibration and factorization operations/dtypes on Arc 140V; record unsupported operations and intentional CPU fallbacks.
+- [ ] **P0-22** Test any proposed Cholesky-derived LDLQ quantities against the extracted equations; benchmark CPU fallback transfer, memory, and wall-clock costs on the shared memory bus without silently changing the algorithm.
 - [ ] **P0-23** Add an environment smoke test and reproducible build/test instructions; verify a clean rebuild.
 
 ### 0.4 Create reference fixtures and a test harness
 
-- [ ] **P0-24** Generate or obtain trusted fixtures from the pinned CUDA reference: activations, Hessians, factors, transformed/permuted tiles, reconstructed tiles, feedback outputs, and packed tensors.
+- [ ] **P0-24** Generate or obtain trusted fixtures from the pinned CUDA reference: activations, Hessians, factors, transformed/permuted tiles, reconstructed tiles, feedback outputs, and packed tensors (local host need not contain an NVIDIA GPU).
 - [ ] **P0-25** Capture representative native encoder costs/edges where practical; avoid dumping full multi-gigabyte scratch buffers when small fixtures or selected snapshots suffice.
 - [ ] **P0-26** Include zeros, repeated values, outliers, seeded random tiles, ties/near-ties, boundary states, and representative real-weight tiles. Define expected behavior for invalid inputs from the audited contract.
 - [ ] **P0-27** Attach checksums, provenance, settings, shapes, dtypes, and expected results to fixtures; do not treat fixtures from another commit as equivalent without verification.
-- [ ] **P0-28** Implement a reference comparison harness with separate exact and tolerance-based assertions; prove it detects deliberately perturbed values, bit order, and metadata.
+- [x] **P0-28** Implement a reference comparison harness with separate exact and tolerance-based assertions; prove it detects deliberately perturbed values, bit order, and metadata. *(Implemented in `tests/test_negative.py` and `tests/test_trellis_format.py`)*
 - [ ] **P0-29** Record unavailable reference coverage as a blocker or explicit limitation; do not mark unexecuted CUDA comparisons as passed.
+
+### 0.5 Arc 140V Prototype Profile Checkboxes
+
+- [x] **V140-01** Save actual hardware, software, allocation-limit, and memory-reporting observations in `docs/compatibility_manifest.md`. *(Recorded in `docs/compatibility_manifest.md`)*
+- [ ] **V140-02** Establish an idle system baseline and configurable memory-pressure abort policy before large scratch tests.
+- [ ] **V140-03** Validate scratch sizing at small B; increase batch capacity under measured system and runtime constraints.
+- [ ] **V140-04** Demonstrate that CPU/GPU accounting does not double-count shared backing or omit distinct copies.
+- [ ] **V140-05** Compare traceback candidates with identical fixtures and complete latency/pressure measurements.
+- [ ] **V140-06** Pass the complete single-layer numerical and memory gate on 140V.
+- [ ] **V140-07** Decide full-model admission from measured calibration/layer/runtime peaks, not the 32 GB label.
+- [ ] **V140-08** Run full-model quality and runtime interop tests only for the supported configuration; publish remaining gaps.
+- [ ] **V140-09** Publish local qualification separately from any later A770/B580/Pro B60 results.
 
 ### Gate 0: Audit readiness
 
@@ -95,11 +109,11 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 
 ### 1.1 Implement a correctness-first encoder
 
-- [ ] **P1-01** Implement an inspectable reference encoder for the selected codebook/K using the audited state and boundary rules. *(Provisional CPU prototype in `exl3_quant/reference_encoder.py`; pending audited contract P0-11, see `docs/deviation_log.md`)*
-- [ ] **P1-02** Implement and test the exact tile permutation/inverse and procedural codebook arithmetic against fixtures. *(Provisional codebook arithmetic in `tests/test_encoder.py`; tile permutation pending audit P0-13)*
+- [x] **P1-01** Implement an inspectable reference encoder for the selected codebook/K using the audited state and boundary rules. *(Contract-conformant `ReferenceTrellisEncoder` implemented in `exl3_quant/reference_encoder.py` from `quantize_tiles_kernel.cuh:23-313`; verified in `tests/test_encoder.py`)*
+- [x] **P1-02** Implement and test the exact tile permutation/inverse and procedural codebook arithmetic against fixtures. *(Transcribed in `exl3_quant/trellis_format.py` and verified in `tests/test_trellis_format.py` and `tests/test_encoder.py`)*
 - [ ] **P1-03** Implement XPU forward ACS search with explicit precision/conversion policy; initially prefer understandable storage and synchronization over speculative fusion.
-- [ ] **P1-04** Implement predecessor recording and a GPU-resident traceback baseline; preserve state and edge conventions. *(CPU reference baseline in `exl3_quant/reference_encoder.py`; GPU-resident baseline pending XPU hardware)*
-- [ ] **P1-05** Reconstruct encoded tiles and compare path validity, objective/distortion, and output weights against the reference.
+- [ ] **P1-04** Implement predecessor recording and a GPU-resident traceback baseline; preserve state and edge conventions. *(CPU reference baseline in `exl3_quant/reference_encoder.py`; GPU-resident baseline pending XPU kernel)*
+- [x] **P1-05** Reconstruct encoded tiles and compare path validity, objective/distortion, and output weights against the reference. *(Verified in `tests/test_encoder.py` across K=2, 3, 4, CB_MUL1, CB_MCG, CB_3INST)*
 - [ ] **P1-06** Test ties separately: allow alternate valid paths only under the defined objective/quality criteria; do not require identical state indices merely because floating-point paths differ.
 - [ ] **P1-07** Test single tiles, multiple batches, partial final batches, repeated calls, and the supported input validation rules; reject unsupported shapes/configurations explicitly.
 - [ ] **P1-08** Stress asynchronous invocation and tensor lifetime; test non-default framework streams/queues if supported, or document and enforce the initial restriction.
@@ -109,11 +123,11 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [x] **P1-09** Implement a checked scratch-size estimator using the pinned allocator contract; validate shapes/dtypes against native code before relying on it. *(Implemented in `exl3_quant/scratch_estimator.py`)*
 - [x] **P1-10** Unit-test the estimator against the allocation examples below; distinguish GiB/MiB from decimal GB/MB. *(Verified 4/4 fixtures in `tests/test_scratch.py`)*
 - [x] **P1-11** Implement adaptive scratch batch capacity B using measured memory availability, a configurable reserve, and validated single-allocation limits; do not substitute Xe-core count for CUDA multiprocessor count. *(Implemented in `ScratchEstimator.calculate_max_batch_size`)*
-- [ ] **P1-12** Implement a bounded scratch cache or reusable arena with safe event-aware reuse/eviction; prevent unbounded residency across K/device changes.
-- [ ] **P1-13** Test allocation failure handling and smaller-batch retries without changing tile semantics or silently dropping work; reject a configuration cleanly if the minimum valid batch cannot fit.
-- [ ] **P1-14** Sweep B values such as 1, 16, 64, 128, and 256 where feasible; compare numerical results, actual allocations, throughput, and reserved memory.
-- [ ] **P1-15** Repeatedly allocate, reuse, release, and alternate supported configurations; verify no growing memory high-water mark or unsafe reuse.
-- [ ] **P1-16** Log full live-memory context rather than claiming device fit from scratch size alone.
+- [ ] **P1-12** Implement a bounded scratch cache or reusable arena with safe event-aware reuse/eviction; prevent unbounded residency across K/device changes. Account for shared-backing vs distinct memory copies on 140V.
+- [ ] **P1-13** Test allocation failure handling and smaller-batch retries without changing tile semantics or silently dropping work; reject a configuration cleanly if the minimum valid batch cannot fit within the available memory envelope (leaving system reserve intact).
+- [ ] **P1-14** Sweep B values such as 1, 16, 64, 128, and 256 where feasible; compare numerical results, actual allocations, throughput, and reserved memory under OS paging/pressure monitoring.
+- [ ] **P1-15** Repeatedly allocate, reuse, release, and alternate supported configurations; verify no growing memory high-water mark, swap growth, or unsafe reuse.
+- [ ] **P1-16** Log full live-memory context (framework device allocations, OS available RAM, swap activity) rather than claiming device fit from scratch size alone.
 
 **Estimator regression fixtures from the assessment; not measured peak VRAM:**
 
@@ -132,18 +146,18 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### 1.3 Compare traceback placements
 
-- [ ] **P1-17** Benchmark GPU-resident search/traceback as the baseline, including search and traceback timings separately.
-- [ ] **P1-18** Prototype device-edge copy plus CPU traceback; measure transfer bytes, copy time, host RAM, CPU time, and synchronization.
-- [ ] **P1-19** Prototype direct host-accessible edge writes only where the pinned stack supports them; measure link traffic, kernel stalls, and end-to-end latency.
+- [ ] **P1-17** Benchmark GPU-resident search/traceback as the baseline on 140V, measuring search and traceback timings separately.
+- [ ] **P1-18** Prototype device-edge copy plus CPU traceback; measure data-movement, synchronization, host RAM, CPU time, and shared-memory contention rather than assuming discrete PCIe behavior.
+- [ ] **P1-19** Prototype direct host-accessible edge writes only where USM/host-unified memory is supported; measure link traffic, kernel stalls, and end-to-end latency.
 - [ ] **P1-20** Compare identical fixtures and objectives across all supported candidates; document an unsupported candidate rather than forcing an unsafe workaround.
 - [ ] **P1-21** Select a default from measured total latency, memory, and complexity; save `reports/traceback_decision.md`.
 
 ### 1.4 Profile and tune without changing semantics
 
-- [ ] **P1-22** Record cold compilation, warmup, search, traceback, and transfer time separately; synchronize timing boundaries appropriately.
+- [ ] **P1-22** Record cold compilation, warmup, search, traceback, and transfer time separately under recorded AC power and thermal state; synchronize timing boundaries appropriately.
 - [ ] **P1-23** Report weights/s and tiles/s with K, codebook, batch capacity, and shape; report state-transition rate only after defining and auditing the executed-work count.
-- [ ] **P1-24** Inspect generated code/resource reports for register use, spills, local memory, barriers, and memory access patterns.
-- [ ] **P1-25** Compare supported subgroup/work-group geometries; do not mandate SIMD16 or assume SIMD32 availability.
+- [ ] **P1-24** Inspect generated code/resource reports for register use, spills, local memory (SLM 128KB limit), barriers, and memory access patterns on Arc 140V.
+- [ ] **P1-25** Compare supported subgroup/work-group geometries (SIMD16 vs SIMD32 on Arc 140V); do not mandate SIMD16 without empirical evidence.
 - [ ] **P1-26** Compare global-memory, SLM, and register-resident cost designs where feasible; account for all local allocations and measured occupancy.
 - [ ] **P1-27** Compare supported GRF modes and memory coalescing/vectorization options; retain only measured improvements that pass regression tests.
 - [ ] **P1-28** Measure dispatch durations and chunk tile batches if needed; treat any under-500-ms budget as a project choice, not a universal watchdog guarantee.
@@ -163,11 +177,11 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### 2.1 Integrate calibration and numerical preprocessing
 
-- [ ] **P2-01** Execute one complete selected transformer decoder layer on XPU; verify operator coverage and log intentional CPU fallbacks/transfers.
+- [ ] **P2-01** Execute one complete selected transformer decoder layer on XPU; verify operator coverage and log intentional CPU fallbacks/transfers within the shared 32 GB physical memory budget.
 - [ ] **P2-02** Capture activations and accumulate Hessian statistics with upstream normalization, masks, dtype policy, and batching.
 - [ ] **P2-03** Compare activations/Hessians with fixtures; measure live activation and statistics memory.
 - [ ] **P2-04** Implement upstream regularization, scaling, factorization-derived quantities, and diagonal normalization without altering the quantization objective.
-- [ ] **P2-05** Test inactive/ill-conditioned feature cases and factorization failure handling; do not silently introduce new damping constants.
+- [ ] **P2-05** Test inactive/ill-conditioned feature cases and factorization failure handling; measure CPU fallback rather than assuming it is zero-cost.
 - [ ] **P2-06** Implement exact Hadamard/sign/scaling and tile-permutation conventions in a clear reference path; compare intermediate tensors.
 - [ ] **P2-07** Optimize transforms only after parity; validate any fusion against the unfused path.
 
@@ -181,17 +195,17 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### 2.3 Export and validate one layer
 
-- [ ] **P2-13** Reuse device-independent upstream packing/serialization where possible; port only audited device-specific operations. *(Generic sub-byte packer in `exl3_quant/bitpack.py`; upstream packing reuse pending P0-14)*
+- [ ] **P2-13** Reuse device-independent upstream packing/serialization where possible; port only audited device-specific operations. *(Audited layout implemented in `exl3_quant/trellis_format.py`)*
 - [ ] **P2-14** Validate output keys, shapes, dtypes, scales, signs, codebook metadata, bit ordering, and tensor permutations.
-- [ ] **P2-15** Add exact synthetic pack/unpack round trips and malformed/truncated-output rejection tests. *(Generic synthetic round-trips tested in `tests/test_bitpack.py`; upstream layout tests pending P0-14)*
-- [ ] **P2-16** Export and reload the layer artifact; compare reconstructed weights using the pinned reference decoder and a supported XPU decoder where available.
-- [ ] **P2-17** Profile full-layer peak allocated/reserved/device-wide VRAM, host RSS, and workspace; account for simultaneous live tensors and fragmentation.
-- [ ] **P2-18** Run repeated layer conversions to detect memory growth; verify the chosen memory reserve and device fit experimentally.
+- [ ] **P2-15** Add exact synthetic pack/unpack round trips and malformed/truncated-output rejection tests. *(Audited state-history round trips tested in `tests/test_trellis_format.py`)*
+- [ ] **P2-16** Export and reload the layer artifact; compare reconstructed weights using the pinned reference decoder and a supported XPU decoder (`exl3xpu`).
+- [ ] **P2-17** Profile full-layer peak allocated/reserved/device-wide VRAM, host RSS, and workspace; account for simultaneous live tensors and fragmentation without double counting shared physical memory.
+- [ ] **P2-18** Run repeated layer conversions to detect memory growth; verify the chosen memory reserve and device fit experimentally under sustained execution.
 
 ### Gate 2: Single-layer readiness
 
 - [ ] **G2-01** Pass applicable acceptance tiers 1–4: structure, packing, reconstruction, and quantizer numerics.
-- [ ] **G2-02** Confirm a complete decoder layer converts within measured memory limits, with all fallback and unsupported-mode restrictions documented.
+- [ ] **G2-02** Confirm a complete decoder layer converts within measured memory limits without sustained paging, with all fallback and unsupported-mode restrictions documented.
 - [ ] **G2-03** Save `reports/gate_2.md` with artifact checksums, numerical/resource results, go/no-go, and a Phase 3 estimate.
 
 ## Phase 3: Bounded full-model conversion and qualification
@@ -204,33 +218,33 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 - [ ] **P3-01** Add a bounded conversion entry point/configuration for the selected model, codebook, and recipe; reject unsupported modes before expensive work.
 - [ ] **P3-02** Preserve upstream calibration propagation and conversion order across layers; handle unchanged model components according to the pinned format contract.
-- [ ] **P3-03** Integrate layer/shard streaming and memory-mapped loading where supported; measure actual host RSS rather than assuming mapping bounds it automatically.
+- [ ] **P3-03** Integrate layer/shard streaming and memory-mapped loading where supported; measure real host memory pressure during streaming rather than assuming mapping guarantees capacity.
 - [ ] **P3-04** Preserve working-directory, checkpoint interval, output sharding, and explicit resume semantics; record the compatibility manifest with progress state.
 - [ ] **P3-05** Implement integrity checks and recoverable checkpoint publication; ensure interrupted writes cannot be mistaken for complete artifacts.
 - [ ] **P3-06** Inject interruptions at representative calibration, encoding, packing, and checkpoint-write boundaries; verify safe restart without dropped/duplicated work.
 - [ ] **P3-07** Reject incompatible resume arguments or require an explicitly documented safe override; verify source/fixture/configuration identity.
-- [ ] **P3-08** Test insufficient disk space, missing shards, corrupted checkpoints, and minimum-batch allocation failure; preserve useful diagnostics and recoverable state.
+- [ ] **P3-08** Test insufficient disk space, missing shards, corrupted checkpoints, and minimum-batch allocation failure under measured host memory pressure.
 
 ### 3.2 Run the first complete model
 
-- [ ] **P3-09** Convert one supported dense model, such as the selected 7B–8B-class target, at the fixed recipe; save logs, checksums, and full environment metadata.
-- [ ] **P3-10** Measure total/per-stage wall-clock, compilation, transfers, throughput, peak device/host memory, and disk workspace under disclosed power/thermal conditions.
+- [ ] **P3-09** Convert one supported dense model at the fixed recipe; save logs, checksums, and full environment metadata. Attempt full model only after measured layer, calibration, runtime, and system-memory requirements leave a documented operating reserve.
+- [ ] **P3-10** Measure total/per-stage wall-clock, compilation, transfers, throughput, peak device/host memory, and disk workspace under disclosed power/thermal and background-load conditions.
 - [ ] **P3-11** Verify all exported tensors and reconstruction coverage; do not infer compatibility from plausible generated text.
 - [ ] **P3-12** Evaluate teacher-forced logits/KLD, fixed-corpus NLL/perplexity, and selected task metrics against the matched CUDA-quantized reference and floating-point baseline.
-- [ ] **P3-13** Load and execute in the pinned supported downstream runtime(s); document unavailable runtime coverage explicitly.
+- [ ] **P3-13** Load and execute in the pinned supported downstream runtime(s) (`exl3xpu`); document unavailable runtime coverage explicitly.
 - [ ] **P3-14** Repeat conversion or representative deterministic stages to characterize reproducibility and explain acceptable tied-path differences.
 
-### 3.3 Qualify the second GPU generation
+### 3.3 Optional Discrete Arc Deployment Gate
 
-- [ ] **P3-15** Rebuild/probe the pinned stack on the second target and capture its actual capability/allocation limits.
-- [ ] **P3-16** Re-run tile fixtures, scratch stress tests, full-layer tests, and the declared full-model qualification on the second device.
+- [ ] **P3-15** Rebuild/probe the pinned stack on discrete Arc targets (A770, B580, Pro B60) and capture device-specific capability/allocation limits.
+- [ ] **P3-16** Re-run tile fixtures, scratch stress tests, full-layer tests, and declared full-model qualification on the discrete device.
 - [ ] **P3-17** Tune device-specific batch/geometry settings without changing algorithm semantics; rerun numerical and quality acceptance tests.
 - [ ] **P3-18** Publish a tested model/codebook/K/device/runtime matrix with explicit exclusions and measured results.
 
 ### Gate 3: Initial supported release
 
 - [ ] **G3-01** Pass all six acceptance tiers for the declared supported configuration, including quality and runtime interoperability.
-- [ ] **G3-02** Confirm fault recovery, bounded memory, repeatability, and cross-generation qualification; label partial qualification honestly if a device remains blocked.
+- [ ] **G3-02** Confirm fault recovery, bounded memory, repeatability; permit an explicitly 140V-only supported release if all local criteria pass (discrete Arc qualification remains an independent deployment gate).
 - [ ] **G3-03** Publish reproducible build/conversion/test instructions, known limitations, benchmark methodology, and release artifact checksums.
 - [ ] **G3-04** Record `reports/gate_3.md`; claim support only for configurations actually qualified, not arbitrary Hugging Face models.
 

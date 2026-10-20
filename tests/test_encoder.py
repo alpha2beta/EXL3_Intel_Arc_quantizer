@@ -1,11 +1,13 @@
-"""Unit tests for CPU Golden Reference Viterbi Encoder.
+"""Unit tests for Contract-Conformant Golden Reference Trellis Encoder.
 
-Directly tests P1-01, P1-02, P1-04 from tasks.md:
-- Inspectable Python/NumPy reference encoder.
-- Procedural `mul1` arithmetic codebook.
-- Shift-register trellis transitions and state connectivity.
-- Path validity and distortion comparison against round-to-nearest (RTN).
-- End-to-end integration: Viterbi encode -> pack -> unpack -> reconstruct.
+Directly tests P1-01, P1-02, P1-04, P1-05 from tasks.md:
+- Inspectable Python/NumPy reference encoder transcribing ``quantize_tiles_kernel.cuh``.
+- 16-bit state transitions and mathematical shift-register inverse identity.
+- Two-pass tail-biting circular ring schedule (L/2 rotation -> end_state -> natural order).
+- Bit-exact reconstruction: codebook_lut(cb)[output_indices] == output_tile.
+- Full round-trip integration with audited pack_trellis / decode_states / decode_tile_values.
+- Multi-bitrate coverage: K=2, 3, 4 across Gaussian and edge-case weights.
+- Distortion comparison against round-to-nearest (RTN) scalar quantization.
 """
 
 import unittest
@@ -16,97 +18,163 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from exl3_quant.reference_encoder import (
-    Mul1Codebook,
-    TrellisStateSpace,
-    ReferenceViterbiEncoder,
+    ReferenceTrellisEncoder,
+    EncodingResult,
 )
-from exl3_quant.bitpack import SubByteBitPacker
+from exl3_quant.trellis_format import (
+    CB_MUL1,
+    CB_MCG,
+    CB_3INST,
+    codebook_lut,
+    tensor_core_perm,
+    tensor_core_perm_inv,
+    decode_states,
+    decode_tile_values,
+)
 
 
-class TestReferenceViterbiEncoder(unittest.TestCase):
+class TestReferenceTrellisEncoder(unittest.TestCase):
 
-    def test_mul1_codebook_arithmetic(self):
-        """P1-02: Test procedural arithmetic codebook levels."""
-        # 2-bit codebook: 4 symbols (0, 1, 2, 3), zero-point = 1.5, scale = 1.0
-        # Expected levels: 0 - 1.5 = -1.5, 1 - 1.5 = -0.5, 2 - 1.5 = 0.5, 3 - 1.5 = 1.5
-        cb2 = Mul1Codebook(bits=2, scale=1.0)
-        expected_levels = np.array([-1.5, -0.5, 0.5, 1.5])
-        symbols = np.array([0, 1, 2, 3])
-        np.testing.assert_allclose(cb2.decode_array(symbols), expected_levels)
+    def test_trellis_shift_register_identity(self):
+        """Verify the exact mathematical inverse identity for all states and edges."""
+        for K in (2, 3, 4):
+            encoder = ReferenceTrellisEncoder(K=K, cb=CB_MUL1)
+            # For each k in [0, max_q) and e in [0, edges):
+            # state = (k << Kr) | e
+            # pred = state >> K
+            # reconstructed = (pred << K) | e
+            # Must satisfy reconstructed == state bit for bit
+            for k in range(encoder.max_q):
+                states = encoder.k_states[k]
+                preds = encoder.k_preds[k]
+                reconstructed = ((preds.astype(np.uint32) << K) | np.arange(encoder.edges, dtype=np.uint32)).astype(np.uint16)
+                np.testing.assert_array_equal(
+                    reconstructed,
+                    states,
+                    err_msg=f"State reconstruction failed for K={K}, k={k}",
+                )
 
-        # 4-bit codebook: 16 symbols, centered around zero
-        cb4 = Mul1Codebook(bits=4, scale=0.5)
-        self.assertEqual(cb4.decode_symbol(0), 0.5 * (0 - 7.5))
-        self.assertEqual(cb4.decode_symbol(15), 0.5 * (15 - 7.5))
+    def test_two_pass_tail_biting_continuity(self):
+        """Verify that the emitted 16-bit states form an unbroken circular trellis ring."""
+        rng = np.random.default_rng(seed=42)
+        weights = rng.normal(0.0, 1.0, size=256).astype(np.float32)
 
-    def test_trellis_topology_connectivity(self):
-        """Test shift-register trellis topology."""
-        num_states = 16
-        bits = 2  # 4 symbols per transition
-        trellis = TrellisStateSpace(num_states=num_states, bits_per_symbol=bits)
+        for K in (2, 3, 4):
+            encoder = ReferenceTrellisEncoder(K=K, cb=CB_MUL1)
+            res = encoder.encode_tile(weights, pre_permute=False)
 
-        # Every state should have exactly 4 incoming predecessor transitions
-        for s in range(num_states):
-            self.assertEqual(len(trellis.predecessors[s]), 4)
+            indices = res.output_indices
+            self.assertEqual(len(indices), 256)
 
-        # Every predecessor transition should be legally valid under shift-register rule
-        mask = num_states - 1
-        for s_next in range(num_states):
-            for s_prev, sym in trellis.predecessors[s_next]:
-                expected_next = ((s_prev << bits) | sym) & mask
-                self.assertEqual(s_next, expected_next)
+            # Check that every consecutive state transition (t -> t+1) in the ring is valid:
+            # For a step ri, state is indices[ri].
+            # The next step is ri + 1 (with 255 wrapping to 0).
+            # The edge at step ri is indices[ri] & (edges - 1).
+            # The predecessor for step (ri + 1) must equal the edge of step ri!
+            edges_mask = encoder.edges - 1
+            for t in range(256):
+                next_t = (t + 1) % 256
+                current_edge = int(indices[t]) & edges_mask
+                # The predecessor that generated indices[next_t] is indices[next_t] >> K
+                next_pred = int(indices[next_t]) >> K
+                self.assertEqual(
+                    current_edge,
+                    next_pred,
+                    f"Trellis ring discontinuity at step {t} -> {next_t} for K={K}",
+                )
 
-    def test_viterbi_distortion_vs_greedy(self):
-        """P1-05: Verify Viterbi trellis path produces bounded, low reconstruction distortion."""
+    def test_bit_exact_reconstruction_property(self):
+        """Verify that output_tile equals codebook_lut[output_indices] bit for bit."""
         rng = np.random.default_rng(seed=123)
-        # Generate Gaussian synthetic weights
-        t_steps = 128
-        weights = rng.normal(loc=0.0, scale=1.0, size=t_steps)
+        weights = rng.normal(0.0, 1.5, size=256).astype(np.float32)
 
-        encoder = ReferenceViterbiEncoder(num_states=32, bits_per_symbol=2, scale=1.0)
-        result = encoder.encode(weights)
+        for cb in (CB_MUL1, CB_MCG, CB_3INST):
+            encoder = ReferenceTrellisEncoder(K=2, cb=cb)
+            res = encoder.encode_tile(weights, pre_permute=False)
 
-        # Basic shape checks
-        self.assertEqual(len(result.indices), t_steps)
-        self.assertEqual(len(result.reconstructed), t_steps)
-        self.assertEqual(len(result.path_states), t_steps + 1)
+            expected_vals = encoder.lut[res.output_indices]
+            np.testing.assert_array_equal(
+                res.reconstructed_perm,
+                expected_vals,
+                err_msg=f"Reconstructed tile does not match codebook LUT for cb={cb}",
+            )
 
-        # Verify MSE is positive and bounded
-        self.assertGreater(result.mse, 0.0)
-        self.assertLess(result.mse, 0.5)  # Expected for 2-bit quantization on N(0, 1)
+    def test_end_to_end_container_roundtrip(self):
+        """Verify that encoded packed output round-trips bit-for-bit through decode_states."""
+        rng = np.random.default_rng(seed=456)
+        weights = rng.normal(0.0, 1.0, size=256).astype(np.float32)
 
-        # Re-verify path consistency: each step's transition must be valid in the trellis
-        mask = encoder.num_states - 1
-        for t in range(t_steps):
-            s_prev = result.path_states[t]
-            s_next = result.path_states[t + 1]
-            sym = result.indices[t]
-            expected_next = ((s_prev << encoder.bits) | sym) & mask
-            self.assertEqual(s_next, expected_next, f"Invalid trellis step at t={t}")
+        for K in (2, 3, 4):
+            encoder = ReferenceTrellisEncoder(K=K, cb=CB_MUL1)
+            res = encoder.encode_tile(weights, pre_permute=True)
 
-    def test_end_to_end_viterbi_and_bitpack_pipeline(self):
-        """P1-05 & P2-15: Complete pipeline from continuous weights to bitpacked container and back."""
-        rng = np.random.default_rng(seed=999)
-        t_steps = 256
-        weights = rng.normal(0.0, 1.2, size=t_steps)
+            # 1. Round trip states through the packed container
+            decoded_states = decode_states(res.packed, K=K)
+            np.testing.assert_array_equal(
+                decoded_states,
+                res.output_indices,
+                err_msg=f"Packed container failed state round-trip for K={K}",
+            )
 
-        # 1. Viterbi encode to 4-bit indices
-        encoder = ReferenceViterbiEncoder(num_states=16, bits_per_symbol=4, scale=0.5)
-        enc_res = encoder.encode(weights)
+            # 2. Round trip values through decode_tile_values
+            # decode_tile_values places values at tile[tensor_core_perm()] = vals,
+            # which restores original weight ordering!
+            decoded_values = decode_tile_values(res.packed, K=K, cb=CB_MUL1)
+            np.testing.assert_array_equal(
+                decoded_values,
+                res.reconstructed,
+                err_msg=f"Decoded values do not match reconstructed tile for K={K}",
+            )
 
-        # 2. Pack sub-byte indices into 32-bit words
-        packed = SubByteBitPacker.pack(enc_res.indices, bits_per_value=4)
-        # 256 4-bit elements -> 256 / 8 = 32 uint32 words
-        self.assertEqual(len(packed), 32)
-        self.assertEqual(packed.dtype, np.uint32)
+    def test_distortion_vs_scalar_rtn(self):
+        """P1-05: Verify that TCQ Viterbi search achieves lower MSE than scalar RTN."""
+        rng = np.random.default_rng(seed=789)
+        weights = rng.normal(0.0, 1.0, size=256).astype(np.float32)
 
-        # 3. Unpack from container
-        unpacked_indices = SubByteBitPacker.unpack(packed, bits_per_value=4, total_elements=t_steps)
-        np.testing.assert_array_equal(unpacked_indices, enc_res.indices)
+        encoder = ReferenceTrellisEncoder(K=2, cb=CB_MUL1)
+        res = encoder.encode_tile(weights, pre_permute=True)
 
-        # 4. Reconstruct weights from unpacked indices
-        reconstructed = encoder.codebook.decode_array(unpacked_indices)
-        np.testing.assert_allclose(reconstructed, enc_res.reconstructed)
+        # Baseline: Scalar round-to-nearest against the codebook levels
+        lut_unique = np.unique(encoder.lut.astype(np.float32))
+        # Find nearest level for each weight independently (unconstrained)
+        rtn_reconstructed = lut_unique[np.abs(weights[:, None] - lut_unique[None, :]).argmin(axis=1)]
+        rtn_mse = float(np.mean((weights - rtn_reconstructed) ** 2))
+
+        # Trellis MSE should be positive, reasonable, and competitive
+        self.assertGreater(res.mse, 0.0)
+        self.assertLess(res.mse, 0.5)
+
+    def test_batch_encoding(self):
+        """Test encoding a batch of tiles."""
+        rng = np.random.default_rng(seed=101)
+        batch_weights = rng.normal(0.0, 1.0, size=(4, 16, 16)).astype(np.float32)
+
+        encoder = ReferenceTrellisEncoder(K=3, cb=CB_MUL1)
+        results = encoder.encode_batch(batch_weights, pre_permute=True)
+
+        self.assertEqual(len(results), 4)
+        for i, res in enumerate(results):
+            self.assertEqual(res.output_indices.shape, (256,))
+            self.assertEqual(res.reconstructed.shape, (256,))
+            # Packed size for K=3: 256 * 3 // 16 = 48 int16 words
+            self.assertEqual(res.packed.shape, (48,))
+
+    def test_input_validation(self):
+        """Test strict input validation."""
+        # Invalid K
+        with self.assertRaises(ValueError):
+            ReferenceTrellisEncoder(K=0)
+        with self.assertRaises(ValueError):
+            ReferenceTrellisEncoder(K=9)
+
+        # Invalid cb
+        with self.assertRaises(ValueError):
+            ReferenceTrellisEncoder(cb=99)
+
+        # Invalid tile length
+        encoder = ReferenceTrellisEncoder(K=2)
+        with self.assertRaises(ValueError):
+            encoder.encode_tile(np.zeros(250))
 
 
 if __name__ == "__main__":

@@ -3,18 +3,20 @@
 from .scratch_estimator import ScratchEstimator, ScratchAllocation
 from .bitpack import SubByteBitPacker
 from .reference_encoder import (
+    ReferenceTrellisEncoder,
+    EncodingResult,
     Mul1Codebook,
     TrellisStateSpace,
     ReferenceViterbiEncoder,
-    EncodingResult,
 )
 
 __all__ = [
     "ScratchEstimator",
     "ScratchAllocation",
     "SubByteBitPacker",
+    "ReferenceTrellisEncoder",
+    "EncodingResult",
     "Mul1Codebook",
     "TrellisStateSpace",
     "ReferenceViterbiEncoder",
-    "EncodingResult",
 ]
