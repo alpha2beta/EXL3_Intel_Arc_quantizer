@@ -676,6 +676,10 @@ def load_calibration_token_rows(
                 _require(False,
                          f"calibration_token_ids row {i} contains a token "
                          f"outside int/[0, {geometry.vocab_size}): {t!r}")
+    # The recipe pins how many rows are calibrated: only the first
+    # ``num_calibration_rows`` rows of the file are used, so a corpus file
+    # with surplus rows cannot silently widen the calibration set.
+    for row in raw_rows[:config.num_calibration_rows]:
         rows.append(torch.tensor(row, dtype=torch.int64)
                     .reshape(config.batch_size, config.seq_len))
 

@@ -460,10 +460,12 @@ class TestCalibrationTokenCorpusValidation(unittest.TestCase):
                                   seq_len=self.row_len, seed=42)
         rows, meta = conv.load_calibration_token_rows(
             self._config(path), self.geometry)
-        self.assertEqual(len(rows), 3)
+        # Only the first num_calibration_rows (2) rows are used: a corpus file
+        # with surplus rows cannot widen the pinned calibration set.
+        self.assertEqual(len(rows), 2)
         self.assertEqual(tuple(rows[0].shape), (1, self.row_len))
         self.assertEqual(rows[0][0].tolist(), rows_in[0])   # order preserved
-        self.assertEqual(rows[2][0].tolist(), rows_in[2])
+        self.assertEqual(rows[1][0].tolist(), rows_in[1])
         self.assertEqual(rows[0].dtype, torch.int64)
         self.assertNotIn("rows", meta)
         self.assertEqual(meta["corpus"], "unit-corpus")
