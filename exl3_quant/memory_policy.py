@@ -55,6 +55,25 @@ DEFAULT_SAFETY_SLACK_BYTES = 256 * BYTES_PER_MIB
 ENV_RESERVE_BYTES = "EXL3_MEMORY_RESERVE_BYTES"
 ENV_RESERVE_GIB = "EXL3_MEMORY_RESERVE_GIB"
 
+#: Environment switch for the counter regime. ``EXL3_MEMORY_REFLECT_OUTSTANDING=1``
+#: states that the device counters *already reflect* the process's live XPU
+#: allocation, so the outstanding bytes must not be subtracted a second time.
+#:
+#: The default (unset) keeps the historical behaviour: subtract the
+#: outstanding allocation, because on the Arc 140V neither ``MemAvailable``
+#: nor ``mem_get_info`` free falls when the process commits XPU memory. On
+#: other devices (measured on the Arc iGPU host of the P3-09 qualification
+#: run: idle device pool 8.87 GiB -> 4.28 GiB while the run held 3.68 GiB of
+#: live XPU allocation) the counters *do* fall with the commitment, so the
+#: subtraction double-counts it and leaves no admissible budget at all.
+ENV_REFLECT_OUTSTANDING = "EXL3_MEMORY_REFLECT_OUTSTANDING"
+
+
+def reflect_outstanding_counters() -> bool:
+    """Whether the device counters already reflect the live XPU allocation."""
+    raw = os.environ.get(ENV_REFLECT_OUTSTANDING, "")
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
 
 def default_reserve_bytes() -> int:
     """The configured admission reserve in bytes (environment aware)."""
@@ -286,6 +305,10 @@ class MemoryPolicy:
     reserve_bytes: int = field(default_factory=default_reserve_bytes)
     safety_slack_bytes: int = DEFAULT_SAFETY_SLACK_BYTES
     max_single_alloc_bytes: Optional[int] = None
+    #: When true the device counters are assumed to already include the
+    #: process's live XPU allocation, so ``outstanding_bytes`` is *not*
+    #: subtracted a second time (see :data:`ENV_REFLECT_OUTSTANDING`).
+    reflect_outstanding: bool = field(default_factory=reflect_outstanding_counters)
 
     def usable_bytes(self, snapshot: MemorySnapshot,
                      outstanding_bytes: int = 0) -> int:
@@ -293,13 +316,17 @@ class MemoryPolicy:
 
         ``outstanding_bytes`` is the framework's live allocation total for
         this process. It is subtracted because the platform free counters do
-        not reliably decrement for XPU allocations (see module docstring).
+        not reliably decrement for XPU allocations (see module docstring) —
+        *unless* the counters are known to reflect them already
+        (``reflect_outstanding``), in which case subtracting them again
+        would double-count the commitment.
         """
         if outstanding_bytes < 0:
             raise ValueError(
                 f"outstanding_bytes must be non-negative, got {outstanding_bytes}")
+        pending = 0 if self.reflect_outstanding else outstanding_bytes
         return max(0, snapshot.binding_available_bytes
-                   - self.reserve_bytes - outstanding_bytes)
+                   - self.reserve_bytes - pending)
 
     def check(self, need_bytes: int, snapshot: MemorySnapshot,
               outstanding_bytes: int = 0, context: str = "") -> int:

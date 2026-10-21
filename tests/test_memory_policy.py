@@ -8,6 +8,7 @@ import unittest
 from exl3_quant.memory_policy import (
     BYTES_PER_GIB,
     BYTES_PER_MIB,
+    ENV_REFLECT_OUTSTANDING,
     ENV_RESERVE_BYTES,
     ENV_RESERVE_GIB,
     MemoryPolicy,
@@ -18,6 +19,7 @@ from exl3_quant.memory_policy import (
     read_system_memory,
     read_system_memory_platform,
     read_system_memory_windows,
+    reflect_outstanding_counters,
 )
 
 try:
@@ -344,6 +346,55 @@ class TestReserveOverride(unittest.TestCase):
         relaxed = MemoryPolicy()
         self.assertGreater(relaxed.usable_bytes(snap, outstanding_bytes=0),
                            strict.usable_bytes(snap, outstanding_bytes=0))
+
+
+class TestReflectOutstandingMode(unittest.TestCase):
+    """Counter-regime switch (P3-09): the device counters may already
+    reflect the process's live XPU allocation, in which case the outstanding
+    bytes must not be subtracted a second time."""
+
+    def setUp(self):
+        self._saved = os.environ.get(ENV_REFLECT_OUTSTANDING)
+
+    def tearDown(self):
+        if self._saved is None:
+            os.environ.pop(ENV_REFLECT_OUTSTANDING, None)
+        else:
+            os.environ[ENV_REFLECT_OUTSTANDING] = self._saved
+
+    def test_default_subtracts_outstanding(self):
+        os.environ.pop(ENV_REFLECT_OUTSTANDING, None)
+        policy = MemoryPolicy(reserve_bytes=0)
+        snap = make_snapshot(10 * BYTES_PER_GIB)
+        self.assertEqual(policy.usable_bytes(snap, outstanding_bytes=0),
+                         10 * BYTES_PER_GIB)
+        self.assertEqual(policy.usable_bytes(snap,
+                                             outstanding_bytes=3 * BYTES_PER_GIB),
+                         7 * BYTES_PER_GIB)
+
+    def test_reflected_mode_keeps_the_outstanding_in_the_binding(self):
+        os.environ[ENV_REFLECT_OUTSTANDING] = "1"
+        policy = MemoryPolicy(reserve_bytes=0)
+        snap = make_snapshot(10 * BYTES_PER_GIB)
+        self.assertEqual(policy.usable_bytes(snap,
+                                             outstanding_bytes=3 * BYTES_PER_GIB),
+                         10 * BYTES_PER_GIB)
+
+    def test_reflected_mode_still_honours_the_reserve(self):
+        os.environ[ENV_REFLECT_OUTSTANDING] = "1"
+        policy = MemoryPolicy(reserve_bytes=2 * BYTES_PER_GIB)
+        snap = make_snapshot(10 * BYTES_PER_GIB)
+        self.assertEqual(policy.usable_bytes(snap,
+                                             outstanding_bytes=3 * BYTES_PER_GIB),
+                         8 * BYTES_PER_GIB)
+
+    def test_env_values_are_parsed(self):
+        for value, expected in (("1", True), ("true", True), ("YES", True),
+                                ("on", True), ("0", False), ("", False),
+                                ("nonsense", False)):
+            os.environ[ENV_REFLECT_OUTSTANDING] = value
+            self.assertEqual(reflect_outstanding_counters(), expected,
+                             f"value={value!r}")
 
 
 if __name__ == "__main__":
