@@ -1546,6 +1546,14 @@ def convert_model(
             pass_through_keys=sorted(extra_tensors),
         )
         report.layers.append(entry)
+        # P3-09: the layer's quantized module results (decoded weights, tile
+        # states, regularization/LDL intermediates) and the layer module
+        # itself are finished with once the artifact is published. Keeping
+        # them alive would add ~3.5 GiB of live XPU memory *per layer* on top
+        # of the next layer's working set, and the accumulated allocation
+        # exhausts the shared device pool (measured: 2.4 GiB -> 7.2 GiB ->
+        # 8.3 GiB over three layers, ending in a MemoryPressureError).
+        del results, layer_report, layer
         say(f"[layer {layer_idx}] done: proxy_loss={entry.proxy_loss:.4e} "
             f"({entry.elapsed_seconds:.1f}s, xpu_alloc="
             f"{read_xpu_allocated_mib()} MiB, rss="
