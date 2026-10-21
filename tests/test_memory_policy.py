@@ -13,6 +13,8 @@ from exl3_quant.memory_policy import (
     capture_snapshot,
     format_bytes,
     read_system_memory,
+    read_system_memory_platform,
+    read_system_memory_windows,
 )
 
 try:
@@ -65,6 +67,44 @@ class TestMeminfoParsing(unittest.TestCase):
         self.assertEqual(parsed["SwapFree"], 30893988 * 1024)
         self.assertEqual(parsed["SwapTotal"], 32376828 * 1024)
         self.assertNotIn("Buffers", parsed)  # uncaptured keys are ignored
+
+
+class TestPlatformMemorySource(unittest.TestCase):
+    """P0-20: the OS counter source must work on non-Linux hosts.
+
+    ``/proc/meminfo`` does not exist on Windows, so the snapshot must fall back
+    to the platform's native interface instead of raising.
+    """
+
+    def test_platform_source_returns_all_fields(self):
+        parsed = read_system_memory_platform()
+        for field in ("MemTotal", "MemFree", "MemAvailable", "Cached",
+                      "SwapTotal", "SwapFree"):
+            self.assertIn(field, parsed)
+            self.assertGreaterEqual(parsed[field], 0)
+        self.assertGreater(parsed["MemTotal"], 0)
+        self.assertLessEqual(parsed["MemAvailable"], parsed["MemTotal"])
+
+    def test_explicit_path_overrides_platform(self):
+        content = ["MemTotal:       32376860 kB",
+                   "MemAvailable:   14998932 kB"]
+        with tempfile.NamedTemporaryFile("w", suffix=".meminfo",
+                                         delete=False) as handle:
+            handle.write("\n".join(content) + "\n")
+            path = handle.name
+        try:
+            parsed = read_system_memory_platform(path)
+        finally:
+            os.unlink(path)
+        self.assertEqual(parsed["MemTotal"], 32376860 * 1024)
+
+    @unittest.skipIf(os.name != "nt", "Windows-specific mapping")
+    def test_windows_mapping_is_self_consistent(self):
+        parsed = read_system_memory_windows()
+        self.assertGreater(parsed["MemTotal"], 0)
+        self.assertLessEqual(parsed["MemAvailable"], parsed["MemTotal"])
+        self.assertLessEqual(parsed["SwapFree"], parsed["SwapTotal"])
+        self.assertEqual(parsed["SwapCached"], 0)
 
 
 class TestPolicyArithmetic(unittest.TestCase):

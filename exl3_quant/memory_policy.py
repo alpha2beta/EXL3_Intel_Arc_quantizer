@@ -3,7 +3,10 @@
 Implements V140-02 / P0-20:
 
 * An idle- and live-memory snapshot combining OS (``/proc/meminfo``) and
-  framework (``torch.xpu``) accounting.
+  framework (``torch.xpu``) accounting. On non-Linux hosts the OS counters come
+  from the platform's native interface instead (``GlobalMemoryStatusEx`` on
+  Windows), so the snapshot degrades to "counters unavailable" rather than
+  raising.
 * A configurable reserve (default 6 GiB) that must remain untouched by any
   scratch test, checked *before* allocation and re-checked after commit.
 * Explicit abort (``MemoryPressureError``) with full context instead of an
@@ -28,6 +31,7 @@ free counters alone would over-admit.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -77,6 +81,66 @@ def read_system_memory(path: str = "/proc/meminfo") -> dict:
     return {field: raw.get(field, 0) for field in _MEMINFO_FIELDS}
 
 
+def read_system_memory_windows() -> dict:
+    """Read OS memory counters on Windows via ``GlobalMemoryStatusEx``.
+
+    Field mapping (approximations, documented rather than silently zeroed):
+
+    * ``MemTotal``    -> ``ullTotalPhys``
+    * ``MemAvailable``-> ``ullAvailPhys`` (includes the standby cache, so it is
+      the closest Windows analogue of Linux ``MemAvailable``)
+    * ``MemFree``     -> ``ullAvailPhys`` (Windows exposes no separate free counter)
+    * ``Cached``      -> 0 (no Linux-style page-cache counter is exposed)
+    * ``SwapTotal``   -> ``ullTotalPageFile - ullTotalPhys``
+    * ``SwapFree``    -> ``ullAvailPageFile - ullAvailPhys``
+    """
+    import ctypes
+
+    class _MEMORYSTATUSEX(ctypes.Structure):
+        _fields_ = [
+            ("dwLength", ctypes.c_ulong),
+            ("dwMemoryLoad", ctypes.c_ulong),
+            ("ullTotalPhys", ctypes.c_ulonglong),
+            ("ullAvailPhys", ctypes.c_ulonglong),
+            ("ullTotalPageFile", ctypes.c_ulonglong),
+            ("ullAvailPageFile", ctypes.c_ulonglong),
+            ("ullTotalVirtual", ctypes.c_ulonglong),
+            ("ullAvailVirtual", ctypes.c_ulonglong),
+            ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+        ]
+
+    stat = _MEMORYSTATUSEX()
+    stat.dwLength = ctypes.sizeof(stat)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+        raise OSError("GlobalMemoryStatusEx failed")
+
+    return {
+        "MemTotal": int(stat.ullTotalPhys),
+        "MemFree": int(stat.ullAvailPhys),
+        "MemAvailable": int(stat.ullAvailPhys),
+        "Cached": 0,
+        "SwapTotal": max(0, int(stat.ullTotalPageFile) - int(stat.ullTotalPhys)),
+        "SwapFree": max(0, int(stat.ullAvailPageFile) - int(stat.ullAvailPhys)),
+        "SwapCached": 0,
+    }
+
+
+def read_system_memory_platform(path: Optional[str] = None) -> dict:
+    """Read OS memory counters using the host platform's native interface.
+
+    Args:
+        path: explicit ``/proc/meminfo``-style path to parse. When given, the
+            file is parsed as-is (and a missing file is an error). When omitted,
+            the platform default is used: ``/proc/meminfo`` on Linux,
+            ``GlobalMemoryStatusEx`` on Windows.
+    """
+    if path is not None:
+        return read_system_memory(path)
+    if os.name == "nt":
+        return read_system_memory_windows()
+    return read_system_memory()
+
+
 @dataclass(frozen=True)
 class MemorySnapshot:
     """Point-in-time memory state from both the OS and the XPU runtime."""
@@ -118,9 +182,13 @@ class MemorySnapshot:
 
 
 def capture_snapshot(device_index: int = 0,
-                     meminfo_path: str = "/proc/meminfo") -> MemorySnapshot:
-    """Capture the live OS + XPU memory state (works without an XPU device)."""
-    system = read_system_memory(meminfo_path)
+                     meminfo_path: Optional[str] = None) -> MemorySnapshot:
+    """Capture the live OS + XPU memory state (works without an XPU device).
+
+    ``meminfo_path`` defaults to the host platform's native counter source:
+    ``/proc/meminfo`` on Linux, ``GlobalMemoryStatusEx`` on Windows.
+    """
+    system = read_system_memory_platform(meminfo_path)
 
     gpu_available = False
     device_free = device_total = 0
