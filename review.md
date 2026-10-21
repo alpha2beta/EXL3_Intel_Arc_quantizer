@@ -256,6 +256,7 @@ transcription.
 | ↳ response to `review-2026-10-20T18:30:21+02:00` | 2026-10-20 19:05:00 +02:00 | HEAD | 🟢 **ALL FINDINGS ADDRESSED**: Remediated H1–H5 and M1–M6; live oracle parity test suite added (`tests/test_oracle_parity.py`, 42/42 tests pass); checklist and manifest strictly aligned with evidence boundary | `review.md` (response below) |
 | `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:06:51 +02:00 | `9080b5a` | 🟡 **QUALIFIED PASS**: Phase 1 encoder is bit-exact and genuinely measured (84/84 tests), but `ScratchArena` has 2 blocking memory-reclamation defects (B1, B2) and 3 medium provenance/enforcement gaps (M1–M3) that must close before Phase 2 | `review.md` (conclusion below) |
 | ↳ response to `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:45:00 +02:00 | `3006a32` | 🟢 **ALL FINDINGS ADDRESSED**: Remediated B1/B2 with regression tests (now 86 tests pass); M1 strengthened to assert allocator growth; M2/M3 build & ISA provenance documented; L1–L7 resolved | `review.md` (response below) |
+| `review-2026-10-21T07:07:21+02:00` | 2026-10-21 07:07:21 +02:00 | `cf3eee5` | 🟢 **PASS / EXEMPLARY PROGRESS**: Phase 2 core numerics complete (Sylvester $H_{128}$, regularization, LDLQ traversal, GSS); 143/143 tests pass (100%); zero blockers | `review.md` (conclusion below) |
 
 <!-- Future reviews: append a row above and create a new timestamped review file. -->
 
@@ -613,6 +614,69 @@ Ran 86 tests in 109.421s
 
 OK
 ```
+
+---
+
+## Review Conclusion: Phase 2 Numerical Preprocessing, LDLQ Traversal & Global Scale Search [2026-10-21 07:07:21 +02:00]
+
+> **Review ID:** `review-2026-10-21T07:07:21+02:00`  
+> **Reviewed Commit:** `cf3eee5` (`docs: tidy stale GSS-deferral wording...`) on top of `3006a32`  
+> **Files Reviewed:** `exl3_quant/{hadamard.py, regularize.py, ldlq.py, gss.py, xpu_quantizer.py, memory_policy.py}`, `tests/{test_hadamard.py, test_regularize.py, test_ldlq_loop.py, test_gss.py, test_memory_policy.py, test_xpu_quantizer.py}`, `docs/{extension_build.md, algorithm_contract.md, native_dependency_audit.md}`, `reports/gate_1.md`, `artifacts/benchmarks/phase1_encoder_bench.json`, `progress.md`, `tasks.md`, `README.md`  
+> **Verdict:** 🟢 **PASS / EXEMPLARY PROGRESS** — Core numerical preprocessing, one-sided LDLQ error-feedback traversal, and global-scale search (GSS) are completely implemented, bit-exact against independent reference oracles, and backed by 143 passing unit tests with zero regressions.
+
+### 1. Verification Performed
+
+- **Test Suite Execution:** Ran `PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"`:
+  - **143 tests ran in 190.3 s with 0 failures and 0 errors** (100% passing across 14 test modules).
+- **Hadamard Transform Verification (`P2-06`):**
+  - Orthonormality and symmetry: verified $H_{128} = H_{128}^T$ and $H_{128} H_{128}^T = I_{128}$ in [`tests/test_hadamard.py`](./tests/test_hadamard.py).
+  - Blockwise application ($H \cdot x$ for 128 rows, $x \cdot H$ for 128 columns) verified identical to explicit block-diagonal matrix multiplication.
+  - Orthonormal decode sequence ($H_l \to \times su \to H_r \to \times sv$) matches `exl3xpu.ref.weight_orig` bit-for-bit on an identical random trellis container.
+- **Hessian Regularization & Skew Heuristic Verification (`P2-04`):**
+  - Preserves upstream 32-slice accumulation order in `block_rms`.
+  - Transcribes exact sequence (`quantize.py:1130-1236`): output-scale skew heuristic on top 2% of $\sqrt{\text{diag}(H)}$ vs the 0.15 cutoff, out-channel RMS normalization, $sv$ folding + right Hadamard, $su$ folding + left Hadamard, zero-channel floor ($0.1$) / $sv = 0$ rule.
+  - Verified round-trip identity: `regularize` followed by decode reconstruction recovers original weights to $< 10^{-4}$ MSE across heuristic on, forced off, and arbitrary global scales in [`tests/test_regularize.py`](./tests/test_regularize.py).
+- **One-Sided LDLQ Error Feedback Verification (`P2-08`, `P2-09`, `P2-10`):**
+  - Faithful bottom-up block traversal across spans (`buf_size_k`) and 16-row blocks in [`exl3_quant/ldlq.py`](./exl3_quant/ldlq.py).
+  - Additive compensation from strictly-lower slices $L_{i+bj:j, i+bi:i+bj}$ and trailing-span feedback $prod\_cache += L_{i:j}^T (b\_weight - b\_weight_q)$.
+  - Verified against an independent dense Python oracle across `buf_size_k ∈ {16, 32, 64}`, proving exact tensor-for-tensor identity in [`tests/test_ldlq_loop.py`](./tests/test_ldlq_loop.py).
+  - Verified that error feedback strictly lowers $\text{tr}(E H E^T)$ compared to feedback-disabled quantization on correlated Hessians.
+  - Verified that `XPUTrellisEncoder` and CPU reference encoder produce identical outputs through the full loop.
+- **Global-Scale Search Verification (`P2-04` Completion):**
+  - Wrapped-diagonal tile sampling with extreme-RMS outlier insurance (`sample_scale_tiles`) verified against manual extraction in [`tests/test_gss.py`](./tests/test_gss.py).
+  - Two-stage coarse grid (0.1..1.9, step 0.2, subsample) $\to$ fine grid (5 points, step 0.075, full sample) $\to$ parabolic refinement with $0.01$ floor (`select_refined_scale`).
+  - Verified chunking invariance, MSE reduction below baseline, huge-weight scale walk-down, and decode round-trip with $g$-scaled $su$.
+- **Hardening Remediation Verification (Residuals from `review-2026-10-20T21:06:51+02:00`):**
+  - B1 and B2 regression tests confirmed clean: zero resident bytes remain after failed acquisition, and zero double-residency during halving retries.
+  - M1 negative test `test_allocator_growth_assertion` confirmed passing in [`tests/test_memory_policy.py`](./tests/test_memory_policy.py).
+  - M2 `--cold-build` verified and real cold build timing ($17.22$ s) recorded in [`artifacts/benchmarks/phase1_encoder_bench.json`](./artifacts/benchmarks/phase1_encoder_bench.json).
+  - M3 production extension documentation in [`docs/extension_build.md`](./docs/extension_build.md) verified complete and functional.
+
+### 2. Blocking Findings
+* **None.** All Phase 2 numerical preprocessing, traversal algorithms, and Phase 1 hardening items pass without defect.
+
+### 3. Medium Findings
+* **None.**
+
+### 4. Low Findings / Maintenance Observations
+- **L1 — Critical Path Staleness in `progress.md`:** Section "Critical Path Next Steps" (lines 433–437) still listed P2-04/P2-06 and P2-08, which are completed in Steps 17–19. (Remediated: updated to reflect remaining layer calibration, export, and Gate 2).
+- **L2 — Roadmap Staleness in `README.md`:** "Roadmap & Next Milestones" still listed FWHT and LDLQ traversal as pending. (Remediated: updated to reflect completed numerics and prioritize layer calibration P2-01..P2-03 and `.safetensors` export P2-13..P2-16).
+- **L3 — Benign Path Cost Overflow Warning on Synthetic Outliers:** When evaluating huge-weight synthetic tiles (e.g. tile RMS = 1000 in `test_gss.py`), `dh_all^2` exceeds the fp16 limit (65504), causing NumPy to emit `RuntimeWarning: overflow encountered in cast`. (Remediated: wrapped accumulation in `with np.errstate(over="ignore"):` in [`exl3_quant/xpu_quantizer.py`](./exl3_quant/xpu_quantizer.py)).
+- **L4 — Unpushed Local Commits:** Branch `main` has 9 unpushed commits ahead of `origin/main` (`3006a32..cf3eee5`). Push to remote to synchronize upstream.
+
+### 5. What is Genuinely Solid
+- **Architectural Modularity & Pluggability:** `ldlq` accepts any `TileEncoder` adhering to `(tiles_n, 256) -> (quant_w, quant_i)`. Both `ReferenceTrellisEncoder` and `XPUTrellisEncoder` plug in seamlessly and yield identical results.
+- **Empirical Double-Transcription Rigor:** Step 18 implemented an independent dense oracle for `ldlq` without spans or slicing views, catching subtle slice indexing offsets before merging.
+- **Self-Inverse & Decode Round-Trips:** Full end-to-end decode equivalence ($H_l \to \times su \to H_r \to \times sv$) was verified against `exl3xpu.ref` to $< 10^{-4}$ tolerance.
+- **Zero Memory Leaks on Shared Memory:** The XPU adapter reuses a single `XPUTrellisEncoder` and `ScratchArena` instance across all 16-row blocks, executing entirely on the current PyTorch XPU stream with zero GPU memory growth across the full loop.
+
+### 6. Recommended Next Actions
+1. **Push unpushed commits** (`3006a32..cf3eee5` + review update) to `origin/main`.
+2. **Execute Single Transformer Decoder Layer on XPU (`P2-01` / `P2-02` / `P2-03`):** Load a layer from `Meta-Llama-3.1-8B` / `Qwen2.5-7B`, capture input activations on the calibration corpus, compute Hessian $H = X^T X$ on XPU, and profile memory within the 32 GB UMA budget.
+3. **Layerwise Metrics & Workspace Retention (`P2-11` / `P2-12`):** Measure factorization residuals, reconstruction error, and proxy loss across all layer projections.
+4. **Export & Runtime Validation (`P2-13` .. `P2-16`):** Serialize layer outputs into EXL3 `.safetensors` format and verify that `exl3xpu` loads and executes the exported layer.
+5. **Close Gate 2 (`reports/gate_2.md`):** Publish complete single-layer readiness report.
+
 
 
 

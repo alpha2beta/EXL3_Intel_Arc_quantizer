@@ -142,10 +142,10 @@ The project maintains an evidence-backed governance model:
 
 ## Roadmap & Next Milestones (Phase 2)
 
-With Gate 0 and Gate 1 successfully closed, development moves to **Phase 2: Complete Single-Layer Conversion**:
+With Gate 0 and Gate 1 successfully closed, and core numerics implemented (Sylvester $H_{128}$ in `hadamard.py`, regularization in `regularize.py`, LDLQ error feedback in `ldlq.py`, and global-scale search in `gss.py`), Phase 2 focuses on full single-layer execution:
 
-1. **P2-01 — Single Transformer Layer Execution:** Execute one complete transformer decoder layer (`Meta-Llama-3.1-8B` / `Qwen2.5-7B`) on XPU; profile operator coverage and log intentional CPU fallbacks within the 32 GB shared memory budget.
-2. **P2-04 / P2-05 — Fast Walsh-Hadamard Transform (FWHT):** Implement the Sylvester Hadamard ($H_{128}$) transform for incoherence processing via native SYCL kernel with PyTorch fallback.
-3. **P2-06 / P2-07 / P2-08 — Blockwise LDLQ Quantization Loop:** Integrate `block_ldl` with Hessian error feedback and the XPU Trellis Encoder; implement scale computation and sign bitpacking (`pack_signs`).
-4. **P2-13 / P2-14 — Checkpoint Packing & Downstream Load:** Pack quantized layer tensors into EXL3-conformant `.safetensors` containers and verify load & inference compatibility against `exl3xpu`.
+1. **P2-01 / P2-02 / P2-03 — Layer Execution & Hessian Accumulation:** Run forward pass on `Meta-Llama-3.1-8B` / `Qwen2.5-7B` decoder layer on XPU, harvest covariance statistics $H = \sum X^T X$ on the pinned calibration corpus, and profile memory within the 32 GB shared UMA budget.
+2. **P2-11 / P2-12 — Layerwise Workspace & Residual Metrics:** Measure factorization residuals, reconstruction error, and proxy loss across layer projections; verify module-lifetime scratch retention.
+3. **P2-13 / P2-14 / P2-15 / P2-16 — Checkpoint Packing & Downstream Load:** Pack quantized layer tensors into EXL3-conformant `.safetensors` containers and verify load & inference compatibility against `exl3xpu`.
+4. **Gate 2 — Single-Layer Qualification:** Validate repeatable layer conversions without memory growth under the 6.0 GiB reserve, and publish `reports/gate_2.md`.
 5. **P0-24 / P0-25 — CUDA Ground Truth Capture:** Capture reference tile fixtures and cost snapshots from a CUDA reference environment to settle Open Item `O-1` and complete Tier-4 quantizer verification.

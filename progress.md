@@ -432,6 +432,6 @@ bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Ste
 
 ## Critical Path Next Steps
 
-1. **P2-04 / P2-05 / P2-06 — Regularization, Scales/Signs & Sylvester Hadamard ($H_{128}$):** Implement upstream Hessian regularization, `su`/`sv` scale/sign extraction, and exact $H_{128}$ Hadamard pre/post transforms (`exl3_quant/`).
-2. **P2-08 .. P2-12 — Blockwise One-Sided `ldlq` Integration:** Implement the bottom-up `ldlq` error-feedback traversal (`quantize.py:493-609`) combining `block_ldl` (`exl3_quant/ldlq.py`), `XPUTrellisEncoder` (`exl3_quant/xpu_quantizer.py`), and `ScratchArena`.
-3. **P2-01 .. P2-03, P2-13 .. P2-18, V140-06 & Gate 2:** Execute calibration/Hessian capture and full single-layer conversion on Arc 140V, validate packed `.safetensors` output through `exl3xpu.ref`, profile peak memory across repeated layer conversions, and publish `reports/gate_2.md`.
+1. **P2-01 / P2-02 / P2-03 — Transformer Layer Activation & Hessian Calibration:** Run forward pass on `Meta-Llama-3.1-8B` / `Qwen2.5-7B` decoder layer, harvest activation covariance $H = \sum X^T X$ on XPU, measure live activation memory, and evaluate CPU fallbacks within the 32 GB shared memory budget.
+2. **P2-11 / P2-12 — Layerwise Workspace & Numerical Evaluation:** Profile memory across sustained block traversals, verify module-lifetime scratch retention, and measure factorization residuals and proxy loss.
+3. **P2-13 .. P2-18, V140-06 & Gate 2 — Serialization, Format Verification & Gate 2 Closure:** Pack quantized layer tensors into EXL3 `.safetensors` format, verify load and decode via `exl3xpu.ref`, run repeated layer conversions to prove zero memory leak, and publish `reports/gate_2.md`.

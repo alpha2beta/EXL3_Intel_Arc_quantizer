@@ -18,11 +18,11 @@ Order is normative and must not be rearranged: the encode path is
 :func:`exl3_quant.hadamard.weight_from_quantized`
 (``H_l → ×su → H_r → ×sv``).
 
-Deliberate scope note (P0-29): the upstream global-scale search
-(``g_scale_gss``, `.py:1050-1076`) test-quantizes sampled tiles and therefore
-needs the encoder. This module exposes it as a pluggable ``g_scale_fn`` and
-defaults to ``skip_g_scale=True`` (upstream's own escape hatch, ``g_scale = 1``).
-Wiring the real search belongs to P2-08; it is **not** silently faked.
+The upstream global-scale search (``g_scale_gss``, `.py:1050-1076`) is implemented
+in :mod:`exl3_quant.gss`. This module accepts it via the pluggable ``g_scale_fn``
+hook (defaulting to ``skip_g_scale=True``, upstream's own escape hatch with ``g_scale = 1``).
+When ``skip_g_scale=False``, callers supply ``g_scale_fn_from_encoder(...)`` to run
+the full upstream search.
 """
 
 from __future__ import annotations

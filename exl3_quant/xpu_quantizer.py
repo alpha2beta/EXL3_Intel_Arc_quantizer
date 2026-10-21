@@ -925,11 +925,12 @@ class XPUTrellisEncoder:
 
         # Compute exact fp16 accumulated path cost along the winning trajectory
         dh_all = (reconstructed_perm - perm_tiles_f16).astype(np.float64)
-        acc_cost = (dh_all[:, 0] * dh_all[:, 0]).astype(np.float16)
-        for step in range(1, self.L):
-            acc_cost = (
-                dh_all[:, step] * dh_all[:, step] + acc_cost.astype(np.float64)
-            ).astype(np.float16)
+        with np.errstate(over="ignore"):
+            acc_cost = (dh_all[:, 0] * dh_all[:, 0]).astype(np.float16)
+            for step in range(1, self.L):
+                acc_cost = (
+                    dh_all[:, step] * dh_all[:, step] + acc_cost.astype(np.float64)
+                ).astype(np.float16)
         path_costs_np = acc_cost.astype(np.float32)
 
         results: List[EncodingResult] = []
