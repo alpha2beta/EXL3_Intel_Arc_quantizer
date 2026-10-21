@@ -755,3 +755,76 @@ OK
 
 
 
+
+
+---
+
+## Review Conclusion: Phase 3 Orchestration (P3-01..P3-03), CUDA Deferral & Bit-Width Guard [2026-10-21 10:48:00 +02:00]
+
+> **Review ID:** `review-2026-10-21T10:48:00+02:00`  
+> **Reviewed Commits:** `7032780..8c71bb7` (including `6115768`, `e6ccc1c`, `d524e9b`, `8c71bb7`, `b6e1564`)  
+> **Files Reviewed:**  
+> - Bounded Model Orchestrator: [`exl3_quant/converter.py`](./exl3_quant/converter.py), [`exl3_quant/calibration.py`](./exl3_quant/calibration.py)  
+> - Streaming & Checkpoint Fixtures: [`tests/fixtures/__init__.py`](./tests/fixtures/__init__.py), [`tests/test_converter.py`](./tests/test_converter.py)  
+> - Streaming Benchmark: [`scripts/benchmark_phase3_stream.py`](./scripts/benchmark_phase3_stream.py), [`artifacts/benchmarks/phase3_stream_bench.json`](./artifacts/benchmarks/phase3_stream_bench.json)  
+> - CUDA Deferral Governance: [`skip_cuda.md`](./skip_cuda.md), [`docs/deviation_log.md`](./docs/deviation_log.md), [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md), [`reports/gate_2.md`](./reports/gate_2.md)  
+> - Upstream Oracle & Semantics Suites: [`tests/test_upstream_encode_oracle.py`](./tests/test_upstream_encode_oracle.py), [`tests/test_forward_semantics.py`](./tests/test_forward_semantics.py), [`tests/test_serialization.py`](./tests/test_serialization.py)  
+> - Tasks & Governance: [`tasks.md`](./tasks.md), [`progress.md`](./progress.md), [`README.md`](./README.md)  
+> **Verdict:** 🟢 **PASS — PHASE 3 ORCHESTRATION IN PROGRESS (P3-01..P3-03 ACCEPTED)**
+
+---
+
+### 1. Verification Performed
+
+- **Full Unit Test Suite Execution:** Ran `PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"`:
+  - **199 tests discovered across 20 modules**: 198 passed, 1 platform-conditional skip (`test_memory_policy.py` Windows API test on Linux) in 192.352s (0 failures, 0 errors).
+  - 27 new tests in [`tests/test_converter.py`](./tests/test_converter.py) covering config validation, early rejection, mmap shard indexing, poisoned-shard isolation, RSS tracking, ascending-layer conversion order, upstream module order, layer-0 vs layer-1 differential Hessians, transposed `w_hat` reload replay equivalence, and artifact export.
+  - 4 tests in [`tests/test_upstream_encode_oracle.py`](./tests/test_upstream_encode_oracle.py) verifying upstream CUDA-derived `max_mse_per_K` ceilings for $K \in [2, 8]$ on host CPU (E3 quality-bar evidence).
+  - 5 tests in [`tests/test_forward_semantics.py`](./tests/test_forward_semantics.py) auditing ACS forward dynamic programming, branch metrics, fp16 accumulation, predecessor tie-breaking, and terminal cost tracking (E1 source transcription).
+  - 2 new tests in [`tests/test_serialization.py`](./tests/test_serialization.py) verifying tile encoder bit-width mismatch guards (`8c71bb7`).
+- **Bounded Conversion Configuration & Validation (`P3-01`):**
+  - `ConversionConfig.validate()` and `load_model_geometry()` enforce strict pre-execution gating in pure Python before weight loading.
+  - Verified early rejection for unsupported modes: MoE (`num_local_experts`), multimodal/vision, MTP heads, pre-quantized weights, non-dense architectures, fractional/out-of-range $K$, non-`mul1` codebooks, non-128-divisible dimensions, partial rotary factors, rope scaling, sliding window attention, and invalid output directories.
+- **Upstream Calibration Propagation & Conversion Order (`P3-02`):**
+  - `convert_model()` executes the audited `convert_model.py:1095-1316` sequence: for each decoder layer in ascending order, captures grouped Hessians from the current running hidden states, executes layer quantization via `quantize_decoder_layer`, reloads quantized numerics (`w_hat.detach().T.contiguous()`) into the `nn.Linear` modules, and advances the running state by re-forwarding through the reloaded layer.
+  - Verified that layer-1 Hessians differ from unquantized layer-0 controls, demonstrating true quantized-activation propagation.
+  - Preserves untouched components (`model.embed_tokens.weight`, `model.norm.weight`, `lm_head.weight`, layernorms) as bit-exact fp16 pass-through in `qtensors/untouched.safetensors` with per-layer `qtensors/model.layers.N.safetensors` artifacts and merged `quantization_config.json`.
+- **Memory-Mapped Shard Streaming & Measured Host RSS (`P3-03`):**
+  - `ShardedSafetensorsIndex` indexes HF sharded and single-file checkpoints via `safe_open` mmap handles, materializing only tensors required for the active layer.
+  - Measured host RSS via `/proc/self/statm` (`read_rss_kib`) during synthetic 424 MiB 4-shard checkpoint streaming ([`artifacts/benchmarks/phase3_stream_bench.json`](./artifacts/benchmarks/phase3_stream_bench.json)): metadata pass materializes 0 B (0.0 MiB RSS delta); streaming residual RSS delta is **2.8 MiB** (bounded far below checkpoint footprint).
+- **CUDA Ground-Truth Deferral Adoption (`skip_cuda.md`, `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`):**
+  - Evidence Classes E1–E4 formally integrated across `tasks.md`, `progress.md`, and gate reports (`reports/gate_0.md`, `reports/gate_1.md`, `reports/gate_2.md`).
+  - G1-01 re-marked partial; all gate claims explicitly capped at E3 (quality-bar parity); E4 path parity is documented as deferred without stalling Phase 3 development. Reopen triggers T1–T6 and the resume checklist are attached to Phase 3.
+- **Encoder Bit-Width Mismatch Guard (`8c71bb7`):**
+  - `quantize_linear_module` and `quantize_decoder_layer` actively check `tile_encoder.K == K`, raising `ValueError` on discrepancy to prevent silent container corruption.
+
+---
+
+### 2. Blocking Findings
+* **None.** All Phase 3.1 orchestrator, streaming, and governance items meet required criteria and pass all 199 unit tests.
+
+---
+
+### 3. Medium Findings
+* **None.**
+
+---
+
+### 4. Low Findings / Technical Observations
+- **L1 — Test Count Staleness in Documentation (Remediated):** `README.md` and `progress.md` previously cited 197 tests before merging upstream commit `8c71bb7` (which added 2 tests to `test_serialization.py`). Remediated: updated to 199 tests (198 passed, 1 platform-conditional skip).
+- **L2 — Unpushed Commits Ahead of Upstream:** Local branch `main` has 5 commits ahead of `origin/main` (`7032780..b6e1564`). Recommend pushing to `origin/main` to synchronize remote.
+- **L3 — Atomic Checkpointing & Recovery (P3-04..P3-08):** In full-scale 8B/7B conversions, processing all layers will take substantial wall-clock time. Adding atomic per-layer checkpoint writes (`.tmp` -> rename), manifest state recording, and resume-from-layer semantics is critical before running full-scale models.
+
+---
+
+### 5. What is Genuinely Solid
+- **Faithful Calibration Propagation:** The conversion pipeline rigorously mirrors upstream's activation advancement through the quantized layer, avoiding distortion accumulation from ideal-layer forward shortcuts.
+- **True Shard Streaming & Bounded RSS:** By combining memory-mapped `safe_open` with immediate per-layer disposal, streaming a multi-hundred-megabyte checkpoint produces a negligible 2.8 MiB RSS delta.
+- **Disciplined Evidence Hierarchy:** Adopting explicit evidence classes E1–E4 establishes transparent scientific honesty regarding what has been validated on-device vs. what remains deferred.
+
+---
+
+### 6. Recommended Next Actions
+1. **Push commits to remote:** Synchronize local `main` with `origin/main`.
+2. **Implement Checkpointing & Fault Recovery (`P3-04` .. `P3-08`):** Build resumable state management and atomic checkpoint publication in `exl3_quant/converter.py`.
+3. **Execute Full-Model Conversion (`P3-09` .. `P3-14`):** Wire real calibration corpus, run complete conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, and evaluate against `exl3xpu`.

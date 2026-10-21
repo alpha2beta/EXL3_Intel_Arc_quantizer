@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-10-21 10:55:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). **Phase 3 orchestration started** (P3-01..P3-03 done): 197 unit tests passing (100%, 1 platform-conditional skip). **CUDA ground-truth deferral adopted** (`skip_cuda.md`, `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`): P0-24/P0-25/P0-27 stay open and blocked; all gate evidence is capped at class **E3**; E4 (CUDA path parity) is not claimed. Merged upstream decision record + CPU-runnable tier-4 oracle and forward-semantics test suites; gate reports annotated with evidence classes.
+> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). **Phase 3 orchestration started** (P3-01..P3-03 done): 199 unit tests passing (100%, 1 platform-conditional skip). **CUDA ground-truth deferral adopted** (`skip_cuda.md`, `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`): P0-24/P0-25/P0-27 stay open and blocked; all gate evidence is capped at class **E3**; E4 (CUDA path parity) is not claimed. Merged upstream decision record + CPU-runnable tier-4 oracle and forward-semantics test suites; gate reports annotated with evidence classes.
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -371,7 +371,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 
 ## Test Suite Execution Evidence
 
-**197 unit tests** ran and passed cleanly as of [2026-10-21 10:55:00 +0200] (includes the 27 Step-21 converter tests and the merged CPU-runnable tier-4 oracle + forward-semantics suites; 1 platform-conditional memory-pipeline test skips off-Windows) across all test suites:
+**199 unit tests** ran and passed cleanly as of [2026-10-21 10:55:00 +0200] (includes the 27 Step-21 converter tests, the merged CPU-runnable tier-4 oracle + forward-semantics suites, and the 2 bit-width guard tests from commit 8c71bb7; 1 platform-conditional memory-pipeline test skips off-Windows) across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -379,7 +379,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_oracle_parity.py`: 4 tests (live bit-exact parity against `exl3xpu.ref`)
 - `test_bitpack.py`: 4 tests (sub-byte packing shim)
 - `test_xpu_extension.py`: 7 tests (device selection, correctness, ordering, lifetime, caps, O-6 random + adversarial; skip unless `torch.xpu.is_available()`)
-- `test_memory_policy.py`: 15 tests (meminfo parsing, reserve arithmetic, admission boundaries, outstanding commitments, abort path, post-commit breach, allocator-growth assertion, live 32 MiB GPU allocation)
+- `test_memory_policy.py`: 18 tests (meminfo parsing, reserve arithmetic, admission boundaries, outstanding commitments, abort path, post-commit breach, allocator-growth assertion, platform-native counters across OS variants with 1 Windows API conditional skip, live 32 MiB GPU allocation)
 - `test_ldlq.py`: 10 tests (`L Lᵀ = H`, block-inverse fold, identity block diagonal, retry-damping schedule, input validation, XPU vs CPU parity)
 - `test_xpu_quantizer.py`: 13 tests (XPU codebook parity, `K=1..4` & 3-codebook parity, `L=160` support, live `exl3xpu.ref` parity, edge cases & tie verification, partial chunks & waves, input rejection, async stream ordering, all 4 traceback modes & SG16/32 & SLM/global, bounded `ScratchArena` eviction/reuse, smaller-batch retry, and overflow-safe distortion accounting)
 - `test_hadamard.py`: 11 tests (Sylvester values/symmetry/orthogonality, block-diagonal equivalence, involution, oracle `H_128` and `weight_orig` parity)
@@ -388,14 +388,14 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_gss.py`: 19 tests (wrapped-diagonal coverage and exact tile values, extreme-RMS sampling, stage-by-stage search recomputation, batching/chunking invariance, MSE-below-baseline with the real encoder, determinism, huge-weight walk-down, `select_refined_scale` vertex/floor/bound, `regularize` folding and decode round-trip)
 - `test_calibration.py`: 7 tests (RMSNorm forward, rotary embeddings complex unit norm, multi-head attention forward, SwiGLU forward, complete layer forward on XPU, exact second-moment Hessian accumulation H = sum X^T X matching explicit formula, dead channel floor and damping safeguard)
 - `test_layer_quant.py`: 4 tests (proxy loss trace formula equivalence, factorization residual check, single module XPU quantization, and complete decoder layer quantization on XPU with ScratchArena reuse)
-- `test_serialization.py`: 4 tests (trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with exl3xpu.ref.weight_orig, and malformed/truncated safetensors rejection)
+- `test_serialization.py`: 6 tests (trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with exl3xpu.ref.weight_orig, malformed/truncated safetensors rejection, and tile encoder bit-width mismatch guards)
 - `test_upstream_encode_oracle.py`: 4 tests (CPU-runnable tier-4 oracle derived from upstream's CUDA test recipe: `max_mse_per_K` quality ceilings for K=2..8, tail-biting ring invariant, upstream "ideal encoding" state layout, encode→dequant round trips)
 - `test_forward_semantics.py`: 5 tests (independent audit of the reference encoder's forward ACS pass: branch metric and fp16 accumulation semantics, predecessor table and terminal costs tie-breaking, masking rules, adversarial tie construction, deterministic path reproduction)
 - `test_converter.py`: 27 tests (bounded conversion config rejection of MoE/vision/MTP/pre-quantized/fractional-K/out-of-range-K/bad-geometry/partial-rotary/rope-scaling/sliding-window/bad output dirs; mmap shard index scoping, bit-exact streaming reads, single-file indexing, poisoned-shard isolation, RSS measurement; full 2-layer synthetic conversion on XPU with recorder: ascending layer order, upstream module order, layer-0 capture equality with independent calibration, layer-1 capture derived from layer 0's *quantized* output (differential vs unquantized control), quantized-reload replay equivalence, transposing `w_hat` reload, bit-exact unchanged pass-through, per-layer `qtensors` artifacts with 30 tensors, merged manifest consistency, per-layer RSS recording)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 197 tests in 174.313s
+Ran 199 tests in 192.352s
 
 OK (skipped=1)
 ```
@@ -475,7 +475,7 @@ OK (skipped=1)
 
 4. **What the deferral does NOT change:** acceptance criteria, algorithm semantics, XPU encoder parity obligations (P1-05, P2-09 stay satisfied by internal-transcription + oracle evidence), and Phase 3 planning — no Phase 3 task depends on E4. **Decision triggers T1–T6** (`skip_cuda.md` §6) are attached to the critical path below and would fire the §7 eGPU resume checklist.
 
-5. **Test evidence:** 197 tests pass post-merge (`Ran 197 tests in 174.313s OK (skipped=1)`) — 185 local + 9 upstream-derived + 3 platform-dependent memory tests (1 conditional skip).
+5. **Test evidence:** 199 tests pass post-merge (`Ran 199 tests in 192.352s OK (skipped=1)`) — 185 local + 9 upstream-derived + 3 platform-dependent memory tests (1 conditional skip) + 2 bit-width guard tests from commit `8c71bb7`.
 
 ---
 
