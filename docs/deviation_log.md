@@ -82,3 +82,28 @@ The following implementation details in `exl3_quant/` are currently **speculativ
   - fp16 metric with fused accumulation and strict `<` tie-breaking.
   - End-to-end format round-trip verified: encoded states bitpack into container, decode through `decode_states` and `decode_tile_values`, and reconstruct the original tile with 100% bit-exact parity.
 * **Waiver DEV-2026-10-20-01 Status:** The reference encoder and container format components are resolved with respect to upstream CUDA source transcription, mathematical state inverse identities, and live round-trip decoding through the independent oracle (`exl3xpu.ref`). However, full waiver closure and final numerical acceptance remain contingent on verifying numerical parity against upstream CUDA execution fixtures (P0-24) and resolving Open Item O-1 (terminal cost buffer parity).
+
+---
+
+## 6. Deviation: CUDA Ground-Truth Deferral (2026-10-21)
+
+* **Log ID:** `DEV-2026-10-21-01`
+* **Decision record:** [`skip_cuda.md`](../skip_cuda.md) (`SKIP-CUDA-2026-10-21-01`)
+* **Recorded:** 2026-10-21 09:52:42 +02:00
+
+An NVIDIA eGPU is available (RTX 3060 12 GB + Thunderbolt-to-PCIe dock + PSU) and is adequate
+for the P0-24 / P0-25 fixture capture at every K in scope (12 GB covers `temp_edges` = 4 GiB at
+K=1 down to 0.5 GiB at K=4). It is deliberately **not** being installed now.
+
+* **Waiver Scope:** P0-24, P0-25 and P0-27 remain **open and blocked**, not waived. No gate may
+  claim CUDA **path parity** (evidence class E4). Statements of "tier 4" must be qualified as
+  **upstream-CUDA-threshold parity** (E3): the reference encoder reproduces upstream's own
+  `max_mse_per_K` ceilings and its tail-biting ring invariant on the host CPU, and is
+  bit-exact against the independent `exl3xpu.ref` oracle across all 65 536 states, all three
+  codebooks and K ∈ {1..8}.
+* **Open Item O-1** (terminal `argmin_cost()` buffer parity) remains open.
+* **Reversibility:** attaching the eGPU is reversible and changes no algorithm or acceptance
+  criterion — only the evidence class, from E3 to E4.
+* **Reopen triggers:** recorded in `skip_cuda.md` §6 (MSE-ceiling divergence, reconstruction
+  divergence beyond fp16 tolerance, a gate demanding path-parity evidence, a downstream
+  runtime rejecting a checkpoint, or an upstream re-pin / kernel change).
