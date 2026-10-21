@@ -677,6 +677,81 @@ OK
 4. **Export & Runtime Validation (`P2-13` .. `P2-16`):** Serialize layer outputs into EXL3 `.safetensors` format and verify that `exl3xpu` loads and executes the exported layer.
 5. **Close Gate 2 (`reports/gate_2.md`):** Publish complete single-layer readiness report.
 
+---
+
+## Review Conclusion: Phase 2 Single-Layer Conversion & Gate 2 Closure [2026-10-21 10:32:42 +02:00]
+
+> **Review ID:** `review-2026-10-21T10:32:42+02:00`  
+> **Reviewed Commit:** `c67a469` (`feat(layer): complete Phase 2 single-layer pipeline, Gate 2 report, and sustained memory benchmarks [2026-10-21 09:45:00 +02:00]`)  
+> **Files Reviewed:**  
+> - Core Pipeline: [`exl3_quant/calibration.py`](./exl3_quant/calibration.py), [`exl3_quant/layer_quant.py`](./exl3_quant/layer_quant.py), [`exl3_quant/serialization.py`](./exl3_quant/serialization.py), [`exl3_quant/hadamard.py`](./exl3_quant/hadamard.py)  
+> - Unit Test Suite: [`tests/test_calibration.py`](./tests/test_calibration.py), [`tests/test_layer_quant.py`](./tests/test_layer_quant.py), [`tests/test_serialization.py`](./tests/test_serialization.py)  
+> - Benchmarks & Reports: [`scripts/benchmark_phase2_layer.py`](./scripts/benchmark_phase2_layer.py), [`artifacts/benchmarks/phase2_layer_bench.json`](./artifacts/benchmarks/phase2_layer_bench.json), [`reports/gate_2.md`](./reports/gate_2.md)  
+> - Governance & Checklists: [`tasks.md`](./tasks.md), [`progress.md`](./progress.md), [`README.md`](./README.md), [`.gitignore`](./.gitignore)  
+> **Verdict:** 🟢 **PASS / GATE 2 CLOSED — GO TO PHASE 3 (Full-Model Conversion)**
+
+---
+
+### 1. Verification Performed
+
+- **Full Unit Test Suite Execution:** Ran `PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"`:
+  - **158 tests ran in 151.6 s with 0 failures and 0 errors** (100% passing across 17 test modules).
+  - All 15 newly added tests passed cleanly:
+    - [`tests/test_calibration.py`](./tests/test_calibration.py) (7 tests): RMSNorm, Rotary embeddings complex phasor unit norm, Multi-Head Attention, SwiGLU forward, complete layer forward on XPU, exact second-moment Hessian accumulation matching explicit formula, dead channel floor and damping safeguard.
+    - [`tests/test_layer_quant.py`](./tests/test_layer_quant.py) (4 tests): Factorization residual check, proxy loss trace formula equivalence, single module XPU quantization, and complete decoder layer quantization on XPU with `ScratchArena` reuse.
+    - [`tests/test_serialization.py`](./tests/test_serialization.py) (4 tests): Trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with `exl3xpu.ref.weight_orig`, and malformed/truncated safetensors rejection.
+- **Layer Calibration & Hessian Harvesting (`P2-01`, `P2-02`, `P2-03`, `P2-05`):**
+  - Profiler verified native Intel XPU operator coverage for all layer operations: `aten::mm`, `aten::bmm`, `aten::silu`, `aten::softmax`, `aten::rsqrt`. Zero CPU fallback occurred during forward activation passes.
+  - Activation second moments $H = \sum X^T X$ are accumulated on XPU in fp32 and grouped across 4 architectural locations (attention input, attention output, MLP input, MLP down), reducing Hessian memory by 43% ($976\text{ MiB}$ total in fp32 for Llama-3.1-8B dimensions).
+  - Normalization by token count and diagonal damping $\lambda_{\text{reg}} \cdot \text{mean}(\text{diag}(H))$ ($\lambda = 0.01$) match upstream EXL3 contract verbatim. Dead/inactive channel clamping prevents Cholesky factorization failure.
+- **Full-Layer Quantization & Objective Loss (`P2-11`, `P2-12`):**
+  - Chained `regularize` $\to$ `hadamard(H)` $\to$ `block_ldl` $\to$ `ldlq` $\to$ `weight_from_quantized` across all 7 linear projections (`q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`).
+  - Single-slot `ScratchArena` and `XPUTrellisEncoder` are reused across all 7 projections with explicit `torch.xpu.synchronize()` between projections (`P2-11`).
+  - Layerwise Hessian-weighted proxy loss $\text{tr}\left((W - \hat{W}) H (W - \hat{W})^T\right)$ is computed via $(H @ E \cdot E).\text{sum}()$, avoiding large $O(N^2)$ intermediate allocations (`P2-12`).
+  - Mean MSE across all 7 projections is $6.29 \times 10^{-5}$ and factorization residual is $< 10^{-5}$.
+- **Safetensors Packing, Serialization & Downstream Reload Parity (`P2-13` .. `P2-16`):**
+  - Trellis packing applies audited `pack_trellis` + `swap16_storage` into `int16 [k/16, n/16, 16*K]`.
+  - Checkpoint schema conforms exactly to ExLlamaV3: `<mod>.trellis`, `<mod>.suh`, `<mod>.svh`, `<mod>.mul1`, and norm weights, along with `quantization_config.json` and `model.safetensors.index.json`.
+  - Reconstructed weights loaded from `.safetensors` match `exl3xpu.ref.weight_orig` and `weight_from_quantized` across all 7 projections.
+  - State-history round trips preserve low $K$ bits, and malformed/truncated safetensors are rejected cleanly.
+- **Sustained Memory Profiling & Stability (`P2-17`, `P2-18`, `G2-02`):**
+  - 3 sustained iterations of complete layer quantization on Arc 140V ($9,216$ tiles at $K=2$) recorded in [`artifacts/benchmarks/phase2_layer_bench.json`](./artifacts/benchmarks/phase2_layer_bench.json).
+  - Peak allocated memory: **$649.7\text{ MiB}$**.
+  - Peak reserved memory: **$672.0\text{ MiB}$**.
+  - Host RSS: **$3.04\text{ GiB}$**.
+  - Swap growth: **$0\text{ B}$** (`total_swap_growth_bytes = -8192 B`). Zero paging or memory leakage under sustained execution.
+  - Usable physical headroom remained $> 13.7\text{ GiB}$, strictly preserving the $6.0\text{ GiB}$ OS/driver reserve.
+
+---
+
+### 2. Blocking Findings
+* **None.** All Phase 2 implementation items, acceptance tiers 1–4, and Gate 2 exit criteria pass without defect.
+
+---
+
+### 3. Medium Findings
+* **None.**
+
+---
+
+### 4. Low Findings / Technical Observations
+- **L1 — CPU Cholesky Fallback Time Budget for Full 8B / 7B Model (Phase 3):** On Arc 140V / PyTorch XPU, `torch.linalg.cholesky` on fp32 falls back to CPU (`P0-21/P0-22`). For hidden dimensions $d=4096$, CPU Cholesky takes ~114 ms. For `mlp.down_proj` in Llama-3.1-8B ($d_{\text{mlp}}=14336$, matrix size $14336 \times 14336$), CPU Cholesky will take ~3–5 seconds on the Ultra 7 258V host CPU. This is expected and within budget, but should be accounted for in Phase 3 conversion time estimates.
+- **L2 — Memory-Mapped Shard Streaming in Phase 3:** In full-model orchestration (`P3-03`), loading full model weights into host RAM could cause memory pressure if unmanaged. Streaming weights layer-by-layer with memory-mapping (`mmap`) or lazy shard loading must be preserved to keep host RSS bounded below 8.0 GiB.
+
+---
+
+### 5. What is Genuinely Solid
+- **Architectural Completeness:** From calibration activation capture through Hessian accumulation, regularization, Hadamard transforms, LDLQ error feedback, and `.safetensors` serialization, the entire single-layer offline quantization pipeline is 100% operational on Intel Arc GPUs.
+- **Bounded Memory Discipline:** Under the Lunar Lake shared 32 GB UMA architecture, peak VRAM is kept under $700\text{ MiB}$, with zero swap growth and verified single-arena reuse across projections.
+- **Downstream Runtime Parity:** Generated `.safetensors` artifacts decode bit-for-bit through `exl3xpu.ref.weight_orig`, ensuring drop-in compatibility with downstream inference runtimes.
+
+---
+
+### 6. Recommended Next Actions (Phase 3 Execution)
+1. **Implement Bounded Model Orchestrator (`P3-01` .. `P3-03`):** Create `exl3_quant/convert_model.py` to stream layers from source checkpoints with lazy shard loading.
+2. **Implement Checkpointing & Resumability (`P3-04` .. `P3-08`):** Add atomic checkpoint publication, manifest tracking, and crash-recovery semantics.
+3. **Run Full-Model Conversion (`P3-09` .. `P3-16`):** Execute full offline conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, evaluate perplexity against downstream runtime (`exl3xpu`), and publish `reports/gate_3.md`.
+
 
 
 
