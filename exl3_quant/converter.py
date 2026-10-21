@@ -85,6 +85,7 @@ from exl3_quant.calibration import (
     make_rotary_embeddings,
 )
 from exl3_quant import hybrid
+from exl3_quant import memory_hygiene
 from exl3_quant.layer_quant import (
     QuantizedModuleResult,
     quantize_decoder_layer,
@@ -725,6 +726,29 @@ class ShardedSafetensorsIndex:
                 for key in f.keys():
                     self.weight_map[key] = single[0].name
         self.shards = sorted(set(self.weight_map.values()))
+        #: Path of the single checkpoint file when the checkpoint is not
+        #: sharded (the declared target's case); ``None`` for sharded
+        #: checkpoints. The P3-09 memory hygiene evicts the page cache of the
+        #: streamed source once a group or layer has been consumed.
+        self.source_file: Optional[Path] = (
+            None if self.is_sharded else (self.model_dir / self.shards[0]))
+
+    @property
+    def shard_paths(self) -> List[Path]:
+        """Absolute paths of the checkpoint shards (one for a single file)."""
+        return [self.model_dir / name for name in self.shards]
+
+    def release_source_cache(self) -> None:
+        """P3-09: evict the page cache of the streamed source shards.
+
+        A 32-layer run reads a 19.3 GB checkpoint once; keeping every read
+        page resident would pin the whole checkpoint in DRAM for the whole
+        run. The hint is advisory (clean pages only, dirty pages are written
+        back first), so file content is never affected.
+        """
+        for path in self.shard_paths:
+            memory_hygiene.drop_file_cache(path)
+        memory_hygiene.trim_host_heap()
 
     # -- key space ----------------------------------------------------------
     def layer_keys(self, layer_idx: int, prefix: str = "model.layers") -> List[str]:
@@ -1230,6 +1254,10 @@ def convert_model(
             payload = index.read_tensors(keys)
             atomic_save_safetensors(payload, target)
             del payload
+            # P3-09: the group payload (up to ~4.1 GiB for the text group) is
+            # finished with; give the DRAM back instead of pinning it for the
+            # whole 32-layer run (the admission policy sees host pressure).
+            index.release_source_cache()
         report.pass_through[group_name] = {
             "file": f"qtensors/{group_files[group_name]}",
             "keys": list(keys),
@@ -1389,6 +1417,10 @@ def convert_model(
             if geometry.is_hybrid else {})
         layer = _build_layer(geometry, tensors, layer_idx, device)
         del tensors
+        # P3-09: this layer's source pages are consumed; evict them so a
+        # 32-layer run does not grow the resident page cache to the full
+        # checkpoint size (the admission policy reads host pressure).
+        index.release_source_cache()
 
         # -- step 1+2: capture Hessians on the current state, then quantize --
         say(f"[layer {layer_idx}] capturing grouped Hessians")
@@ -1441,6 +1473,11 @@ def convert_model(
             preserve_source_dtype=geometry.is_hybrid)
         layer_file = qt_dir / f"model.layers.{layer_idx}.safetensors"
         atomic_save_safetensors(emitted, layer_file)
+        num_emitted = len(emitted)
+        del emitted
+        # P3-09: the published artifact is on disk; do not keep its pages
+        # resident for the rest of the run.
+        memory_hygiene.release_after_stream(layer_file)
         verify_layer_checkpoint(
             layer_file, layer_idx,
             expected_modules=geometry.quantized_modules(layer_idx),
@@ -1457,6 +1494,10 @@ def convert_model(
         state_tmp = qt_dir / "calibration_state.pt.tmp"
         torch.save(state_payload, str(state_tmp))
         os.replace(str(state_tmp), str(state_file))
+        del state_payload
+        # P3-09: the state file (hidden states, ~2.1 GiB at the pinned recipe)
+        # is on disk; do not keep its pages resident.
+        memory_hygiene.release_after_stream(state_file)
 
         if fault_injector is not None:
             fault_injector("after_publish", layer_idx)
@@ -1465,7 +1506,7 @@ def convert_model(
         entry = LayerConversionEntry(
             layer_index=layer_idx,
             module_keys=list(results.keys()),
-            quantized_tensors=len(emitted),
+            quantized_tensors=num_emitted,
             proxy_loss=sum(m.proxy_loss for m in metrics.values()) / len(metrics),
             normalized_proxy_loss=sum(m.normalized_proxy_loss
                                       for m in metrics.values()) / len(metrics),

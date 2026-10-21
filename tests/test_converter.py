@@ -520,6 +520,56 @@ class TestCalibrationTokenCorpusValidation(unittest.TestCase):
 
 
 @unittest.skipUnless(torch.xpu.is_available(), "Intel XPU device required")
+class TestStreamingMemoryHygiene(unittest.TestCase):
+    """P3-09: the streaming path must not pin the source in DRAM.
+
+    The P3-09 full-model run streams a 19.3 GB checkpoint through a 30.9 GiB
+    shared-DRAM host; without releasing the consumed source pages the
+    admission policy aborts the run with ``MemoryPressureError``.
+    """
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if torch.xpu.is_available():
+            torch.xpu.synchronize(0)
+            torch.xpu.empty_cache()
+
+    def test_conversion_releases_source_and_artifact_caches(self) -> None:
+        model_dir = _fresh(_TEST_ROOT / "model_hygiene")
+        write_sharded_model(model_dir, num_layers=_NUM_LAYERS, shards=_SHARDS)
+        out_dir = _fresh(_TEST_ROOT / "out_hygiene")
+        calls: List[str] = []
+        original = conv.memory_hygiene.release_after_stream
+        original_drop = conv.memory_hygiene.drop_file_cache
+
+        def spy_release(path=None):
+            calls.append(f"release:{path}")
+            return original(path)
+
+        def spy_drop(path):
+            calls.append(f"drop:{path}")
+            return original_drop(path)
+
+        with unittest.mock.patch.object(conv.memory_hygiene,
+                                       "release_after_stream", spy_release), \
+                unittest.mock.patch.object(conv.memory_hygiene,
+                                           "drop_file_cache", spy_drop):
+            conv.convert_model(conv.ConversionConfig(
+                model_dir=str(model_dir), output_dir=str(out_dir),
+                K=2, num_calibration_rows=2, batch_size=1, seq_len=128,
+                skip_g_scale=True))
+
+        self.assertTrue(any(c.startswith("drop:") for c in calls),
+                        "source shards must have their page cache released")
+        self.assertTrue(any("release:" in c and "model.layers.0" in c
+                            for c in calls),
+                        "published layer artifacts must be released")
+        self.assertTrue(any("release:" in c and "calibration_state" in c
+                            for c in calls),
+                        "the calibration state file must be released")
+
+
+@unittest.skipUnless(torch.xpu.is_available(), "Intel XPU device required")
 class TestCalibrationTokenCorpusPipeline(unittest.TestCase):
     """P3-09: full conversion + resume identity over a real corpus file."""
 
