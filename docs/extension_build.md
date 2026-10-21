@@ -122,7 +122,7 @@ sizes are reduced, so the suite stays usable:
 # default on a CPU-only host: test_gss reports a module-level skip
 PYTHONPATH=. python -m unittest discover -s tests -p "test_*.py"
 
-# force it to run at the reduced sizes (~15-20 min on a CPU-only host)
+# force it to run at the reduced sizes (~40-60 min on a CPU-only host)
 EXL3_RUN_SLOW_TESTS=1 PYTHONPATH=. python -m unittest discover -s tests -p "test_*.py"
 ```
 

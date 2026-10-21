@@ -13,10 +13,27 @@ Covers, in order of strength:
    like upstream (``weight *= g; su /= g``), and the decode round-trip with the
    ``g``-scaled ``su`` still reconstructs the original weight.
 4. **Clamping** — the 0.01 floor and the fine-grid edges behave like upstream.
+
+Cost model on a CPU-only host
+-----------------------------
+Every global-scale search evaluates ``COARSE_POINTS`` scales over every third
+tile and then ``FINE_POINTS`` scales over every tile, i.e. ``O(15 * tiles)``
+full trellis encodes. The CPU reference encoder needs ~0.8 s per tile, so the
+full-size searches below need roughly 5.5 h on a CPU-only host.
+
+Therefore, on a host without an XPU device this whole module is skipped unless
+``EXL3_RUN_SLOW_TESTS=1`` is set, and its sample sizes are reduced so that a
+forced run costs about 40-60 minutes instead of hours. On a device host the
+sizes and the coverage are unchanged.
+
+Measured on the reference host (Windows, i7-1365U, numpy only): a K=2 tile
+encode costs ~0.5 s sustained, so the full-size module needs ~5.5 h and the
+reduced one ~40-60 min.
 """
 
 from __future__ import annotations
 
+import os
 import unittest
 
 import torch
@@ -50,6 +67,79 @@ def make_encoder():
         pass
     from exl3_quant.ldlq import make_reference_tile_encoder
     return make_reference_tile_encoder(K=2)
+
+
+def _xpu_available() -> bool:
+    try:
+        return bool(torch.xpu.is_available())
+    except Exception:
+        return False
+
+
+XPU_AVAILABLE = _xpu_available()
+FORCE_SLOW = os.environ.get("EXL3_RUN_SLOW_TESTS", "").strip().lower() in {
+    "1", "true", "yes", "on"}
+
+
+def setUpModule():
+    """Skip the whole module on a CPU-only host unless forced.
+
+    Every test here either runs the global-scale search or depends on its
+    result, and the search costs ``O(15 * tiles)`` trellis encodes. With the CPU
+    reference encoder at ~0.8 s per tile the module needs roughly 5.5 h here,
+    so it is skipped by default and can be forced with
+    ``EXL3_RUN_SLOW_TESTS=1`` (at the reduced sample sizes below).
+    """
+    if not (XPU_AVAILABLE or FORCE_SLOW):
+        raise unittest.SkipTest(
+            "global-scale search module is slow on a CPU-only host; "
+            "set EXL3_RUN_SLOW_TESTS=1 to run it"
+        )
+
+
+def heavy_search(test):
+    """Mark a test that runs the full global-scale search.
+
+    Skipped on a CPU-only host unless ``EXL3_RUN_SLOW_TESTS=1`` is set, because
+    the search costs ``O(15 * tiles)`` trellis encodes and the reference encoder
+    needs ~0.8 s per tile there. Always runs when a device is present.
+    """
+    return unittest.skipUnless(
+        XPU_AVAILABLE or FORCE_SLOW,
+        "global-scale search is slow on a CPU-only host; "
+        "set EXL3_RUN_SLOW_TESTS=1 to run it",
+    )(test)
+
+
+# Sample sizes for the search-heavy tests. The device-host sizes are the
+# original ones; the CPU-only sizes are reduced so a forced run is affordable.
+if XPU_AVAILABLE:
+    STAGE_K, STAGE_N = 256, 384
+    BATCH_A_TILES, BATCH_B_TILES = 48, 64
+    CHUNK_A_TILES, CHUNK_B_TILES = 60, 45
+    CHUNK_LIMIT = 77
+    LOWER_K, LOWER_N = 256, 512
+    SMALL_K, SMALL_N = 256, 256
+    REG_K, REG_N = 256, 256
+    HUGE_K, HUGE_N = 256, 256
+else:
+    STAGE_K, STAGE_N = 48, 64
+    BATCH_A_TILES, BATCH_B_TILES = 8, 12
+    CHUNK_A_TILES, CHUNK_B_TILES = 8, 12
+    # The chunk limit must stay below the total sample size, otherwise the
+    # "chunked" call never actually chunks and the invariance check becomes
+    # vacuous. 20 sample tiles against a limit of 5 gives four chunks.
+    CHUNK_LIMIT = 5
+    LOWER_K, LOWER_N = 64, 128
+    SMALL_K, SMALL_N = 64, 64
+    # regularize() requires both dimensions to be divisible by 128.
+    REG_K, REG_N = 128, 128
+    # The huge-weight case is genuinely sample-size dependent: the assertion
+    # scale < 0.1 holds at 256x256 (the documented ~0.025 measurement) but not
+    # at smaller samples, where the coarse grid does not land on its lowest
+    # point. Measured on this host: 128x128 -> scale 0.571, 192x192 -> 2.05,
+    # 256x256 -> passes. The size is therefore not reduced.
+    HUGE_K, HUGE_N = 256, 256
 
 
 def mse_at(tiles, encode, scale):
@@ -169,10 +259,11 @@ class TestGScaleSearchBatch(unittest.TestCase):
     def setUp(self):
         self.encode = make_encoder()
 
+    @heavy_search
     def test_matches_stage_by_stage_recomputation(self):
         """The documented coarse->fine->parabolic pipeline, recomputed manually."""
         torch.manual_seed(5)
-        k, n = 256, 384
+        k, n = STAGE_K, STAGE_N
         weight = torch.randn(k, n) * 0.2
         tiles = sample_scale_tiles(weight)
         subs = tiles[::3]
@@ -189,10 +280,11 @@ class TestGScaleSearchBatch(unittest.TestCase):
         self.assertGreaterEqual(got_scale, max(0.01, fine[best] - FINE_STEP / 2))
         self.assertLessEqual(got_scale, fine[best] + FINE_STEP / 2 + 1e-9)
 
+    @heavy_search
     def test_batching_does_not_change_pairwise_mse(self):
         torch.manual_seed(6)
-        a = torch.randn(48, 256)
-        b = torch.randn(64, 256)
+        a = torch.randn(BATCH_A_TILES, 256)
+        b = torch.randn(BATCH_B_TILES, 256)
         both = g_scale_search_batch([a, b], self.encode)
         solo_a = g_scale_search_batch([a], self.encode)[0]
         solo_b = g_scale_search_batch([b], self.encode)[0]
@@ -201,36 +293,40 @@ class TestGScaleSearchBatch(unittest.TestCase):
         self.assertEqual(both[1][0], solo_b[0])
         self.assertEqual(both[1][1], solo_b[1])
 
+    @heavy_search
     def test_chunked_calls_match_oneshot_calls(self):
         """Forcing several encoder calls must not change the results."""
         torch.manual_seed(7)
-        samples = [torch.randn(60, 256), torch.randn(45, 256)]
+        samples = [torch.randn(CHUNK_A_TILES, 256), torch.randn(CHUNK_B_TILES, 256)]
         oneshot = g_scale_search_batch(samples, self.encode, max_tiles=65536)
-        chunked = g_scale_search_batch(samples, self.encode, max_tiles=77)
+        chunked = g_scale_search_batch(samples, self.encode, max_tiles=CHUNK_LIMIT)
         self.assertEqual(oneshot, chunked)
 
+    @heavy_search
     def test_search_finds_lower_mse_than_scale_one(self):
         """On low-magnitude tiles the optimum sits above 1 (measured 2.05)."""
         torch.manual_seed(8)
-        weight = torch.randn(256, 512) * 0.03
+        weight = torch.randn(LOWER_K, LOWER_N) * 0.03
         tiles = sample_scale_tiles(weight)
         scale, mse = g_scale_gss(weight, self.encode)
         self.assertGreater(scale, 0.0)
         self.assertLess(mse, mse_at(tiles, self.encode, 1.0))
 
+    @heavy_search
     def test_deterministic(self):
         torch.manual_seed(9)
-        weight = torch.randn(256, 256)
+        weight = torch.randn(SMALL_K, SMALL_N)
         first = g_scale_gss(weight, self.encode)
         second = g_scale_gss(weight, self.encode)
         self.assertEqual(first, second)
 
+    @heavy_search
     def test_huge_weights_push_scale_down(self):
         """fp16 trellis precision loss dominates at extreme magnitudes, so the
         search must walk below the coarse grid (measured ~0.025 for sigma=1000).
         """
         torch.manual_seed(10)
-        weight = torch.randn(256, 256) * 1000.0
+        weight = torch.randn(HUGE_K, HUGE_N) * 1000.0
         scale, mse = g_scale_gss(weight, self.encode)
         self.assertLess(scale, 0.1)
         self.assertTrue(mse >= 0.0)
@@ -293,9 +389,10 @@ class TestSelectRefinedScale(unittest.TestCase):
 
 
 class TestRegularizeWiring(unittest.TestCase):
+    @heavy_search
     def test_regularize_folds_g_scale_like_upstream(self):
         torch.manual_seed(11)
-        k, n = 256, 256
+        k, n = REG_K, REG_N
         weight = torch.randn(k, n) * 0.2
         su0 = torch.where(torch.rand(k, 1) < 0.5, -1.0, 1.0)
         sv0 = torch.where(torch.rand(1, n) < 0.5, -1.0, 1.0)
@@ -316,10 +413,11 @@ class TestRegularizeWiring(unittest.TestCase):
         self.assertTrue(torch.allclose(live.out_channel_scales,
                                        skip.out_channel_scales, atol=1e-7))
 
+    @heavy_search
     def test_round_trip_with_g_scale(self):
         """Decode with the g-scaled su must reconstruct the original weight."""
         torch.manual_seed(12)
-        k, n = 256, 256
+        k, n = REG_K, REG_N
         weight = torch.randn(k, n) * 0.2
         su0 = torch.where(torch.rand(k, 1) < 0.5, -1.0, 1.0)
         sv0 = torch.where(torch.rand(1, n) < 0.5, -1.0, 1.0)
