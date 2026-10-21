@@ -513,6 +513,39 @@ OK (skipped=1)
 
 ---
 
+### Step 25 [2026-10-21 15:15:00 +0200]: P3-09 Measured Single-Layer Requirements & Operating Reserve; Real wikitext Corpus Wired (`3ea669b`)
+
+**Checkpoint verified.** `model.safetensors` = 19,306,305,296 bytes, byte-for-byte the safetensors header end offset (775 tensors, `complete=True`); real config validated in opt-in mode (32 layers, 24 `linear_attention` / 8 `full_attention`, hidden 4096, inter 12288, vocab 248320, untied lm_head, rope partial 0.25 → rotary_dim 64, mrope [11,11,10]).
+
+**Measured single-layer requirement** (`/tmp/opencode/measure_qwen38_layer.py 4 2048 0,3`, real GSS `skip_g_scale=False`, reference-PyTorch fallbacks for `causal_conv1d`/`fla`):
+
+| phase | layer 0 (`linear_attention`) | layer 3 (`full_attention`) |
+|---|---|---|
+| read / build / embed gather | 0.03 / 1.43 / 0.84 s | 0.02 / 0.73 / 0.61 s |
+| calibration (4×2048 tok, 8192 tok) | 3.73 s | 1.46 s |
+| **quantization (real GSS)** | **1588.0 s** | **1536.4 s** |
+| artifact build + atomic save | 36.3 + 0.04 s | 27.0 + 0.01 s |
+| XPU Hessian working set | 1.47 GiB, 8 groups | 1.40 GiB, 7 groups |
+| peak host RSS (process max) | 6.3 GiB | 6.5 GiB |
+
+**Extrapolation at the pinned recipe (128 rows × 2048 tokens):** calibration scales linearly with rows (~54 min total); quantization is row-count-independent (~832 min) → **≈ 894 min (~15 h) for 32 layers**.
+
+**Why 26 min/layer is inherent (encoder micro-profile):** raw XPU tile encoder = 65,536 tiles in 107.06 s (**1.6 ms/tile**); a full LDLQ pass on 4096×4096 (skip GSS) = 111.75 s ≈ one encoder pass; `g_scale_gss` on the same weight = 12.38 s because it samples only the wrapped diagonal + extreme tiles (~1k tiles/module, independent of matrix size). **GSS is not the bottleneck** — cost tracks the tower's ~27M total tiles. Making the encoder faster would be P2 encoder work, explicitly out of scope for P3-09; the measured cost is accepted, not hidden.
+
+**Operating reserve (P3-09 contract, all four dimensions leave a documented reserve):**
+1. **RAM:** 30.9 GiB total, 26 GiB available at start; measured peak process RSS **6.5 GiB** (≈ 4.7× reserve).
+2. **XPU:** 28.6 GiB shared device memory; Hessian working set **1.5 GiB/layer**, released between layers; pass-through groups stream one at a time.
+3. **Disk:** **71.8 GiB free vs 6.72 GiB** header-derived output estimate (6.912 B quantized params × 2 bits ≈ 1.61 GiB + 575 pass-through tensors ≈ 5.11 GiB) ≈ 10× reserve.
+4. **Wall clock:** ~15 h, covered by `checkpoint_interval=1` per-layer atomic publish + validated resume (bit-identical restart, per P3-04..P3-07 evidence).
+
+Full-model attempt approved by owner decision (2026-10-21): launch now; wire the real corpus first.
+
+**Real corpus wired (P3-09, commit `3ea669b`, tests 256/256 in 188.156s).** Owner decision (2026-10-21): wire the real corpus before launching, so the pinned recipe is honored in one 15-h run instead of two. `ConversionConfig.calibration_token_ids` consumes an `exl3_quant.calibration_token_ids.v1` JSON file (flat `batch_size*seq_len` token-id rows + provenance metadata); `validate()` enforces format stamp, row count/shapes, int token bounds `[0, vocab_size)`, and `seq_len` match before any weight byte. The manifest records `calibration.corpus` + `calibration.token_ids {path, sha256, metadata}`; `calibration_state.pt` records `corpus_sha256`; resume raises `IncompatibleResumeError` on corpus presence/content/state mismatches. `scripts/prepare_calibration_tokens.py` reproduces the pinned recipe (wikitext-2-raw-v1 test split → deterministic non-overlapping chunks, left-truncated, seed 42). Realized corpus: HF `Salesforce/wikitext` `wikitext-2-raw-v1` test parquet (4,358 rows, 1,289,979 chars; the original Meta S3 endpoint was unreachable — `PermanentRedirect`/TLS failure), tokenized with the target model's tokenizer → 297,054 tokens; left-truncated 94 leading tokens → 145 whole 2048-chunks (17 surplus); seed-42 start offset 3; 128 rows × 2048 tokens written to `/home/yanchun/models/qwen38/calibration_tokens_wikitext2_test.json` (1,481,255 bytes, **sha256 `7d9d778e8f6420bbe0f67ff065bed1d923194b5597f413bfe4a54516e94b0edf`**; source parquet and tokenizer sha256 recorded inside its metadata). Pre-flight `validate()` on the real model + real corpus: 0.04 s, 128×(1,2048) rows.
+
+**Next:** launch the full 32-layer conversion (`K=2`, `architecture_mode="qwen3_5_text_tower"`, `skip_g_scale=False`, `num_calibration_rows=128`, `seq_len=2048`, real corpus file, `checkpoint_interval=1`) capturing logs + checksums + environment metadata as the P3-09 evidence bundle.
+
+---
+
 ## Critical Path Next Steps (Phase 3)
 
 > **Governing decision — `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`):** CUDA ground truth (P0-24/P0-25/P0-27) is **deferred, not waived**. Phase 3 proceeds without it; revisit the deferral if any trigger fires: T1 XPU encoder MSE exceeds upstream `max_mse_per_K` for any K; T2 reconstructed weights diverge from the CPU reference beyond fp16 tolerance; T3 a gate/reviewer demands E4 path parity; T4 a downstream runtime rejects a produced checkpoint; T5/T6 upstream re-pin or kernel/codebook/container change. Resume per `skip_cuda.md` §7.
