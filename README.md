@@ -11,7 +11,7 @@ Compatible with upstream [ExLlamaV3](https://github.com/turboderp-org/exllamav3)
 | Metric | Status / Value | Verification Source |
 |---|---|---|
 | **Phase / Maturity** | **Gate 0 & Gate 1 Closed** (Phase 2 Single-Layer Conversion Next) | [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md) |
-| **Unit Test Suite** | **111 / 111 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
+| **Unit Test Suite** | **124 / 124 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
 | **Primary Prototype Target** | Intel Core Ultra 7 258V / Arc 140V (32 GB UMA) | [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) |
 | **Downstream Oracle Parity** | **100% Bit-Exact** (CPU Ref & XPU SYCL vs `exl3xpu.ref`) | [`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py), [`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) |
 | **Upstream Pinned Commit** | `turboderp-org/exllamav3 @ 4d7b69c7` | [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) |
@@ -57,6 +57,7 @@ Direct contract transcription of the blockwise Cholesky/LDLQ factorization (`qua
 - **Contract-Conformant Inversion:** Inverts block diagonal $L_{bb}^{-1}$ and folds into $M_{:, block} = L_{:, block} L_{bb}^{-1}$.
 - **Retry-Only Damping Schedule:** Preserves upstream's adaptive diagonal regularisation ($2 \cdot \sigma_{\text{reg}} \cdot \text{mean}(\text{diag}(H))$ with up to 10 retries) without artificial pre-emptive damping.
 - **Operator Attribution Probe:** Probed 17 operator/dtype pairs on Lunar Lake XPU; catalogued explicit CPU fallback boundaries (e.g., `torch.linalg.cholesky` on XPU falls back to CPU).
+- **One-Sided LDLQ Error Feedback (`P2-08`):** `ldlq()` reproduces upstream's bottom-up span/block traversal (`quantize.py:493-609`): additive target correction from the strictly-lower `L` slice, tensor-core tile permutation, un-permuted reconstruction, and trailing-span residual feedback. Tile encoding is a pluggable callback with bit-exact reference and Arc XPU adapters that reuse a single `ScratchArena`.
 
 ### 4. Contract-Conformant CPU Reference Encoder ([`exl3_quant/reference_encoder.py`](./exl3_quant/reference_encoder.py))
 Direct host-CPU transcription of the upstream CUDA kernel `quantize_tiles_kernel.cuh:23-313`:
@@ -86,7 +87,7 @@ Contract §8 reference path, transcribed from upstream `util/hadamard.py`:
 Contract §9.3, transcribed from `quantize.py:1079-1236`:
 - `block_rms` with upstream's 32-slice accumulation order.
 - Output-scale skew heuristic (top 2% of `sqrt(H_diag)` vs 15% cutoff), out-channel RMS normalization, `sv`/`su` sign+scale folding, and the zero-channel floor (`0.1`) / `sv = 0` rule.
-- Global-scale (`g_scale_gss`) search is an explicit pluggable hook, defaulting to upstream's `skip_g_scale` switch; it requires the encoder and is wired at `P2-08`.
+- Global-scale (`g_scale_gss`) search is an explicit pluggable hook, defaulting to upstream's `skip_g_scale` switch. The `P2-08` encoder adapters provide the required test-quantization callback; wiring the full coarse/fine search remains open (`P2-04` is `[~]`).
 
 ---
 
@@ -99,11 +100,12 @@ The test harness enforces exact discrete checks, perturbation detection, and liv
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Complete Test Breakdown (111 Tests Total)
+### Complete Test Breakdown (124 Tests Total)
 
 - **[`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) (13 tests):** End-to-end XPU quantizer verification: all 65,536 codebook states, bit-exact parity vs `ReferenceTrellisEncoder` across $K \in \{1, 2, 3, 4\}$ and all 3 codebooks, $L=160$ n-gram rows, live oracle decode via `exl3xpu.ref`, edge cases & ties (zeros, constant, outliers), partial batches & waves, input validation, stream-queue ordering, all 4 traceback placements & kernel variants (`SG16`/`SG32`, SLM/global), `ScratchArena` bounded eviction across $K$, automatic batch halving retry, no double scratch residency during retry (B1), and zero resident scratch leakage on failed acquisition (B2).
 - **[`tests/test_xpu_extension.py`](./tests/test_xpu_extension.py) (7 tests):** Custom SYCL XPU extension sanity, stream execution, memory lifetime, device cap queries, and on-device measurement of Open Item `O-6` (exact fp16 single-rounding FMA verified against 65,536 random and 11 adversarial inputs).
 - **[`tests/test_hadamard.py`](./tests/test_hadamard.py) (11 tests):** Sylvester values/symmetry/orthogonality, non-power-of-two rejection, blockwise-vs-block-diagonal equivalence, involution, in-place validation, bit-exact `exl3xpu.ref.hadamard128`, and decode-order parity with `weight_orig`.
+- **[`tests/test_ldlq_loop.py`](./tests/test_ldlq_loop.py) (13 tests):** identity-`L` equivalence with independent tile quantization, exact additive target correction, independent dense transcription for `buf_size_k ∈ {16,32,64}`, feedback objective improvement on a correlated Hessian, span invariance, upstream diagonal-zeroing equivalence, encoded layout/dtype, input immutability, validation, and XPU↔reference parity.
 - **[`tests/test_regularize.py`](./tests/test_regularize.py) (13 tests):** `block_rms` accuracy and slice-boundary accumulation, full regularize→decode round-trip (identity, forced out-scales off, and global-scale folding), skew heuristic both directions, zero-channel flooring, all-zero `zeros` flag, non-mutation, and input validation.
 - **[`tests/test_memory_policy.py`](./tests/test_memory_policy.py) (15 tests):** OS `/proc/meminfo` parsing, reserve budget arithmetic, admission boundary enforcement, outstanding allocation tracking, `MemoryPressureError` context, post-commit reserve-breach detection, allocator-growth verification (M1), and live GPU allocation under reserve constraints.
 - **[`tests/test_ldlq.py`](./tests/test_ldlq.py) (10 tests):** Algebraic verification of `block_ldl` ($L L^T = H$, block-diagonal inversion fold, identity block diagonals), adaptive retry-damping schedule on ill-conditioned Hessians, input validation, and XPU vs CPU parity.

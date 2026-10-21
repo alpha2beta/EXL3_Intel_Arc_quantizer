@@ -1,8 +1,8 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 22:20:00 +02:00  
+> **Last Updated:** 2026-10-20 22:55:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`), and the Phase 1 hardening review (`review-2026-10-20T21:06:51+02:00`) fully remediated: `ScratchArena` reclamation defects B1/B2 fixed with regression tests, and residuals M2/M3/L2/L5 plus the M1 negative test closed. 111 unit tests passing. Phase 2 numerical preprocessing started: Sylvester `H_128` (`P2-06`) and the upstream regularization reference path (`P2-04`, GSS search deferred to `P2-08`).  
+> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`), and the Phase 1 hardening review (`review-2026-10-20T21:06:51+02:00`) fully remediated: `ScratchArena` reclamation defects B1/B2 fixed with regression tests, and residuals M2/M3/L2/L5 plus the M1 negative test closed. 124 unit tests passing. Phase 2: Sylvester `H_128` (`P2-06`), the upstream regularization reference path (`P2-04`, GSS search still open), and the one-sided LDLQ error-feedback traversal (`P2-08`) are implemented and tested.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -325,14 +325,36 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
   * `block_rms` reproduces upstream's 32-slice accumulation order (`quantize.py:1079-1092`).
   * `regularize` transcribes the full sequence (`:1130-1236`): output-scale skew heuristic (top 2% of `sqrt(H_diag)` vs the 0.15 cutoff), out-channel RMS normalization, `sv` folding + right Hadamard, `su` folding (`/ -codebook_scale`) + left Hadamard, `zeros` flag, and zero-channel floor (`0.1`) / `sv = 0`.
   * **Round-trip identity** — `regularize` followed by the decode ordering reconstructs the original weight to `< 1e-4` — verified with the heuristic on, forced off, and a global scale of 2.0.
-  * The `g_scale_gss` sample-quantization search is deliberately **not faked**: it is a pluggable `g_scale_fn` (default = upstream's `skip_g_scale=True`) and will be wired to the encoder at `P2-08`; `P2-04` remains `[~]` for that reason.
+  * The `g_scale_gss` sample-quantization search is deliberately **not faked**: it is a pluggable `g_scale_fn` (default = upstream's `skip_g_scale=True`) and is driven by a pluggable `g_scale_fn`; the `P2-08` encoder adapters now provide that callback, but the full `sample_scale_tiles` + coarse/fine search is not yet wired, so `P2-04` remains `[~]`.
 * **Ill-conditioned handling (`P2-05`, partial):** zero/degenerate channel paths tested; `block_ldl` damping-retry failure path already covered; measured `cholesky` CPU fallback cost recorded in Gate 0.
+
+---
+
+### Step 18: One-Sided LDLQ Error-Feedback Traversal (P2-08, P2-09, P2-10)
+
+* **Time tag:** [2026-10-20 22:55:00 +0200]
+* **Commit:** `ae5db85`
+* **Source:** [`exl3_quant/ldlq.py`](./exl3_quant/ldlq.py) (`ldlq`, `LDLQResult`, `make_reference_tile_encoder`, `make_xpu_tile_encoder`); tests in [`tests/test_ldlq_loop.py`](./tests/test_ldlq_loop.py) (13 tests).
+* **Traversal (`P2-08`):**
+  * Faithful transcription of upstream `quantize.py:493-609`: spans of `buf_size_k` rows bottom-up, 16-row blocks bottom-up within each span.
+  * Target rows are corrected by **addition** of the accumulated compensation: `rows = b_weight + prod_cache + L[i+bj:j, i+bi:i+bj].T @ bb_err`.
+  * Tiles are reshaped to `(tiles_n, 256)`, permuted with `tensor_core_perm`, encoded, un-permuted for reconstruction, while the encoded states stay in tensor-core order — matching upstream exactly.
+  * Trailing-weight feedback: after each span, `prod_cache += L[i:j].T @ (b_weight - b_weight_q)`, which is the term the next (higher) span consumes.
+  * The encoder is a pluggable callback; the reference and XPU adapters use `pre_permute=False` because `ldlq` already permutes. The XPU adapter reuses **one** `XPUTrellisEncoder`/`ScratchArena` for every block (no secondary queue).
+* **Verification (`P2-09`, `P2-10`):**
+  * Identity `L` reduces to independent per-block quantization, bit-exact.
+  * A recording encoder checks the exact additive correction and the strictly-lower `L` slice.
+  * An **independent dense transcription** (explicit Python tile loops, global indices, no views) agrees tensor-for-tensor for `buf_size_k ∈ {16, 32, 64}`. This oracle caught a real bug during development: the `L` column slice was initially span-local (`bi:bj`) instead of global (`i+bi:i+bj`), which shifted every correction by one span.
+  * On a correlated Hessian, feedback lowers `tr(E H Eᵀ)` versus the same encoder with feedback disabled.
+  * Results are invariant to span height (buffering is a summation-order choice), and upstream's `L[dr,dr] = 0` is unobservable, both asserted.
+  * XPU (`XPUTrellisEncoder`) and CPU reference encoders produce identical `weight_q` and `encoded` through the full loop.
+* **Still open:** `P2-09` upstream CUDA fixtures (blocked by P0-24/P0-25), `P2-11` module-lifetime workspace retention, `P2-12` residual/error/layerwise measurements, and the `g_scale_gss` wiring (P2-04 remains `[~]`).
 
 ---
 
 ## Test Suite Execution Evidence
 
-**111 unit tests** ran and passed cleanly as of [2026-10-20 22:20:00 +0200] across all test suites:
+**124 unit tests** ran and passed cleanly as of [2026-10-20 22:55:00 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -345,10 +367,11 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_xpu_quantizer.py`: 11 tests (XPU codebook parity, `K=1..4` & 3-codebook parity, `L=160` support, live `exl3xpu.ref` parity, edge cases & tie verification, partial chunks & waves, input rejection, async stream ordering, all 4 traceback modes & SG16/32 & SLM/global, bounded `ScratchArena` eviction/reuse, and smaller-batch retry)
 - `test_hadamard.py`: 11 tests (Sylvester values/symmetry/orthogonality, block-diagonal equivalence, involution, oracle `H_128` and `weight_orig` parity)
 - `test_regularize.py`: 13 tests (`block_rms`, regularize→decode round-trip, skew heuristic, zero channels, `zeros` flag, `g_scale` folding, validation)
+- `test_ldlq_loop.py`: 13 tests (identity-`L` equivalence, exact target correction, independent dense oracle across span sizes, feedback objective improvement, span invariance, diagonal-zeroing equivalence, encoded layout/dtype, non-mutation, validation, XPU↔reference parity)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 111 tests in 46.268s
+Ran 124 tests in 91.597s
 
 OK
 ```
@@ -358,6 +381,7 @@ OK
 ## Git Commit History
 
 ```text
+ae5db85 2026-10-20 22:55:00 +0200  feat(ldlq): one-sided error-feedback traversal with pluggable encoders (P2-08)
 f14b8e3 2026-10-20 22:20:00 +0200  feat(preprocess): Sylvester H128 and upstream regularization reference path (P2-04/P2-06)
 fcdedd4 2026-10-20 22:02:00 +0200  docs(test): close Phase 1 hardening residuals (M2/M3/L2/L5/M1-test)
 3006a32 2026-10-20 21:45:00 +0200  fix(review): address review-2026-10-20T21:06:51+02:00 findings

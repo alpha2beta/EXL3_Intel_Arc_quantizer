@@ -187,10 +187,10 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### 2.2 Integrate blockwise LDLQ and the encoder
 
-- [ ] **P2-08** Implement the audited block traversal: corrected target tile, encoding, reconstruction, and trailing-weight feedback.
-- [ ] **P2-09** Compare each block's inputs, factors, reconstructed outputs, and post-feedback trailing weights with reference fixtures.
-- [ ] **P2-10** Preserve dependencies between blocks and projections; prove independence before any concurrency.
-- [ ] **P2-11** Integrate scratch reuse with layer/module lifetimes and library workspaces; verify synchronization before reuse or eviction.
+- [x] **P2-08** Implement the audited block traversal: corrected target tile, encoding, reconstruction, and trailing-weight feedback. *(`exl3_quant/ldlq.py::ldlq` transcribes `quantize.py:493-609`: bottom-up spans/blocks, additive compensation through the strictly-lower `L[i+bj:j, i+bi:i+bj]` slice, tensor-core permutation, reconstruction, and trailing-span feedback. Pluggable tile encoder with reference/XPU adapters (`pre_permute=False`; one encoder/arena reused across blocks). 13 tests in `tests/test_ldlq_loop.py`, including an independent dense oracle and XPU↔reference parity)*
+- [~] **P2-09** Compare each block's inputs, factors, reconstructed outputs, and post-feedback trailing weights with reference fixtures. *(Block target inputs are checked against an explicit formula; reconstruction and trailing feedback are checked tensor-for-tensor against an independent dense transcription across `buf_size_k ∈ {16,32,64}`. Upstream CUDA fixtures remain blocked by P0-24/P0-25; no fixture was fabricated)*
+- [x] **P2-10** Preserve dependencies between blocks and projections; prove independence before any concurrency. *(The loop is strictly sequential bottom-up and introduces no concurrency; `test_target_correction_is_added` pins that a block consumes only strictly-lower rows, so any future parallelisation must respect that dependency)*
+- [~] **P2-11** Integrate scratch reuse with layer/module lifetimes and library workspaces; verify synchronization before reuse or eviction. *(The XPU adapter holds one `XPUTrellisEncoder`/`ScratchArena` for the whole layer and all kernels stay on the current torch stream; module-lifetime eviction and multi-layer workspace retention still need an end-to-end layer runner)*
 - [ ] **P2-12** Measure factorization residuals, reconstruction error, tile distortion, and layerwise proxy loss using the pinned objective definition.
 
 ### 2.3 Export and validate one layer
