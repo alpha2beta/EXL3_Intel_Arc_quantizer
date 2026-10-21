@@ -52,15 +52,17 @@ def sylvester_hadamard(n: int) -> torch.Tensor:
 
 
 def hadamard(n: int = HAD_DIM, dtype: torch.dtype = torch.float32,
-             scale: Optional[float] = None) -> torch.Tensor:
+             scale: Optional[float] = None,
+             device: Optional[torch.device] = None) -> torch.Tensor:
     """Orthonormal Sylvester Hadamard matrix (``scale`` defaults to ``1/sqrt(n)``)."""
     if scale is None:
         scale = 1.0 / math.sqrt(n)
-    key = (n, dtype, float(scale))
+    dev_str = str(device) if device is not None else "cpu"
+    key = (n, dtype, float(scale), dev_str)
     cached = _HAD_CACHE.get(key)
     if cached is not None:
         return cached
-    matrix = (sylvester_hadamard(n) * scale).to(dtype)
+    matrix = (sylvester_hadamard(n) * scale).to(dtype=dtype, device=device)
     _HAD_CACHE[key] = matrix
     return matrix
 
@@ -72,7 +74,7 @@ def preapply_had_l(x: torch.Tensor, had_dim: int = HAD_DIM) -> torch.Tensor:
         raise ValueError(f"rows ({k}) must be divisible by had_dim ({had_dim})")
     original_dtype = x.dtype
     work = x.to(torch.float32).contiguous()
-    had = hadamard(had_dim, torch.float32)
+    had = hadamard(had_dim, torch.float32, device=x.device)
     out = (had @ work.view(-1, had_dim, n)).view(k, n)
     return out.to(original_dtype)
 
@@ -84,7 +86,7 @@ def preapply_had_r(x: torch.Tensor, had_dim: int = HAD_DIM) -> torch.Tensor:
         raise ValueError(f"columns ({n}) must be divisible by had_dim ({had_dim})")
     original_dtype = x.dtype
     work = x.to(torch.float32).contiguous()
-    had = hadamard(had_dim, torch.float32)
+    had = hadamard(had_dim, torch.float32, device=x.device)
     out = (work.view(k, -1, had_dim) @ had).view(k, n)
     return out.to(original_dtype)
 
@@ -97,7 +99,7 @@ def blockwise_preapply_had_l_(x: torch.Tensor,
     k, n = x.shape
     if k % had_dim != 0:
         raise ValueError(f"rows ({k}) must be divisible by had_dim ({had_dim})")
-    had = hadamard(had_dim, torch.float32)
+    had = hadamard(had_dim, torch.float32, device=x.device)
     for start in range(0, k, had_dim):
         x[start:start + had_dim, :] = had @ x[start:start + had_dim, :]
     return x
@@ -111,7 +113,7 @@ def blockwise_preapply_had_r_(x: torch.Tensor,
     k, n = x.shape
     if n % had_dim != 0:
         raise ValueError(f"columns ({n}) must be divisible by had_dim ({had_dim})")
-    had = hadamard(had_dim, torch.float32)
+    had = hadamard(had_dim, torch.float32, device=x.device)
     for start in range(0, n, had_dim):
         x[:, start:start + had_dim] = x[:, start:start + had_dim] @ had
     return x

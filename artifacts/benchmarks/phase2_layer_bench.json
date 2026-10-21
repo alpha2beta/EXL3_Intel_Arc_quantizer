@@ -1,0 +1,256 @@
+{
+  "timestamp": "2026-10-21T07:29:01.653279+00:00",
+  "device": "xpu:0",
+  "target_profile": "lunar_lake_140v_258v_32gb",
+  "configuration": {
+    "hidden_size": 512,
+    "intermediate_size": 1024,
+    "num_heads": 4,
+    "num_kv_heads": 2,
+    "K": 2,
+    "codebook": "mul1",
+    "iterations": 3,
+    "buf_size_k": 128,
+    "block_size": 16
+  },
+  "initial_memory": {
+    "gpu_available": true,
+    "system_total_bytes": 33153904640,
+    "system_available_bytes": 22643232768,
+    "system_free_bytes": 16194760704,
+    "cached_bytes": 5851295744,
+    "swap_total_bytes": 33153871872,
+    "swap_free_bytes": 31645650944,
+    "device_free_bytes": 16048963584,
+    "device_total_bytes": 30692810752,
+    "device_allocated_bytes": 0,
+    "device_reserved_bytes": 0,
+    "binding_available_bytes": 16048963584
+  },
+  "final_memory": {
+    "gpu_available": true,
+    "system_total_bytes": 33153904640,
+    "system_available_bytes": 20201426944,
+    "system_free_bytes": 13732712448,
+    "cached_bytes": 5871546368,
+    "swap_total_bytes": 33153871872,
+    "swap_free_bytes": 31645659136,
+    "device_free_bytes": 13732712448,
+    "device_total_bytes": 30692810752,
+    "device_allocated_bytes": 69076992,
+    "device_reserved_bytes": 142606336,
+    "binding_available_bytes": 13732712448
+  },
+  "total_swap_growth_bytes": -8192,
+  "sustained_memory_growth_verified": true,
+  "peak_allocated_bytes": 681256448,
+  "peak_reserved_bytes": 704643072,
+  "mean_iteration_seconds": 16.593285242716473,
+  "iterations_data": [
+    {
+      "iteration": 1,
+      "elapsed_seconds": 17.712843418121338,
+      "peak_allocated_bytes": 626927104,
+      "peak_reserved_bytes": 635437056,
+      "swap_growth_bytes": -4096,
+      "host_rss_kb": 2945456,
+      "total_proxy_loss": 461.25189781188965,
+      "mean_mse": 6.285092136490025e-05,
+      "modules": {
+        "self_attn.q_proj": {
+          "mse": 6.592307181563228e-05,
+          "rel_frob": 0.31874128336761426,
+          "tile_distortion": 0.15714867413043976,
+          "proxy_loss": 56.668052673339844,
+          "retries": 0,
+          "elapsed_seconds": 3.1424052715301514
+        },
+        "self_attn.k_proj": {
+          "mse": 6.579433102160692e-05,
+          "rel_frob": 0.31795451856101414,
+          "tile_distortion": 0.15633898973464966,
+          "proxy_loss": 28.253765106201172,
+          "retries": 0,
+          "elapsed_seconds": 1.131995677947998
+        },
+        "self_attn.v_proj": {
+          "mse": 6.608844705624506e-05,
+          "rel_frob": 0.31825924620059665,
+          "tile_distortion": 0.15658333897590637,
+          "proxy_loss": 28.4968204498291,
+          "retries": 0,
+          "elapsed_seconds": 0.9428884983062744
+        },
+        "self_attn.o_proj": {
+          "mse": 6.615801248699427e-05,
+          "rel_frob": 0.31833138925291543,
+          "tile_distortion": 0.15666350722312927,
+          "proxy_loss": 56.962806701660156,
+          "retries": 0,
+          "elapsed_seconds": 1.7853710651397705
+        },
+        "mlp.gate_proj": {
+          "mse": 6.601775385206565e-05,
+          "rel_frob": 0.31856794744032035,
+          "tile_distortion": 0.1570117175579071,
+          "proxy_loss": 113.48762512207031,
+          "retries": 0,
+          "elapsed_seconds": 3.576749801635742
+        },
+        "mlp.up_proj": {
+          "mse": 6.59653524053283e-05,
+          "rel_frob": 0.3184443022838126,
+          "tile_distortion": 0.15687623620033264,
+          "proxy_loss": 113.42228698730469,
+          "retries": 0,
+          "elapsed_seconds": 3.4876015186309814
+        },
+        "mlp.down_proj": {
+          "mse": 4.400948091642931e-05,
+          "rel_frob": 0.36761559353326073,
+          "tile_distortion": 0.20898745954036713,
+          "proxy_loss": 63.960540771484375,
+          "retries": 0,
+          "elapsed_seconds": 3.5833210945129395
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "elapsed_seconds": 16.040868043899536,
+      "peak_allocated_bytes": 681256448,
+      "peak_reserved_bytes": 704643072,
+      "swap_growth_bytes": 0,
+      "host_rss_kb": 2945456,
+      "total_proxy_loss": 461.25189781188965,
+      "mean_mse": 6.285092136490025e-05,
+      "modules": {
+        "self_attn.q_proj": {
+          "mse": 6.592307181563228e-05,
+          "rel_frob": 0.31874128336761426,
+          "tile_distortion": 0.15714867413043976,
+          "proxy_loss": 56.668052673339844,
+          "retries": 0,
+          "elapsed_seconds": 1.7932722568511963
+        },
+        "self_attn.k_proj": {
+          "mse": 6.579433102160692e-05,
+          "rel_frob": 0.31795451856101414,
+          "tile_distortion": 0.15633898973464966,
+          "proxy_loss": 28.253765106201172,
+          "retries": 0,
+          "elapsed_seconds": 0.9262166023254395
+        },
+        "self_attn.v_proj": {
+          "mse": 6.608844705624506e-05,
+          "rel_frob": 0.31825924620059665,
+          "tile_distortion": 0.15658333897590637,
+          "proxy_loss": 28.4968204498291,
+          "retries": 0,
+          "elapsed_seconds": 0.9469833374023438
+        },
+        "self_attn.o_proj": {
+          "mse": 6.615801248699427e-05,
+          "rel_frob": 0.31833138925291543,
+          "tile_distortion": 0.15666350722312927,
+          "proxy_loss": 56.962806701660156,
+          "retries": 0,
+          "elapsed_seconds": 1.7877326011657715
+        },
+        "mlp.gate_proj": {
+          "mse": 6.601775385206565e-05,
+          "rel_frob": 0.31856794744032035,
+          "tile_distortion": 0.1570117175579071,
+          "proxy_loss": 113.48762512207031,
+          "retries": 0,
+          "elapsed_seconds": 3.5062975883483887
+        },
+        "mlp.up_proj": {
+          "mse": 6.59653524053283e-05,
+          "rel_frob": 0.3184443022838126,
+          "tile_distortion": 0.15687623620033264,
+          "proxy_loss": 113.42228698730469,
+          "retries": 0,
+          "elapsed_seconds": 3.4697704315185547
+        },
+        "mlp.down_proj": {
+          "mse": 4.400948091642931e-05,
+          "rel_frob": 0.36761559353326073,
+          "tile_distortion": 0.20898745954036713,
+          "proxy_loss": 63.960540771484375,
+          "retries": 0,
+          "elapsed_seconds": 3.5697481632232666
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "elapsed_seconds": 16.02614426612854,
+      "peak_allocated_bytes": 681256448,
+      "peak_reserved_bytes": 704643072,
+      "swap_growth_bytes": -4096,
+      "host_rss_kb": 2945456,
+      "total_proxy_loss": 461.25189781188965,
+      "mean_mse": 6.285092136490025e-05,
+      "modules": {
+        "self_attn.q_proj": {
+          "mse": 6.592307181563228e-05,
+          "rel_frob": 0.31874128336761426,
+          "tile_distortion": 0.15714867413043976,
+          "proxy_loss": 56.668052673339844,
+          "retries": 0,
+          "elapsed_seconds": 1.8019688129425049
+        },
+        "self_attn.k_proj": {
+          "mse": 6.579433102160692e-05,
+          "rel_frob": 0.31795451856101414,
+          "tile_distortion": 0.15633898973464966,
+          "proxy_loss": 28.253765106201172,
+          "retries": 0,
+          "elapsed_seconds": 0.9546294212341309
+        },
+        "self_attn.v_proj": {
+          "mse": 6.608844705624506e-05,
+          "rel_frob": 0.31825924620059665,
+          "tile_distortion": 0.15658333897590637,
+          "proxy_loss": 28.4968204498291,
+          "retries": 0,
+          "elapsed_seconds": 0.9496474266052246
+        },
+        "self_attn.o_proj": {
+          "mse": 6.615801248699427e-05,
+          "rel_frob": 0.31833138925291543,
+          "tile_distortion": 0.15666350722312927,
+          "proxy_loss": 56.962806701660156,
+          "retries": 0,
+          "elapsed_seconds": 1.7897751331329346
+        },
+        "mlp.gate_proj": {
+          "mse": 6.601775385206565e-05,
+          "rel_frob": 0.31856794744032035,
+          "tile_distortion": 0.1570117175579071,
+          "proxy_loss": 113.48762512207031,
+          "retries": 0,
+          "elapsed_seconds": 3.493940591812134
+        },
+        "mlp.up_proj": {
+          "mse": 6.59653524053283e-05,
+          "rel_frob": 0.3184443022838126,
+          "tile_distortion": 0.15687623620033264,
+          "proxy_loss": 113.42228698730469,
+          "retries": 0,
+          "elapsed_seconds": 3.4699697494506836
+        },
+        "mlp.down_proj": {
+          "mse": 4.400948091642931e-05,
+          "rel_frob": 0.36761559353326073,
+          "tile_distortion": 0.20898745954036713,
+          "proxy_loss": 63.960540771484375,
+          "retries": 0,
+          "elapsed_seconds": 3.5612905025482178
+        }
+      }
+    }
+  ],
+  "serialization_verified": true
+}

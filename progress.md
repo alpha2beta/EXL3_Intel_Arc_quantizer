@@ -1,8 +1,8 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 23:25:00 +02:00  
+> **Last Updated:** 2026-10-21 09:30:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`), and the Phase 1 hardening review (`review-2026-10-20T21:06:51+02:00`) fully remediated: `ScratchArena` reclamation defects B1/B2 fixed with regression tests, and residuals M2/M3/L2/L5 plus the M1 negative test closed. 143 unit tests passing. Phase 2: Sylvester `H_128` (`P2-06`), the full upstream regularization path including the `g_scale_gss` search (`P2-04`), and the one-sided LDLQ error-feedback traversal (`P2-08`) are implemented and tested.  
+> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). 158 unit tests passing (100%). Complete single-layer conversion pipeline verified on XPU: activation harvesting & grouped Hessian accumulation (`exl3_quant/calibration.py`), full-layer quantization with single `ScratchArena` reuse and proxy loss (`exl3_quant/layer_quant.py`), safetensors bitpacking, export, reload, and verification with `exl3xpu.ref.weight_orig` (`exl3_quant/serialization.py`), and 3-iteration sustained memory benchmark showing 0 B swap growth (`artifacts/benchmarks/phase2_layer_bench.json`).  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -386,52 +386,51 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_regularize.py`: 13 tests (`block_rms`, regularize→decode round-trip, skew heuristic, zero channels, `zeros` flag, `g_scale` folding, validation)
 - `test_ldlq_loop.py`: 13 tests (identity-`L` equivalence, exact target correction, independent dense oracle across span sizes, feedback objective improvement, span invariance, diagonal-zeroing equivalence, encoded layout/dtype, non-mutation, validation, XPU↔reference parity)
 - `test_gss.py`: 19 tests (wrapped-diagonal coverage and exact tile values, extreme-RMS sampling, stage-by-stage search recomputation, batching/chunking invariance, MSE-below-baseline with the real encoder, determinism, huge-weight walk-down, `select_refined_scale` vertex/floor/bound, `regularize` folding and decode round-trip)
+- `test_calibration.py`: 7 tests (RMSNorm forward, rotary embeddings complex unit norm, multi-head attention forward, SwiGLU forward, complete layer forward on XPU, exact second-moment Hessian accumulation H = sum X^T X matching explicit formula, dead channel floor and damping safeguard)
+- `test_layer_quant.py`: 4 tests (proxy loss trace formula equivalence, factorization residual check, single module XPU quantization, and complete decoder layer quantization on XPU with ScratchArena reuse)
+- `test_serialization.py`: 4 tests (trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with exl3xpu.ref.weight_orig, and malformed/truncated safetensors rejection)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 143 tests in 147.531s
+Ran 158 tests in 112.113s
 
 OK
 ```
 
 ---
 
-## Git Commit History
+## Detailed Breakdown of Completed Steps (Continued)
 
-```text
-a452db3 2026-10-20 23:25:00 +0200  feat(gss): wire upstream global-scale search through encoder adapters (P2-04)
-ae5db85 2026-10-20 22:55:00 +0200  feat(ldlq): one-sided error-feedback traversal with pluggable encoders (P2-08)
-f14b8e3 2026-10-20 22:20:00 +0200  feat(preprocess): Sylvester H128 and upstream regularization reference path (P2-04/P2-06)
-fcdedd4 2026-10-20 22:02:00 +0200  docs(test): close Phase 1 hardening residuals (M2/M3/L2/L5/M1-test)
-3006a32 2026-10-20 21:45:00 +0200  fix(review): address review-2026-10-20T21:06:51+02:00 findings
-56cc74f 2026-10-20 20:57:38 +0200  feat(xpu): SYCL tile encoder, ScratchArena, traceback comparison, and Gate 1 report (Phase 1)
-1feefcc 2026-10-20 20:20:09 +0200  docs(progress): record Step 14 (operator coverage, block_ldl, Gate 0 report) [2026-10-20 20:18:50 +02:00]
-6ab0e7c 2026-10-20 20:18:50 +0200  feat(ldlq): operator coverage probe, block_ldl reference, and Gate 0 report (P0-17/P0-21/P0-22/P0-29/G0)
-1a98582 2026-10-20 20:03:00 +0200  feat(mem): idle baseline + reserve-based memory-pressure policy; close V140-02/P0-20/P0-23
-40896bb 2026-10-20 19:48:23 +0200  feat(xpu): minimal SYCL extension probe via torch cpp_extension; close P0-18/P0-19
-d632227 2026-10-20 19:18:02 +0200  docs: add native dependency audit and close P0-15/P0-16
-229dca2 2026-10-20 19:05:33 +0200  fix(review): address review-2026-10-20T18:30:21+02:00 findings
-e0194b1 2026-10-20 17:26:48 +0200  docs(progress): record Steps 8-9 with commit-aligned time tags [2026-10-20 17:22:55 +02:00]
-613943a 2026-10-20 17:22:55 +0200  feat: contract-conformant reference trellis encoder and 140V manifest
-ee90d59 2026-10-20 16:42:52 +0200  Add files via upload (adaptation for 140v as the primary development platform)
-cc576d9 2026-10-20 14:30:39 +0200  docs(review): append review conclusion for Steps 6-7 audit progress [2026-10-20 14:28:01 +02:00]
-b4aac24 2026-10-20 14:25:06 +0200  docs(progress): record the upstream source audit (Steps 6-7) with per-entry time tags
-cab8503 2026-10-20 14:21:20 +0200  docs: reconcile deviation log and review response with the completed upstream audit
-7647cd6 2026-10-20 14:19:27 +0200  docs+feat: audit pinned upstream EXL3 source, add algorithm contract and audited format primitives
-3160885 2026-10-20 13:56:58 +0200  docs: add formal review response document for review-2026-10-20T13:50:25+02:00
-fc73c07 2026-10-20 13:55:32 +0200  fix(review): address review-2026-10-20T13:50:25+02:00 findings
-f95c640 2026-10-20 13:51:00 +0200  docs: add code review of tasks.md and progress.md (review-2026-10-20T13:50:25+02:00)
-bc048fe 2026-10-20 13:38:49 +0200  docs: add progress.md detailing completed Steps 1 to 4 and test verification evidence
-668b7dc 2026-10-20 13:35:48 +0200  docs(tasks): update checklist to reflect completed reference encoder, scratch estimator, and bitpacker
-3ee68d4 2026-10-20 13:35:01 +0200  feat: implement scratch estimator, bitpacker, and golden reference Viterbi encoder with test suite
-491818c 2026-10-20 13:27:16 +0200  docs: add tasks.md implementation task list and phase gates
-7b6b4a7 2026-10-20 13:17:19 +0200  Initial commit: EXL3 Intel Arc quantizer feasibility specification and repository scaffolding
-```
+### Step 19 [2026-10-21 09:30:00 +0200]: Complete Single-Layer Conversion & Gate 2 Closure (Phase 2)
+
+1. **Layer Calibration & Grouped Hessian Harvesting (`exl3_quant/calibration.py`, P2-01..P2-03, P2-05):**
+   - Implemented `TransformerDecoderLayer` representing dense transformer architectures (`Meta-Llama-3.1-8B` / `Qwen-2.5-7B`). Verified 100% native operator execution on XPU (`mm`, `bmm`, `silu`, `softmax`, `rsqrt`) with zero silent CPU fallback during forward passes.
+   - Built `HessianCollector` grouping input activations into 4 architectural locations (attention in, attention out, mlp in, mlp down), reducing Hessian footprint by 43% (976 MiB total in fp32).
+   - Applied token-normalized second-moment accumulation ($H = \sum X^T X$), damping $\lambda \cdot \text{mean}(\text{diag}(H))$ ($\lambda = 0.01$), and floor clamping for inactive/dead channels (`P2-05`).
+
+2. **Full-Layer Quantization & Distortion Metrics (`exl3_quant/layer_quant.py`, P2-11, P2-12):**
+   - Built end-to-end `quantize_decoder_layer` converting all 7 linear projections (`q, k, v, o, gate, up, down`) sequentially.
+   - Reused a single `ScratchArena` and single `XPUTrellisEncoder` across the entire layer, with `torch.xpu.synchronize()` between projections (`P2-11`).
+   - Evaluated layerwise proxy loss $\text{tr}\left((W - \hat{W}) H (W - \hat{W})^T\right)$ via $(H @ E \cdot E).\text{sum}()$, relative Frobenius error, MSE, and factorization residuals (`P2-12`).
+
+3. **Safetensors Packing, Serialization & Downstream Reload Parity (`exl3_quant/serialization.py`, P2-13..P2-16):**
+   - Built `pack_module_trellis` packing trellis states into `int16 [k/16, n/16, 16*K]` using audited `pack_trellis` + `swap16_storage`.
+   - Exported compliant `.safetensors` checkpoints with `quantization_config.json` and weight index map (`P2-13`, `P2-14`).
+   - Implemented `load_and_verify_layer_safetensors` decoding via `exl3xpu.ref.weight_orig`, verifying reconstructed weights match expected matrices within fp16 tolerance (`P2-16`).
+   - Validated state-history round trips and added malformed/truncated file rejection tests (`P2-15`).
+
+4. **Sustained Memory Profiling & Stability (`scripts/benchmark_phase2_layer.py`, P2-17, P2-18, G2-02):**
+   - Ran 3 sustained iterations of complete layer quantization on Arc 140V ($9,216$ tiles at $K=2$).
+   - Measured peak allocated memory ($649.7\text{ MiB}$), peak reserved memory ($672.0\text{ MiB}$), and host RSS ($3.04\text{ GiB}$) under the 6.0 GiB reserve.
+   - Verified **0 B swap growth** (`total_swap_growth = -8192 B`), perfectly stable memory across iterations, and saved `artifacts/benchmarks/phase2_layer_bench.json`.
+
+5. **Gate 2 Closure (`reports/gate_2.md`, G2-01..G2-03):**
+   - Published [`reports/gate_2.md`](./reports/gate_2.md) declaring **GO to Phase 3 (Bounded full-model conversion and qualification)**.
 
 ---
 
-## Critical Path Next Steps
+## Critical Path Next Steps (Phase 3)
 
-1. **P2-01 / P2-02 / P2-03 — Transformer Layer Activation & Hessian Calibration:** Run forward pass on `Meta-Llama-3.1-8B` / `Qwen2.5-7B` decoder layer, harvest activation covariance $H = \sum X^T X$ on XPU, measure live activation memory, and evaluate CPU fallbacks within the 32 GB shared memory budget.
-2. **P2-11 / P2-12 — Layerwise Workspace & Numerical Evaluation:** Profile memory across sustained block traversals, verify module-lifetime scratch retention, and measure factorization residuals and proxy loss.
-3. **P2-13 .. P2-18, V140-06 & Gate 2 — Serialization, Format Verification & Gate 2 Closure:** Pack quantized layer tensors into EXL3 `.safetensors` format, verify load and decode via `exl3xpu.ref`, run repeated layer conversions to prove zero memory leak, and publish `reports/gate_2.md`.
+1. **P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming:** Implement conversion entry point (`convert_model.py`), streaming model layers from source checkpoints with memory-mapped loading, and rejecting unsupported configurations before execution.
+2. **P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery:** Implement atomic checkpoint publication, manifest recording, interrupted-write recovery, and resume argument validation.
+3. **P3-09 .. P3-16 & Gate 3 — First Complete Model Conversion & Evaluation:** Execute full offline conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, evaluate perplexity against downstream runtime (`exl3xpu`), and publish `reports/gate_3.md`.

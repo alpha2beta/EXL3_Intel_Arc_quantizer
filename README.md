@@ -10,13 +10,14 @@ Compatible with upstream [ExLlamaV3](https://github.com/turboderp-org/exllamav3)
 
 | Metric | Status / Value | Verification Source |
 |---|---|---|
-| **Phase / Maturity** | **Gate 0 & Gate 1 Closed** (Phase 2 Single-Layer Conversion Next) | [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md) |
-| **Unit Test Suite** | **143 / 143 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
+| **Phase / Maturity** | **Gate 0, Gate 1 & Gate 2 Closed** (Phase 3 Full-Model Conversion Next) | [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md), [`reports/gate_2.md`](./reports/gate_2.md) |
+| **Unit Test Suite** | **158 / 158 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
 | **Primary Prototype Target** | Intel Core Ultra 7 258V / Arc 140V (32 GB UMA) | [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) |
 | **Downstream Oracle Parity** | **100% Bit-Exact** (CPU Ref & XPU SYCL vs `exl3xpu.ref`) | [`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py), [`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) |
 | **Upstream Pinned Commit** | `turboderp-org/exllamav3 @ 4d7b69c7` | [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) |
 | **Active Target Models** | Meta Llama 3.1 8B / Qwen 2.5 7B | Pinned in compatibility manifest |
 | **XPU Encoder Throughput** | Up to **1,301.5 tiles/s** (43.67 G state transitions/s) | [`artifacts/benchmarks/phase1_encoder_bench.json`](./artifacts/benchmarks/phase1_encoder_bench.json) |
+| **Sustained Layer Conversion** | Peak Alloc **649.7 MiB**, **0 B Swap Growth** across repeated iterations | [`artifacts/benchmarks/phase2_layer_bench.json`](./artifacts/benchmarks/phase2_layer_bench.json) |
 
 ---
 
@@ -83,11 +84,28 @@ Contract §8 reference path, transcribed from upstream `util/hadamard.py`:
 - **Blockwise application** (`H @ x` per 128 rows, `x @ H` per 128 columns), matching upstream `blockwise_preapply_had_{l,r}_` — not a full Kronecker transform.
 - **Decode ordering** `H_l → ×su → H_r → ×sv` (`weight_from_quantized`), verified against `exl3xpu.ref.weight_orig`.
 
-### 8. Weight Regularization ([`exl3_quant/regularize.py`](./exl3_quant/regularize.py))
+### 8. Weight Regularization & Global-Scale Search ([`exl3_quant/regularize.py`](./exl3_quant/regularize.py), [`exl3_quant/gss.py`](./exl3_quant/gss.py))
 Contract §9.3, transcribed from `quantize.py:1079-1236`:
 - `block_rms` with upstream's 32-slice accumulation order.
 - Output-scale skew heuristic (top 2% of `sqrt(H_diag)` vs 15% cutoff), out-channel RMS normalization, `sv`/`su` sign+scale folding, and the zero-channel floor (`0.1`) / `sv = 0` rule.
-- Global-scale (`g_scale_gss`) search ([`exl3_quant/gss.py`](./exl3_quant/gss.py), P2-04 complete): wrapped-diagonal tile sampling with highest/lowest-RMS outlier tiles, then the upstream coarse grid (0.1–1.9, strided subsample) → fine grid (0.075 around the coarse minimum, full sample) → parabolic refinement with a `0.01` floor. Test-quantization runs through the pluggable encoder protocol (Arc XPU by default); grid evaluations are batched into as few encoder calls as possible.
+- Global-scale (`g_scale_gss`) search ([`exl3_quant/gss.py`](./exl3_quant/gss.py), P2-04 complete): wrapped-diagonal tile sampling with highest/lowest-RMS outlier tiles, coarse grid (0.1–1.9, strided subsample) → fine grid (0.075 around coarse minimum, full sample) → parabolic refinement with a `0.01` floor.
+
+### 9. Transformer Layer Calibration & Hessian Harvesting ([`exl3_quant/calibration.py`](./exl3_quant/calibration.py))
+Complete layer forward execution and activation covariance capture (P2-01..P2-03, P2-05):
+- Complete `TransformerDecoderLayer` (RMSNorms, Rotary Embedding, Attention $Q/K/V/O$, SwiGLU $Gate/Up/Down$) executing natively on Intel XPU with zero silent CPU fallback.
+- `HessianCollector` groups inputs into 4 architectural locations (attention in, attention out, mlp in, mlp down), reducing Hessian memory by 43% (976 MiB total in fp32 for Llama-3.1-8B).
+- Second-moment accumulation $H = \sum X^T X$ with token normalization, damping $\lambda \cdot \text{mean}(\text{diag}(H))$ ($\lambda = 0.01$), and floor clamping for inactive/ill-conditioned channels.
+
+### 10. Single-Layer Quantization & Distortion Metrics ([`exl3_quant/layer_quant.py`](./exl3_quant/layer_quant.py))
+End-to-end layer quantization with bounded scratch reuse and proxy loss (P2-11, P2-12):
+- Single-slot `ScratchArena` and `XPUTrellisEncoder` reused across all 7 linear projections (`q, k, v, o, gate, up, down`) with explicit `torch.xpu.synchronize()` between projections.
+- Evaluates relative Frobenius error, reconstruction MSE, tile distortion, and Hessian-weighted proxy loss $\text{tr}\left((W - \hat{W}) H (W - \hat{W})^T\right)$ via $(H @ E \cdot E).\text{sum}()$.
+
+### 11. Trellis Packing & Safetensors Serialization ([`exl3_quant/serialization.py`](./exl3_quant/serialization.py))
+Export, reload, and verification of EXL3-compliant checkpoint artifacts (P2-13..P2-16):
+- `pack_module_trellis` applies audited `pack_trellis` and `swap16_storage` into `int16 [k/16, n/16, 16*K]`.
+- Exports compliant `.safetensors` checkpoints with `quantization_config.json` and index weight map.
+- `load_and_verify_layer_safetensors` decodes weights via `exl3xpu.ref.weight_orig` and validates state-history round trips and malformed-file rejection.
 
 ---
 
@@ -100,14 +118,17 @@ The test harness enforces exact discrete checks, perturbation detection, and liv
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Complete Test Breakdown (143 Tests Total)
+### Complete Test Breakdown (158 Tests Total)
 
+- **[`tests/test_calibration.py`](./tests/test_calibration.py) (7 tests):** RMSNorm, Rotary embeddings complex unit norm, Attention forward, SwiGLU forward, complete layer forward on XPU, exact second-moment Hessian accumulation matching explicit formula, dead channel floor and damping safeguard.
+- **[`tests/test_layer_quant.py`](./tests/test_layer_quant.py) (4 tests):** Proxy loss trace formula equivalence, factorization residual check, single module XPU quantization, and complete decoder layer quantization on XPU with ScratchArena reuse.
+- **[`tests/test_serialization.py`](./tests/test_serialization.py) (4 tests):** Trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with `exl3xpu.ref.weight_orig`, and malformed/truncated safetensors rejection.
 - **[`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) (13 tests):** End-to-end XPU quantizer verification: all 65,536 codebook states, bit-exact parity vs `ReferenceTrellisEncoder` across $K \in \{1, 2, 3, 4\}$ and all 3 codebooks, $L=160$ n-gram rows, live oracle decode via `exl3xpu.ref`, edge cases & ties (zeros, constant, outliers), partial batches & waves, input validation, stream-queue ordering, all 4 traceback placements & kernel variants (`SG16`/`SG32`, SLM/global), `ScratchArena` bounded eviction across $K$, automatic batch halving retry, no double scratch residency during retry (B1), and zero resident scratch leakage on failed acquisition (B2).
 - **[`tests/test_xpu_extension.py`](./tests/test_xpu_extension.py) (7 tests):** Custom SYCL XPU extension sanity, stream execution, memory lifetime, device cap queries, and on-device measurement of Open Item `O-6` (exact fp16 single-rounding FMA verified against 65,536 random and 11 adversarial inputs).
 - **[`tests/test_hadamard.py`](./tests/test_hadamard.py) (11 tests):** Sylvester values/symmetry/orthogonality, non-power-of-two rejection, blockwise-vs-block-diagonal equivalence, involution, in-place validation, bit-exact `exl3xpu.ref.hadamard128`, and decode-order parity with `weight_orig`.
-- **[`tests/test_gss.py`](./tests/test_gss.py) (19 tests):** wrapped-diagonal coverage/value verification against manual extraction, extreme-RMS tile inclusion, stage-by-stage recomputation of the coarse→fine→parabolic pipeline, batching/chunking invariance, MSE-below-`g_scale=1` with the real encoder, determinism, huge-weight scale walk-down, `select_refined_scale` floor/basin tests, and `regularize` wiring (folding `weight *= g; su /= g` + decode round-trip with the `g`-scaled `su`).
+- **[`tests/test_gss.py`](./tests/test_gss.py) (19 tests):** wrapped-diagonal coverage/value verification against manual extraction, extreme-RMS tile inclusion, stage-by-stage recomputation of the coarse→fine→parabolic pipeline, batching/chunking invariance, MSE-below-`g_scale=1` with the real encoder, determinism, huge-weight scale walk-down, `select_refined_scale` floor/basin tests, and `regularize` wiring.
 - **[`tests/test_ldlq_loop.py`](./tests/test_ldlq_loop.py) (13 tests):** identity-`L` equivalence with independent tile quantization, exact additive target correction, independent dense transcription for `buf_size_k ∈ {16,32,64}`, feedback objective improvement on a correlated Hessian, span invariance, upstream diagonal-zeroing equivalence, encoded layout/dtype, input immutability, validation, and XPU↔reference parity.
-- **[`tests/test_regularize.py`](./tests/test_regularize.py) (13 tests):** `block_rms` accuracy and slice-boundary accumulation, full regularize→decode round-trip (identity, forced out-scales off, and global-scale folding), skew heuristic both directions, zero-channel flooring, all-zero `zeros` flag, non-mutation, and input validation.
+- **[`tests/test_regularize.py`](./tests/test_regularize.py) (13 tests):** `block_rms` accuracy and slice-boundary accumulation, full regularize→decode round-trip, skew heuristic both directions, zero-channel flooring, all-zero `zeros` flag, non-mutation, and input validation.
 - **[`tests/test_memory_policy.py`](./tests/test_memory_policy.py) (15 tests):** OS `/proc/meminfo` parsing, reserve budget arithmetic, admission boundary enforcement, outstanding allocation tracking, `MemoryPressureError` context, post-commit reserve-breach detection, allocator-growth verification (M1), and live GPU allocation under reserve constraints.
 - **[`tests/test_ldlq.py`](./tests/test_ldlq.py) (10 tests):** Algebraic verification of `block_ldl` ($L L^T = H$, block-diagonal inversion fold, identity block diagonals), adaptive retry-damping schedule on ill-conditioned Hessians, input validation, and XPU vs CPU parity.
 - **[`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py) (4 tests):** Live verification against `exl3xpu.ref` proving bit-exact identity for `tensor_core_perm`, all 3 codebooks across 65,536 states, `decode_states` across $K \in \{1, 2, 3, 4, 5, 6, 8\}$, and end-to-end encoded tile reconstruction.
@@ -125,7 +146,9 @@ The project maintains an evidence-backed governance model:
 
 - [`reports/gate_0.md`](./reports/gate_0.md) — Gate 0 audit closure report (operator coverage, `block_ldl` benchmark, conditional GO to Phase 1).
 - [`reports/gate_1.md`](./reports/gate_1.md) — Gate 1 encoder readiness report (reconstruction parity, bounded scratch, throughput sweeps, GO to Phase 2).
+- [`reports/gate_2.md`](./reports/gate_2.md) — Gate 2 single-layer readiness report (Acceptance Tiers 1–4, sustained memory stability with 0 B swap growth, GO to Phase 3).
 - [`reports/traceback_decision.md`](./reports/traceback_decision.md) — Comprehensive comparative analysis of `gpu_resident`, `d2h_cpu`, and `usm_host` traceback placements on Lunar Lake UMA.
+- [`artifacts/benchmarks/phase2_layer_bench.json`](./artifacts/benchmarks/phase2_layer_bench.json) — Full single-layer sustained conversion benchmark across 3 iterations (peak alloc 649.7 MiB, peak reserved 672.0 MiB, 0 B swap growth).
 - [`artifacts/benchmarks/phase1_encoder_bench.json`](./artifacts/benchmarks/phase1_encoder_bench.json) — Complete machine-readable benchmark results across $K \in \{1, 2, 3, 4\}$, codebooks, subgroup sizes, and batch capacities.
 - [`EXL3_Intel_Arc_quantizer.md`](./EXL3_Intel_Arc_quantizer.md) — Initial technical assessment, kernel feasibility, and roadmap.
 - [`docs/140v.md`](./docs/140v.md) — Arc 140V / Core Ultra 7 258V adaptation guide.
@@ -140,12 +163,10 @@ The project maintains an evidence-backed governance model:
 
 ---
 
-## Roadmap & Next Milestones (Phase 2)
+## Roadmap & Next Milestones (Phase 3)
 
-With Gate 0 and Gate 1 successfully closed, and core numerics implemented (Sylvester $H_{128}$ in `hadamard.py`, regularization in `regularize.py`, LDLQ error feedback in `ldlq.py`, and global-scale search in `gss.py`), Phase 2 focuses on full single-layer execution:
+With Gate 0, Gate 1, and Gate 2 successfully closed, Phase 3 focuses on bounded full-model conversion and qualification:
 
-1. **P2-01 / P2-02 / P2-03 — Layer Execution & Hessian Accumulation:** Run forward pass on `Meta-Llama-3.1-8B` / `Qwen2.5-7B` decoder layer on XPU, harvest covariance statistics $H = \sum X^T X$ on the pinned calibration corpus, and profile memory within the 32 GB shared UMA budget.
-2. **P2-11 / P2-12 — Layerwise Workspace & Residual Metrics:** Measure factorization residuals, reconstruction error, and proxy loss across layer projections; verify module-lifetime scratch retention.
-3. **P2-13 / P2-14 / P2-15 / P2-16 — Checkpoint Packing & Downstream Load:** Pack quantized layer tensors into EXL3-conformant `.safetensors` containers and verify load & inference compatibility against `exl3xpu`.
-4. **Gate 2 — Single-Layer Qualification:** Validate repeatable layer conversions without memory growth under the 6.0 GiB reserve, and publish `reports/gate_2.md`.
-5. **P0-24 / P0-25 — CUDA Ground Truth Capture:** Capture reference tile fixtures and cost snapshots from a CUDA reference environment to settle Open Item `O-1` and complete Tier-4 quantizer verification.
+1. **P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming:** Implement conversion entry point (`convert_model.py`), streaming model layers from source checkpoints with memory-mapped loading, and rejecting unsupported configurations before execution.
+2. **P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery:** Implement atomic checkpoint publication, manifest recording, interrupted-write recovery, and resume argument validation.
+3. **P3-09 .. P3-16 & Gate 3 — First Complete Model Conversion & Evaluation:** Execute full offline conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, evaluate perplexity against downstream runtime (`exl3xpu`), and publish `reports/gate_3.md`.

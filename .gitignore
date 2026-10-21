@@ -26,6 +26,7 @@ weights/
 models/
 calibration_data/
 output/
+artifacts/test_layer_export/
 
 # IDE / Editor
 .vscode/
