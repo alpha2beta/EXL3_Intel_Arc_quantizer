@@ -366,6 +366,7 @@ def calibrate_layer(
     device: torch.device,
     damping_lambda: float = DEFAULT_DAMPING_LAMBDA,
     memory_policy: Optional[MemoryPolicy] = None,
+    zero_floor: float = DEFAULT_ZERO_CHANNEL_FLOOR,
 ) -> Tuple[Dict[str, torch.Tensor], CalibrationTelemetry]:
     """Run calibration data through a decoder layer on XPU, returning Hessians and telemetry."""
     if memory_policy is None:
@@ -407,7 +408,8 @@ def calibrate_layer(
         collector.close()
 
     elapsed = time.time() - start_time
-    hessians, damping = collector.finalize(damping_lambda=damping_lambda)
+    hessians, damping = collector.finalize(
+        damping_lambda=damping_lambda, zero_floor=zero_floor)
 
     if device.type == "xpu":
         peak_allocated = torch.xpu.max_memory_allocated(device.index or 0)

@@ -1,0 +1,151 @@
+{
+  "timestamp": "2026-10-21T08:14:21.387334+00:00",
+  "task": "P3-03",
+  "run_id": "8b9bb7624dbd488b9df16c71479e3a0c",
+  "configuration": {
+    "num_layers": 16,
+    "shards": 4,
+    "hidden_size": 1024,
+    "intermediate_size": 2816,
+    "num_heads": 8,
+    "num_kv_heads": 8,
+    "head_dim": 128,
+    "vocab_size": 8192,
+    "dtype": "float16"
+  },
+  "workload": {
+    "total_bytes": 444680072,
+    "num_shards": 4,
+    "shard_bytes": {
+      "model-00000-of-00004.safetensors": 102780816,
+      "model-00001-of-00004.safetensors": 102780816,
+      "model-00002-of-00004.safetensors": 102780824,
+      "model-00003-of-00004.safetensors": 136337616
+    },
+    "build_seconds": 0.0002918243408203125
+  },
+  "rss_baseline_kib": 496340,
+  "metadata_pass": {
+    "elapsed_seconds": 0.0006303787231445312,
+    "rss_after_kib": 496340,
+    "rss_delta_kib": 0,
+    "bytes_materialized": 0
+  },
+  "stream_pass": {
+    "elapsed_seconds": 1.0041193962097168,
+    "rss_end_kib": 499168,
+    "rss_residual_delta_kib": 2828,
+    "rss_peak_kib": 499168,
+    "per_layer": [
+      {
+        "layer": 0,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.08893585205078125
+      },
+      {
+        "layer": 1,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": 0.09563779830932617
+      },
+      {
+        "layer": 2,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.02440643310546875
+      },
+      {
+        "layer": 3,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": 0.10853958129882812
+      },
+      {
+        "layer": 4,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.09424591064453125
+      },
+      {
+        "layer": 5,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.012985706329345703
+      },
+      {
+        "layer": 6,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.002349853515625
+      },
+      {
+        "layer": 7,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": 0.09200000762939453
+      },
+      {
+        "layer": 8,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.12231636047363281
+      },
+      {
+        "layer": 9,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": 0.07242393493652344
+      },
+      {
+        "layer": 10,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.00879669189453125
+      },
+      {
+        "layer": 11,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": 0.03757476806640625
+      },
+      {
+        "layer": 12,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.03818511962890625
+      },
+      {
+        "layer": 13,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": -0.01090240478515625
+      },
+      {
+        "layer": 14,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": 0.0697590708732605
+      },
+      {
+        "layer": 15,
+        "bytes": 25694208,
+        "rss_after_kib": 499616,
+        "checksum": 0.10094195604324341
+      }
+    ]
+  },
+  "full_shard_contrast": {
+    "shard": "model-00003-of-00004.safetensors",
+    "shard_bytes": 136337616,
+    "elapsed_seconds": 0.0009267330169677734,
+    "rss_delta_kib": 1956
+  },
+  "criteria": {
+    "metadata_pass_materializes_no_weight_bytes": true,
+    "streaming_residual_bounded_well_below_model_size": true,
+    "full_shard_contrast_is_affordable_but_dominate_unstreamed_cost": true
+  },
+  "stream_residual_bytes_note": "mmap streaming bounds heap RSS, not the page cache: residual RSS is allowed to retain touched mapped pages; the criterion is that it stays far below the checkpoint size, never the whole model.",
+  "verdict": "PASS"
+}
