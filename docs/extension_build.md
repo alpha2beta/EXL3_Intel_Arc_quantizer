@@ -107,6 +107,27 @@ PYTHONPATH=. python -m unittest discover -s tests -p "test_*.py"
 otherwise verifies device selection, bit-exact output, queue ordering, tensor
 lifetime, capability capture, and both O-6 fp16-FMA probes.
 
+### CPU-only hosts
+
+`tests/test_gss.py` contains the global-scale search tests. Each search evaluates
+`COARSE_POINTS` scales over every third tile and `FINE_POINTS` scales over every
+tile, i.e. `O(15 * tiles)` full trellis encodes. The CPU reference encoder needs
+roughly 0.8 s per tile, so at the original sample sizes the module needs about
+5.5 h on a host without an XPU device.
+
+On such a host that module is therefore **skipped** by default and its sample
+sizes are reduced, so the suite stays usable:
+
+```bash
+# default on a CPU-only host: test_gss reports a module-level skip
+PYTHONPATH=. python -m unittest discover -s tests -p "test_*.py"
+
+# force it to run at the reduced sizes (~15-20 min on a CPU-only host)
+EXL3_RUN_SLOW_TESTS=1 PYTHONPATH=. python -m unittest discover -s tests -p "test_*.py"
+```
+
+With an XPU device present the module always runs, at the original sample sizes.
+
 ## 5. Memory baseline and scratch allocations
 
 ```bash
