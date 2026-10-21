@@ -371,7 +371,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 
 ## Test Suite Execution Evidence
 
-**143 unit tests** ran and passed cleanly as of [2026-10-20 23:25:00 +0200] across all test suites:
+**158 unit tests** ran and passed cleanly as of [2026-10-21 09:45:00 +0200] (re-verified [2026-10-21 09:50:29 +0200]: `Ran 158 tests in 194.407s OK`) across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -381,7 +381,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_xpu_extension.py`: 7 tests (device selection, correctness, ordering, lifetime, caps, O-6 random + adversarial; skip unless `torch.xpu.is_available()`)
 - `test_memory_policy.py`: 15 tests (meminfo parsing, reserve arithmetic, admission boundaries, outstanding commitments, abort path, post-commit breach, allocator-growth assertion, live 32 MiB GPU allocation)
 - `test_ldlq.py`: 10 tests (`L Lᵀ = H`, block-inverse fold, identity block diagonal, retry-damping schedule, input validation, XPU vs CPU parity)
-- `test_xpu_quantizer.py`: 11 tests (XPU codebook parity, `K=1..4` & 3-codebook parity, `L=160` support, live `exl3xpu.ref` parity, edge cases & tie verification, partial chunks & waves, input rejection, async stream ordering, all 4 traceback modes & SG16/32 & SLM/global, bounded `ScratchArena` eviction/reuse, and smaller-batch retry)
+- `test_xpu_quantizer.py`: 13 tests (XPU codebook parity, `K=1..4` & 3-codebook parity, `L=160` support, live `exl3xpu.ref` parity, edge cases & tie verification, partial chunks & waves, input rejection, async stream ordering, all 4 traceback modes & SG16/32 & SLM/global, bounded `ScratchArena` eviction/reuse, smaller-batch retry, and overflow-safe distortion accounting)
 - `test_hadamard.py`: 11 tests (Sylvester values/symmetry/orthogonality, block-diagonal equivalence, involution, oracle `H_128` and `weight_orig` parity)
 - `test_regularize.py`: 13 tests (`block_rms`, regularize→decode round-trip, skew heuristic, zero channels, `zeros` flag, `g_scale` folding, validation)
 - `test_ldlq_loop.py`: 13 tests (identity-`L` equivalence, exact target correction, independent dense oracle across span sizes, feedback objective improvement, span invariance, diagonal-zeroing equivalence, encoded layout/dtype, non-mutation, validation, XPU↔reference parity)
@@ -401,7 +401,10 @@ OK
 
 ## Detailed Breakdown of Completed Steps (Continued)
 
-### Step 19 [2026-10-21 09:30:00 +0200]: Complete Single-Layer Conversion & Gate 2 Closure (Phase 2)
+### Step 20 [2026-10-21 09:45:00 +0200]: Complete Single-Layer Conversion & Gate 2 Closure (Phase 2)
+
+* **Commit:** `c67a469`
+* **Gate report:** [`reports/gate_2.md`](./reports/gate_2.md) — GO to Phase 3.
 
 1. **Layer Calibration & Grouped Hessian Harvesting (`exl3_quant/calibration.py`, P2-01..P2-03, P2-05):**
    - Implemented `TransformerDecoderLayer` representing dense transformer architectures (`Meta-Llama-3.1-8B` / `Qwen-2.5-7B`). Verified 100% native operator execution on XPU (`mm`, `bmm`, `silu`, `softmax`, `rsqrt`) with zero silent CPU fallback during forward passes.
