@@ -108,7 +108,7 @@ def write_sharded_model(
     Returns the exact tensor dictionary written (for value assertions).
     """
     model_dir.mkdir(parents=True, exist_ok=True)
-    write_fixture_config(model_dir)
+    write_fixture_config(model_dir, overrides={"num_hidden_layers": num_layers})
     tensors = build_fixture_tensors(num_layers)
     for key, value in (tensor_overrides or {}).items():
         tensors[key] = value
