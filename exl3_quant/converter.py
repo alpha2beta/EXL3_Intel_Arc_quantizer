@@ -65,6 +65,7 @@ is unchanged.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -521,12 +522,15 @@ class ConversionConfig:
     K: int = 2
     cb: str = "mul1"
 
-    # Calibration. The synthetic deterministic token corpus is generated here;
-    # wiring a real corpus / tokenizer belongs to the P3-09 qualification run.
+    # Calibration. The synthetic deterministic token corpus is the default;
+    # the P3-09 qualification run wires a real corpus by passing a
+    # pre-tokenized token-ids file (produced by
+    # scripts/prepare_calibration_tokens.py) via calibration_token_ids.
     num_calibration_rows: int = 2
     batch_size: int = 1
     seq_len: int = 128
     calibration_seed: int = 0
+    calibration_token_ids: Optional[str] = None
 
     # Numerics pass-through to the quantization chain
     damping_lambda: float = 0.01
@@ -549,6 +553,8 @@ class ConversionConfig:
     def __post_init__(self) -> None:
         self.model_dir = str(Path(self.model_dir))
         self.output_dir = str(Path(self.output_dir))
+        if self.calibration_token_ids is not None:
+            self.calibration_token_ids = str(Path(self.calibration_token_ids))
 
     def validate(self) -> ModelGeometry:
         """Reject all unsupported modes before any weight tool runs."""
@@ -589,7 +595,91 @@ class ConversionConfig:
             # implementation (transformers qwen3_5) is unavailable here.
             hybrid.require_support()
 
-        return load_model_geometry(model_dir, mode=self.architecture_mode)
+        geometry = load_model_geometry(model_dir, mode=self.architecture_mode)
+        if self.calibration_token_ids is not None:
+            # P3-09 real-corpus wiring: fully validate the pre-tokenized
+            # corpus (structure, shapes, token bounds) before any weight
+            # byte is read, exactly like every other recipe field.
+            load_calibration_token_rows(self, geometry)
+        return geometry
+
+
+#: Format stamp required in pre-tokenized calibration corpus files (P3-09).
+CALIBRATION_TOKEN_IDS_FORMAT = "exl3_quant.calibration_token_ids.v1"
+
+
+def calibration_token_ids_sha256(path: str) -> str:
+    """SHA-256 of the corpus file bytes (provenance + resume identity)."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def load_calibration_token_rows(
+    config: ConversionConfig, geometry: ModelGeometry
+) -> "tuple[List[torch.Tensor], Dict]":
+    """Load and validate a pre-tokenized calibration corpus (P3-09).
+
+    The file is a JSON object stamped with
+    :data:`CALIBRATION_TOKEN_IDS_FORMAT` whose ``rows`` entry is a list of
+    flat token-id sequences, each exactly ``batch_size * seq_len`` integers
+    in ``[0, vocab_size)``; all other entries are free-form provenance
+    metadata carried into the conversion manifest. At least
+    ``num_calibration_rows`` rows must be present (the first
+    ``num_calibration_rows`` are used).
+
+    Returns ``(rows, meta)`` where each row is an int64
+    ``(batch_size, seq_len)`` tensor and ``meta`` is the file's metadata
+    (everything except ``rows``).
+
+    Raises :class:`UnsupportedModeError` for any structural problem, so the
+    whole corpus contract is rejected in pure Python during ``validate()``.
+    """
+    path = Path(config.calibration_token_ids or "")
+    _require(path.is_file(), f"calibration_token_ids file does not exist: {path}")
+    try:
+        with open(path) as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        _require(False, f"calibration_token_ids is not valid JSON: {path} ({e})")
+        raise  # unreachable; keeps type-checkers happy
+    _require(isinstance(payload, dict),
+             f"calibration_token_ids must be a JSON object, got {type(payload).__name__}")
+    _require(payload.get("format") == CALIBRATION_TOKEN_IDS_FORMAT,
+             f"calibration_token_ids format stamp must be "
+             f"{CALIBRATION_TOKEN_IDS_FORMAT!r}, got {payload.get('format')!r}")
+
+    raw_rows = payload.get("rows")
+    _require(isinstance(raw_rows, list) and len(raw_rows) > 0,
+             "calibration_token_ids 'rows' must be a non-empty list")
+    _require(len(raw_rows) >= config.num_calibration_rows,
+             f"calibration_token_ids has {len(raw_rows)} rows but "
+             f"num_calibration_rows={config.num_calibration_rows}")
+    if "seq_len" in payload:
+        _require(payload["seq_len"] == config.seq_len,
+                 f"calibration_token_ids seq_len={payload['seq_len']} does not "
+                 f"match config seq_len={config.seq_len}")
+
+    row_tokens = config.batch_size * config.seq_len
+    rows: List[torch.Tensor] = []
+    for i, row in enumerate(raw_rows):
+        _require(isinstance(row, list) and len(row) == row_tokens,
+                 f"calibration_token_ids row {i} must be a flat list of "
+                 f"{row_tokens} tokens (batch_size * seq_len), got "
+                 f"{len(row) if isinstance(row, list) else type(row).__name__}")
+        for t in row:
+            if not (isinstance(t, int) and not isinstance(t, bool)
+                    and 0 <= t < geometry.vocab_size):
+                _require(False,
+                         f"calibration_token_ids row {i} contains a token "
+                         f"outside int/[0, {geometry.vocab_size}): {t!r}")
+        rows.append(torch.tensor(row, dtype=torch.int64)
+                    .reshape(config.batch_size, config.seq_len))
+
+    meta = {k: v for k, v in payload.items() if k != "rows"}
+    return rows, meta
 
 
 # ---------------------------------------------------------------------------
@@ -769,6 +859,9 @@ class ConversionReport:
     total_elapsed_seconds: float = 0.0
     # P4-13: group -> {file, keys, quant_format} for the pass-through files
     pass_through: Dict[str, dict] = field(default_factory=dict)
+    # P3-09: real-corpus provenance (None = synthetic deterministic corpus)
+    corpus_meta: Optional[Dict] = None
+    corpus_sha256: Optional[str] = None
 
 
 def _resolve_device(requested: str) -> torch.device:
@@ -1015,6 +1108,23 @@ def _validate_resume(config: ConversionConfig, geometry: ModelGeometry,
     if cal.get("num_rows") != config.num_calibration_rows:
         mismatches.append(f"calibration.num_rows: config has {config.num_calibration_rows}, manifest has {cal.get('num_rows')}")
 
+    # Corpus identity (P3-09): the pre-tokenized file's content hash, or the
+    # synthetic corpus. Presence must agree, and file content must be stable.
+    want_sha = (calibration_token_ids_sha256(config.calibration_token_ids)
+                if config.calibration_token_ids else None)
+    have_ids = cal.get("token_ids")
+    if want_sha is None and have_ids is not None:
+        mismatches.append("calibration.token_ids: config uses the synthetic "
+                          "corpus, manifest records a token-ids file")
+    elif want_sha is not None and have_ids is None:
+        mismatches.append("calibration.token_ids: config uses a token-ids "
+                          f"file ({Path(config.calibration_token_ids).name}), "
+                          "manifest records the synthetic corpus")
+    elif want_sha is not None and have_ids.get("sha256") != want_sha:
+        mismatches.append("calibration.token_ids.sha256: corpus file content "
+                          f"differs from the manifest ({want_sha[:12]} vs "
+                          f"{str(have_ids.get('sha256'))[:12]})")
+
     if manifest.get("architecture") != geometry.architecture:
         mismatches.append(f"architecture: config has {geometry.architecture!r}, manifest has {manifest.get('architecture')!r}")
     if manifest.get("num_layers") != geometry.num_layers:
@@ -1079,13 +1189,21 @@ def convert_model(
     if index.is_sharded:
         say(f"streaming sharded checkpoint: {len(index.shards)} shards")
 
-    # ---- deterministic synthetic calibration corpus ------------------------
-    generator = torch.Generator().manual_seed(config.calibration_seed)
-    rows = [
-        torch.randint(0, geometry.vocab_size,
-                      (config.batch_size, config.seq_len), generator=generator)
-        for _ in range(config.num_calibration_rows)
-    ]
+    # ---- calibration corpus: pre-tokenized file (P3-09) or synthetic -------
+    if config.calibration_token_ids is not None:
+        rows, corpus_meta = load_calibration_token_rows(config, geometry)
+        corpus_sha = calibration_token_ids_sha256(config.calibration_token_ids)
+        say(f"calibration corpus: {len(rows)} rows from "
+            f"{Path(config.calibration_token_ids).name} (sha256 {corpus_sha[:12]})")
+    else:
+        generator = torch.Generator().manual_seed(config.calibration_seed)
+        rows = [
+            torch.randint(0, geometry.vocab_size,
+                          (config.batch_size, config.seq_len), generator=generator)
+            for _ in range(config.num_calibration_rows)
+        ]
+        corpus_meta = None
+        corpus_sha = None
 
     # ---- pass-through groups: bit-exact, atomically published (P4-13) ------
     # Dense profile: one group ("text") identical to the historical
@@ -1100,7 +1218,9 @@ def convert_model(
 
     report = ConversionReport(geometry=geometry,
                               unchanged_keys=list(groups["text"]),
-                              device=str(device))
+                              device=str(device),
+                              corpus_meta=corpus_meta,
+                              corpus_sha256=corpus_sha)
     rss_start = read_rss_kib()
     for group_name, keys in groups.items():
         if not keys:
@@ -1223,7 +1343,8 @@ def convert_model(
             try:
                 state_data = torch.load(str(state_file), map_location="cpu", weights_only=False)
                 if (state_data.get("layer_index") == resume_from_layer - 1 and
-                    state_data.get("seed") == config.calibration_seed):
+                    state_data.get("seed") == config.calibration_seed and
+                    state_data.get("corpus_sha256") == corpus_sha):
                     hidden_states = [h.to(device=device, dtype=torch.float16)
                                      for h in state_data["hidden_states"]]
                     loaded_state = True
@@ -1330,6 +1451,7 @@ def convert_model(
         state_payload = {
             "layer_index": layer_idx,
             "seed": config.calibration_seed,
+            "corpus_sha256": corpus_sha,
             "hidden_states": [h.detach().cpu().half() for h in hidden_states],
         }
         state_tmp = qt_dir / "calibration_state.pt.tmp"
@@ -1425,7 +1547,16 @@ def _write_manifest(out_dir: Path, report: ConversionReport,
             "damping_lambda": config.damping_lambda,
             "zero_floor": config.zero_floor,
             "skip_g_scale": config.skip_g_scale,
-            "corpus": "synthetic-deterministic (real corpus wiring is P3-09)",
+            "corpus": ("synthetic-deterministic"
+                       if report.corpus_meta is None else
+                       str(report.corpus_meta.get(
+                           "corpus",
+                           Path(config.calibration_token_ids).name))),
+            "token_ids": (None if report.corpus_meta is None else {
+                "path": config.calibration_token_ids,
+                "sha256": report.corpus_sha256,
+                "metadata": report.corpus_meta,
+            }),
         },
         "pass_through": report.pass_through,
         "hybrid": (None if not geometry.is_hybrid else {

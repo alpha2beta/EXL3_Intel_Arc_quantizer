@@ -9,6 +9,7 @@ RSS), using deterministic synthetic mini-Llama checkpoints under
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import sys
@@ -402,6 +403,201 @@ class TestConversionConfig(unittest.TestCase):
             with self.subTest(label=label):
                 with self.assertRaises(conv.UnsupportedModeError):
                     self._valid_config(**{field: value}).validate()
+
+
+def _write_corpus_file(path: Path, rows: List[List[int]], **meta) -> Path:
+    """Write a structurally valid pre-tokenized calibration corpus file."""
+    payload = {"format": conv.CALIBRATION_TOKEN_IDS_FORMAT, **meta, "rows": rows}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(payload, f)
+    return path
+
+
+class TestCalibrationTokenCorpusValidation(unittest.TestCase):
+    """P3-09: structural contract of pre-tokenized calibration corpus files.
+
+    Pure-Python validation (no weights, no device): the whole corpus contract
+    is rejected in ``ConversionConfig.validate()`` before any weight byte is
+    read, exactly like every other recipe field.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.model_dir = _fresh(_TEST_ROOT / "model_corpus_cfg")
+        write_fixture_config(cls.model_dir)
+        cls.geometry = conv.ConversionConfig(
+            model_dir=str(cls.model_dir),
+            output_dir=str(_TEST_ROOT / "out_corpus_unused")).validate()
+        cls.row_len = 128  # fixture recipe seq_len (batch_size 1)
+        cls.tokens = [(i * 7 + 3) % cls.geometry.vocab_size
+                      for i in range(cls.row_len)]
+
+    def _config(self, path: Path, **overrides) -> conv.ConversionConfig:
+        cfg = conv.ConversionConfig(
+            model_dir=str(self.model_dir),
+            output_dir=str(_TEST_ROOT / "out_corpus_unused"),
+            num_calibration_rows=2,
+            batch_size=1,
+            seq_len=self.row_len,
+            calibration_token_ids=str(path))
+        for key, value in overrides.items():
+            setattr(cfg, key, value)
+        return cfg
+
+    def _write_payload(self, name: str, payload) -> Path:
+        path = _TEST_ROOT / "corpus" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(payload, f)
+        return path
+
+    def test_load_returns_ordered_rows_and_metadata(self) -> None:
+        rows_in = [[(r * 128 + i) % self.geometry.vocab_size
+                    for i in range(self.row_len)] for r in range(3)]
+        path = _write_corpus_file(_TEST_ROOT / "corpus" / "ok.json", rows_in,
+                                  corpus="unit-corpus", split="test",
+                                  seq_len=self.row_len, seed=42)
+        rows, meta = conv.load_calibration_token_rows(
+            self._config(path), self.geometry)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(tuple(rows[0].shape), (1, self.row_len))
+        self.assertEqual(rows[0][0].tolist(), rows_in[0])   # order preserved
+        self.assertEqual(rows[2][0].tolist(), rows_in[2])
+        self.assertEqual(rows[0].dtype, torch.int64)
+        self.assertNotIn("rows", meta)
+        self.assertEqual(meta["corpus"], "unit-corpus")
+        # validate() runs the identical contract end-to-end
+        geometry = self._config(path).validate()
+        self.assertEqual(geometry.num_layers, _NUM_LAYERS)
+
+    def test_synthetic_default_needs_no_corpus_file(self) -> None:
+        cfg = conv.ConversionConfig(
+            model_dir=str(self.model_dir),
+            output_dir=str(_TEST_ROOT / "out_corpus_unused"))
+        self.assertIsNone(cfg.calibration_token_ids)
+        cfg.validate()  # synthetic default validates with no corpus at all
+
+    def test_validate_rejects_malformed_corpora(self) -> None:
+        v = self.geometry.vocab_size
+        good = [list(self.tokens), list(self.tokens)]
+        fmt = conv.CALIBRATION_TOKEN_IDS_FORMAT
+        raw = _TEST_ROOT / "corpus" / "invalid.json"
+        raw.parent.mkdir(parents=True, exist_ok=True)
+        raw.write_text("{not json")
+        cases = {
+            "missing file": _TEST_ROOT / "corpus" / "does_not_exist.json",
+            "invalid JSON": raw,
+            "wrong format stamp": self._write_payload(
+                "badfmt.json", {"format": "something-else", "rows": good}),
+            "missing format stamp": self._write_payload(
+                "nofmt.json", {"rows": good}),
+            "rows not a list": self._write_payload(
+                "rowsstr.json", {"format": fmt, "rows": "abc"}),
+            "empty rows": self._write_payload(
+                "empty.json", {"format": fmt, "rows": []}),
+            "too few rows": self._write_payload(
+                "few.json", {"format": fmt, "rows": [good[0]]}),
+            "short row": self._write_payload(
+                "shortrow.json",
+                {"format": fmt, "rows": [self.tokens[:-1], list(self.tokens)]}),
+            "token >= vocab": self._write_payload(
+                "oob.json", {"format": fmt, "rows": [
+                    [v] + self.tokens[1:], list(self.tokens)]}),
+            "non-int token": self._write_payload(
+                "strtok.json", {"format": fmt, "rows": [
+                    ["5"] + self.tokens[1:], list(self.tokens)]}),
+            "seq_len mismatch": self._write_payload(
+                "seqmismatch.json", {"format": fmt,
+                                     "seq_len": self.row_len + 16,
+                                     "rows": good}),
+        }
+
+        for label, path in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(conv.UnsupportedModeError):
+                    self._config(path).validate()
+
+
+@unittest.skipUnless(torch.xpu.is_available(), "Intel XPU device required")
+class TestCalibrationTokenCorpusPipeline(unittest.TestCase):
+    """P3-09: full conversion + resume identity over a real corpus file."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.model_dir = _fresh(_TEST_ROOT / "model_corpus_run")
+        write_sharded_model(cls.model_dir, num_layers=_NUM_LAYERS, shards=_SHARDS)
+        cls.out_dir = _fresh(_TEST_ROOT / "out_corpus_run")  # before validate
+        cls.geometry = conv.ConversionConfig(
+            model_dir=str(cls.model_dir),
+            output_dir=str(cls.out_dir)).validate()
+        v = cls.geometry.vocab_size
+        cls.rows_a = [[(r * 100 + i) % v for i in range(128)]
+                      for r in range(2)]
+        cls.rows_b = [[(r * 100 + i + 1) % v for i in range(128)]
+                      for r in range(2)]
+        corpus_dir = _TEST_ROOT / "corpus_run"
+        meta = dict(corpus="wikitext-2-raw-v1", split="test",
+                    seq_len=128, seed=42,
+                    chunking="deterministic non-overlapping chunks")
+        cls.corpus_a = _write_corpus_file(corpus_dir / "corpus_a.json",
+                                          cls.rows_a, **meta)
+        cls.corpus_b = _write_corpus_file(corpus_dir / "corpus_b.json",
+                                          cls.rows_b, **meta)
+        cls.sha_a = conv.calibration_token_ids_sha256(str(cls.corpus_a))
+        cls.report = conv.convert_model(conv.ConversionConfig(
+            model_dir=str(cls.model_dir), output_dir=str(cls.out_dir),
+            K=2, num_calibration_rows=2, batch_size=1, seq_len=128,
+            skip_g_scale=True,
+            calibration_token_ids=str(cls.corpus_a)))
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if torch.xpu.is_available():
+            torch.xpu.synchronize(0)
+            torch.xpu.empty_cache()
+
+    def _manifest(self) -> Dict:
+        with open(self.out_dir / "quantization_config.json") as f:
+            return json.load(f)
+
+    def test_manifest_records_corpus_provenance(self) -> None:
+        cal = self._manifest()["calibration"]
+        self.assertEqual(cal["corpus"], "wikitext-2-raw-v1")
+        self.assertEqual(cal["num_rows"], 2)
+        ids = cal["token_ids"]
+        self.assertEqual(ids["sha256"], self.sha_a)
+        self.assertTrue(ids["path"].endswith("corpus_a.json"))
+        self.assertEqual(ids["metadata"]["split"], "test")
+        self.assertEqual(ids["metadata"]["seed"], 42)
+        self.assertEqual(ids["metadata"]["chunking"],
+                         "deterministic non-overlapping chunks")
+        self.assertNotIn("rows", ids["metadata"])
+
+    def test_calibration_state_records_corpus_identity(self) -> None:
+        state = torch.load(str(self.out_dir / "qtensors" /
+                               "calibration_state.pt"),
+                           map_location="cpu", weights_only=False)
+        self.assertEqual(state["corpus_sha256"], self.sha_a)
+
+    def test_resume_with_different_corpus_is_rejected(self) -> None:
+        with self.assertRaises(conv.IncompatibleResumeError) as ctx:
+            conv.convert_model(conv.ConversionConfig(
+                model_dir=str(self.model_dir), output_dir=str(self.out_dir),
+                K=2, num_calibration_rows=2, batch_size=1, seq_len=128,
+                skip_g_scale=True, resume=True,
+                calibration_token_ids=str(self.corpus_b)))
+        self.assertIn("token_ids", str(ctx.exception))
+
+    def test_resume_with_same_corpus_succeeds(self) -> None:
+        report = conv.convert_model(conv.ConversionConfig(
+            model_dir=str(self.model_dir), output_dir=str(self.out_dir),
+            K=2, num_calibration_rows=2, batch_size=1, seq_len=128,
+            skip_g_scale=True, resume=True,
+            calibration_token_ids=str(self.corpus_a)))
+        self.assertIsNotNone(report)
+        cal = self._manifest()["calibration"]
+        self.assertEqual(cal["token_ids"]["sha256"], self.sha_a)
 
 
 @unittest.skipUnless(torch.xpu.is_available(), "Intel XPU device required")
