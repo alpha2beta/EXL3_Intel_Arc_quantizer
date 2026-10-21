@@ -257,6 +257,9 @@ transcription.
 | `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:06:51 +02:00 | `9080b5a` | 🟡 **QUALIFIED PASS**: Phase 1 encoder is bit-exact and genuinely measured (84/84 tests), but `ScratchArena` has 2 blocking memory-reclamation defects (B1, B2) and 3 medium provenance/enforcement gaps (M1–M3) that must close before Phase 2 | `review.md` (conclusion below) |
 | ↳ response to `review-2026-10-20T21:06:51+02:00` | 2026-10-20 21:45:00 +02:00 | `3006a32` | 🟢 **ALL FINDINGS ADDRESSED**: Remediated B1/B2 with regression tests (now 86 tests pass); M1 strengthened to assert allocator growth; M2/M3 build & ISA provenance documented; L1–L7 resolved | `review.md` (response below) |
 | `review-2026-10-21T07:07:21+02:00` | 2026-10-21 07:07:21 +02:00 | `cf3eee5` | 🟢 **PASS / EXEMPLARY PROGRESS**: Phase 2 core numerics complete (Sylvester $H_{128}$, regularization, LDLQ traversal, GSS); 143/143 tests pass (100%); zero blockers | `review.md` (conclusion below) |
+| `review-2026-10-21T10:32:42+02:00` | 2026-10-21 10:32:42 +02:00 | `c67a469` | 🟢 **PASS / GATE 2 CLOSED — GO TO PHASE 3**: Phase 2 single-layer pipeline complete and verified; 158/158 tests; benchmarks genuine; zero blockers | `review.md` (conclusion below) |
+| `review-2026-10-21T10:48:00+02:00` | 2026-10-21 10:48:00 +02:00 | `8c71bb7` | 🟢 **PASS — PHASE 3 ORCHESTRATION IN PROGRESS**: P3-01..P3-03 accepted (converter orchestrator + streaming, 199/199 tests); CUDA deferral adopted (evidence capped at E3, E4 not claimed); P3-04..P3-08 recommended next | `review.md` (conclusion below) |
+| `review-2026-10-21T11:58:26+02:00` | 2026-10-21 11:58:26 +02:00 | `4d78948` | 🟢 **PASS — P3-04..P3-08 ACCEPTED**: atomic checkpointing/resumability/fault recovery verified (218/218 tests); declared Active Target `empero-ai/Qwen3.8-9B-Distill` blocked (qwen3_5 hybrid arch, proven by validator regression guards) pending `P4-12`/`P4-13`; L1 §4.3→§4.1 renumbering remediated | `review.md` (conclusion below) |
 
 <!-- Future reviews: append a row above and create a new timestamped review file. -->
 
@@ -828,3 +831,58 @@ OK
 1. **Push commits to remote:** Synchronize local `main` with `origin/main`.
 2. **Implement Checkpointing & Fault Recovery (`P3-04` .. `P3-08`):** Build resumable state management and atomic checkpoint publication in `exl3_quant/converter.py`.
 3. **Execute Full-Model Conversion (`P3-09` .. `P3-14`):** Wire real calibration corpus, run complete conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, and evaluate against `exl3xpu`.
+
+---
+
+## Review Conclusion: Declared Target Swap (`Qwen3.8-9B-Distill`), Validator Hardening & P3-04..P3-08 Completion [2026-10-21 11:58:26 +02:00]
+
+> **Review ID:** `review-2026-10-21T11:58:26+02:00`  
+> **Reviewed Commits:** `e9dc700..4d78948` (`a00656f`, `77ae4d4`, `178c8d4`, `4d78948`) — local `main` = `origin/main` = `4d78948` at review time  
+> **Files Reviewed:**  
+> - Validator Hardening & Regression Guards: [`exl3_quant/converter.py`](./exl3_quant/converter.py), [`tests/test_converter.py`](./tests/test_converter.py)  
+> - Checkpointing & Recovery: [`exl3_quant/converter.py`](./exl3_quant/converter.py), [`tests/test_converter_recovery.py`](./tests/test_converter_recovery.py), [`tests/fixtures/__init__.py`](./tests/fixtures/__init__.py)  
+> - Target-Swap Governance: [`tasks.md`](./tasks.md) (P3-09 annotation, §4.1 extension track `P4-12`/`P4-13`), [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) (dated amendment), [`README.md`](./README.md) (status row, §12, roadmap, test breakdown), [`progress.md`](./progress.md) (Step 23, critical path)  
+> **Verdict:** 🟢 **PASS — P3-04..P3-08 ACCEPTED; DECLARED TARGET CORRECTLY RECORDED AS BLOCKED**
+
+---
+
+### 1. Verification Performed
+
+- **Full Unit Test Suite (code identical to HEAD; subsequent commits are docs-only):** `Ran 218 tests in 133.074s OK (skipped=1)` — 199 review baseline + 18 new `test_converter_recovery.py` + 1 declared-target guard (converter suite 27→28). Intermediate run also clean: 218 OK in 144.650s. Standalone runs: `test_converter.py` 28/28, `test_converter_recovery.py` 18/18.
+- **Declared Target Verification (fetched, not assumed):** `config.json` of [`empero-ai/Qwen3.8-9B-Distill`](https://huggingface.co/empero-ai/Qwen3.8-9B-Distill) and of the first-declared [`XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B`](https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B) fetched 2026-10-21 — confirmed identical `Qwen3_5ForConditionalGeneration`/`qwen3_5` architecture: 24/32 `linear_attention` layers (3:1 pattern, `full_attention_interval` 4), 27-layer ViT `vision_config` + top-level multimodal token ids, `partial_rotary_factor` 0.25 interleaved mrope, `mtp_num_hidden_layers` 1, identical geometry (hidden 4096, 32L, 16/4 heads, head_dim 256, vocab 248320 < 2²⁴). Blocked status is a fact of the architecture, correctly recorded (P3-09 blocked on the new `P4-12`/`P4-13` extension track; fallbacks retained on owner decision only).
+- **Validator Hardening (`a00656f`):** `forbidden_keys` extended with `mtp_num_hidden_layers`, `image_token_id`, `video_token_id`, `vision_start_token_id`, `vision_end_token_id`; explicit `layer_types` rejection for any non-`full_attention` value. Verified by hunk-level review and by new variant rejections + full structural replicas of **both** declared target configs asserted rejected via `UnsupportedModeError` with an architecture diagnostic (`test_declared_target_mimo_is_rejected`).
+- **Checkpointing & Recovery (`77ae4d4`, P3-04..P3-08):** all cited symbols verified in source — `atomic_save_safetensors` (.tmp + POSIX replace), `verify_layer_checkpoint` (all expected tensors per layer), `_validate_resume` (`IncompatibleResumeError`, documented `force_resume`), `check_disk_space` (`DiskSpaceError`), `CorruptedCheckpointError`, and `fault_injector` wired at all six boundaries (before/after calibration, quantization, publish). 18 recovery tests exercise 3-layer synthetic checkpoints end-to-end. `tasks.md` P3-04..P3-08 entries were already `[x]` with implementation evidence.
+- **Documentation Cross-Consistency:** no stale "Llama/Qwen2.5 as Active Target" references remain (fallback mentions are intentional); Step numbers unique through Step 23; test counts consistent across README (218/218 row, 218-test breakdown, converter 28, recovery 18, memory 18) and progress.md; commit hash references (`1e53c73`/`77ae4d4`/`8c71bb7`) resolve correctly; gate-report evidence-class headers (E1–E4, E4-not-claimed) intact and not regressed; README §12 (`4d78948`) accurately reflects the P3-04..P3-08 code.
+
+---
+
+### 2. Blocking Findings
+* **None.**
+
+---
+
+### 3. Medium Findings
+* **None.**
+
+---
+
+### 4. Low Findings / Technical Observations
+* **L1 — Phase-4 Subsection Numbering Anomaly (Remediated in this review):** the declared-target extension track was inserted as `### 4.3` although Phase 4 has no `4.1`/`4.2` subsections (same anomaly class as the earlier duplicate-Step-number finding). Remediated here: renumbered to `### 4.1` with both cross-references updated (`progress.md` Step 23, `docs/compatibility_manifest.md` amendment).
+* **L2 — Pushed:** the prior review's L2 (unpushed commits) is resolved — `origin/main` = local `main` = `4d78948`; all work, including `a00656f`/`77ae4d4`/`178c8d4`, is synchronized.
+* **L3 — Transient double-XPU-suite failure (documented, no action):** one full-suite run reported a single failure (218 tests in 156.152s, FAILED) that did not reproduce in either subsequent clean run; root cause: an XPU suite run concurrently with the background full suite from the working session. Recorded in `progress.md` Step 23 as a host caveat: never overlap XPU test processes on this device.
+* **L4 — Converter test count vs. review count nit:** `tests/test_converter.py` is cited as "28 tests" while four of its rejection cases ride as `subTest` variants inside two methods; counts are method-level and consistent across documents, but variant coverage growth is not reflected in the topline number.
+
+---
+
+### 5. What is Genuinely Solid
+* **Proof-carrying blocked status:** instead of a paper annotation, the declared target's exclusion is enforced by the validator and pinned by regression tests using faithful config replicas with real geometry — the block cannot silently regress or be worked around by a careless config edit.
+* **Clean two-track commit separation:** the validator hardening (`a00656f`) and the parallel-session checkpointing work (`77ae4d4`) were verified and committed as independent, correctly-attributed conventional commits rather than one mixed diff.
+* **Honest target-model governance:** both owner decisions (MiMo "keep + blocked", then the Qwen3.8-9B-Distill swap) are recorded with fetched-and-verified config facts, an explicit unblock path (`P4-12`/`P4-13`), and retained contract-compatible fallbacks — no fabricated compatibility claims.
+
+---
+
+### 6. Recommended Next Actions
+1. **Owner decision — unblock or substitute for P3-09:** either green-light the `P4-12`/`P4-13` hybrid-attention/multimodal extension track (substantial engine work, needs an upstream EXL3 capability analysis first) or approve a contract-compatible fallback target for the first complete conversion.
+2. **Continue Phase 3 (P3-10..P3-16):** real calibration corpus wiring, downstream runtime evaluation plan, and Gate 3 preparation — none depend on E4 or the blocked target swap.
+3. **Housekeeping:** keep suite counts synchronized as converter variants grow (method-level counts + variant lists, per L4).
+

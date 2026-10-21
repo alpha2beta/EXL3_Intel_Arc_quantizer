@@ -265,7 +265,7 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 - [ ] **P4-10** Add CI tiers: CPU/reference tests, XPU tile tests, full-layer tests, and scheduled full-model/quality runs with owned fixtures.
 - [ ] **P4-11** Define maintenance ownership, dependency-update policy, regression triage, and supported-version lifecycle.
 
-### 4.3 Architecture-extension track (2026-10-21 amendment for the declared Active Target)
+### 4.1 Architecture-extension track (2026-10-21 amendment for the declared Active Target)
 
 - [ ] **P4-12** Evaluate hybrid/linear-attention decoder-layer support (Mamba-style SSM `linear_attention` layers, as in the declared target's Qwen3.5 architecture): decide whether upstream EXL3's per-linear quantization can ever cover such layers, and if so extend module enumeration, Hessian capture, and the XPU encoder; otherwise record the architecture family as permanently unsupported with the analysis attached. *(Blocks P3-09 on `empero-ai/Qwen3.8-9B-Distill` / `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B`; hybrid configs are deterministically rejected in the meantime.)*
 - [ ] **P4-13** Define multimodal-checkpoint semantics: text-tower-only conversion with bit-exact *pass-through* preservation of the vision tower (recording, not quantizing, ViT tensors), plus partial/interleaved-mrope and multimodal-token-id container fields; confirm the downstream runtime (`exl3xpu`) can load such a checkpoint for text-only decode before enabling P3-09 on the declared target. *(Distinct from P4-04, which covers *quantizing* vision/MTP weights; blocks P3-09 together with P4-12.)*
