@@ -579,6 +579,15 @@ The converter now releases the source shards after each pass-through group and a
 
 **Next:** monitor attempt 2 to completion (≈ 15 h), then run the P3-11 verification, then P3-12 quality evaluation and the P3-13 `exl3xpu` load check.
 
+**Attempt 2 (15:31:00) — same abort class, one layer later.** The hygiene fix worked (page cache 10 GiB → 2 GiB, 17 GiB available) and layer 0 completed in 1711.7 s (proxy_loss 6.3492e+01, 32-tensor artifact published), but layer 1's GSS aborted: `binding available 225.0 MiB, reserve 6.00 GiB, outstanding 8.27 GiB`. Measured cause (dedicated probe, idle host): **the shared device pool tracks host pressure, while XPU allocations do not move `device_free` at all** — a 4 GiB XPU allocation left `device_free` unchanged (14.98 GiB), and dropping 10 GiB of page cache *raised* it by 2.43 GiB (12.60 → 15.03 GiB). The pass-through group files (5.5 GiB, written once and never read again) and the 2.1 GiB/layer calibration-state writes were still resident, squeezing the pool to 225 MiB.
+
+**Fixes that followed (commits `2a1f5a7`, and the reserve knob below).**
+1. *Converter:* release the written pass-through group files as well (`cff5e35`/`2a1f5a7`), report the live XPU allocation per layer (P3-10 evidence), and keep releasing the source shards, the layer artifacts and the calibration state.
+2. *Operational:* an external cache watchdog (advisory `POSIX_FADV_DONTNEED` on the source, the group files, the artifacts and the state file every 60 s) keeps the host cache from squeezing the device pool — it changes no conversion data (clean pages only; dirty pages are written back first).
+3. *Policy surface:* the admission reserve is now configurable (`EXL3_MEMORY_RESERVE_GIB` / `EXL3_MEMORY_RESERVE_BYTES`; default unchanged at 6 GiB). Rationale: the reserve is *device-pool* headroom, and on this UMA host the pool is the binding dimension while the host itself has ~18 GiB available. Attempts 3 and 4 aborted with `binding available 9.48 GiB` against `reserve 6.00 GiB + outstanding 3.67 GiB` — i.e. short by 0.2 GiB while the machine had 18 GiB of host headroom. The P3-09 run therefore uses a **4 GiB** reserve (host headroom still ≥ 4.5× the reserve; device-pool remainder after the run's 3.67 GiB live XPU allocation ≈ 5.8 GiB). This is an explicit, measured deviation, not a silent default change; the semantics of the policy (admission arithmetic, post-commit reserve check) are unchanged.
+
+**Attempt 5 (16:44:55, `EXL3_MEMORY_RESERVE_GIB=4` + watchdog):** resumed from layer 1 (the published layer 0 artifact and the calibration state were reused — the resume path itself is now exercised on the real model), past every previous abort point.
+
 ---
 
 ## Critical Path Next Steps (Phase 3)
