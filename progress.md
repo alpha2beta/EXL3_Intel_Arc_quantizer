@@ -325,7 +325,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
   * `block_rms` reproduces upstream's 32-slice accumulation order (`quantize.py:1079-1092`).
   * `regularize` transcribes the full sequence (`:1130-1236`): output-scale skew heuristic (top 2% of `sqrt(H_diag)` vs the 0.15 cutoff), out-channel RMS normalization, `sv` folding + right Hadamard, `su` folding (`/ -codebook_scale`) + left Hadamard, `zeros` flag, and zero-channel floor (`0.1`) / `sv = 0`.
   * **Round-trip identity** — `regularize` followed by the decode ordering reconstructs the original weight to `< 1e-4` — verified with the heuristic on, forced off, and a global scale of 2.0.
-  * The `g_scale_gss` sample-quantization search is deliberately **not faked**: it is a pluggable `g_scale_fn` (default = upstream's `skip_g_scale=True`) and is driven by a pluggable `g_scale_fn`; Step 19 wires the full `sample_scale_tiles` + coarse/fine search through those adapters, closing `P2-04` `[x]`.
+  * The `g_scale_gss` sample-quantization search was deliberately **not faked** while its encoder dependency was pending: it was a pluggable `g_scale_fn` defaulting to upstream's `skip_g_scale=True`. Step 19 wires the full `sample_scale_tiles` + coarse/fine search through the `P2-08` encoder adapters, closing `P2-04` `[x]`.
 * **Ill-conditioned handling (`P2-05`, partial):** zero/degenerate channel paths tested; `block_ldl` damping-retry failure path already covered; measured `cholesky` CPU fallback cost recorded in Gate 0.
 
 ---
