@@ -22,6 +22,7 @@
 **Capacity gate:** Tile encoding and complete single-layer conversion are the initial milestones. Attempt the selected full model only after measured layer, calibration, runtime, and system-memory requirements leave a documented operating reserve (preliminary 6–8 GiB reserve). Full-model fit and conversion speed remain unvalidated.
 
 **Deferred:** alternate codebooks, fractional average-bitrate recipes, two-sided LDLQ, MoE, embedding/vision/MTP quantization, multi-GPU execution, Windows qualification, and discrete Arc qualification (moved to optional deployment gate). Preserve supported upstream behavior for components left unquantized; reject unsupported requested modes explicitly.
+**Decision records:** `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`, waiver `DEV-2026-10-21-01`, 2026-10-21) **defers execution of the CUDA ground-truth capture** — P0-24/P0-25/P0-27 stay open and blocked (not waived). While the deferral is active no gate may claim evidence class **E4** (path parity with upstream's CUDA kernel); tier-4/numerics statements must be qualified as **E3** (upstream-CUDA-threshold parity) with E1/E2 evidence per task. Reopen triggers and the eGPU resume checklist are recorded in `skip_cuda.md` §6–§7.
 
 ```text
 Phase 0: pin scope, audit native code, establish fixtures and toolchain
@@ -77,11 +78,11 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 ### 0.4 Create reference fixtures and a test harness
 
 - [ ] **P0-24** Generate or obtain trusted fixtures from the pinned CUDA reference: activations, Hessians, factors, transformed/permuted tiles, reconstructed tiles, feedback outputs, and packed tensors (local host need not contain an NVIDIA GPU). *(DEFERRED by decision record `skip_cuda.md` / waiver `DEV-2026-10-21-01`, 2026-10-21: an RTX 3060 12 GB eGPU is available but deliberately not installed; upstream-derived CPU evidence covers search quality (E3) and container/oracle parity (E2), but CUDA path parity (E4) remains open — see `skip_cuda.md` §6 for reopen triggers)*
-- [ ] **P0-25** Capture representative native encoder costs/edges where practical; avoid dumping full multi-gigabyte scratch buffers when small fixtures or selected snapshots suffice.
+- [ ] **P0-25** Capture representative native encoder costs/edges where practical; avoid dumping full multi-gigabyte scratch buffers when small fixtures or selected snapshots suffice. *(Deferred together with P0-24 under `skip_cuda.md` / `DEV-2026-10-21-01`; restore executes skip_cuda.md §7.)*
 - [~] **P0-26** Include zeros, repeated values, outliers, seeded random tiles, ties/near-ties, boundary states, and representative real-weight tiles. Define expected behavior for invalid inputs from the audited contract. *(Zeros, constant/repeated values, outliers, alternating/ties, boundary states, seeded random tiles, and invalid-input rejection verified in `tests/test_xpu_quantizer.py` and `tests/test_encoder.py`; real model weight tiles pending Phase 2 layer load)*
-- [ ] **P0-27** Attach checksums, provenance, settings, shapes, dtypes, and expected results to fixtures; do not treat fixtures from another commit as equivalent without verification.
+- [ ] **P0-27** Attach checksums, provenance, settings, shapes, dtypes, and expected results to fixtures; do not treat fixtures from another commit as equivalent without verification. *(Applies when P0-24/P0-25 capture is resumed (see `skip_cuda.md` §7, incl. the T5/T6 re-pin condition); remains open.)*
 - [~] **P0-28** Implement a reference comparison harness with separate exact and tolerance-based assertions; prove it detects deliberately perturbed values, bit order, and metadata. *(Perturbation detection verified in `tests/test_negative.py` for bits, scale mutations, illegal transitions; container metadata perturbation pending)*
-- [x] **P0-29** Record unavailable reference coverage as a blocker or explicit limitation; do not mark unexecuted CUDA comparisons as passed. *(Unavailable CUDA ground-truth fixtures `P0-24`/`P0-25` and Open Item `O-1` recorded as explicit blockers in `reports/gate_0.md` §3 and `docs/native_dependency_audit.md` §8; unexecuted CUDA tasks remain unchecked)*
+- [x] **P0-29** Record unavailable reference coverage as a blocker or explicit limitation; do not mark unexecuted CUDA comparisons as passed. *(Unavailable CUDA ground-truth fixtures `P0-24`/`P0-25` and Open Item `O-1` recorded as explicit blockers in `reports/gate_0.md` §3 and `docs/native_dependency_audit.md` §8; unexecuted CUDA tasks remain unchecked. Deferral is now formally recorded under `skip_cuda.md` / `SKIP-CUDA-2026-10-21-01`.)*
 
 ### 0.5 Arc 140V Prototype Profile Checkboxes
 
@@ -90,14 +91,14 @@ Calibration and factorization probes in Phase 0 may run in parallel with the enc
 - [x] **V140-03** Validate scratch sizing at small B; increase batch capacity under measured system and runtime constraints. *(`K=1, T=256`: B=1/16/64 verified at 6 GiB reserve; B=128/192 verified at 4 GiB reserve (up to 3.02 GiB); B=256 denied by policy; measured bounds B≈94 @6 GiB and B≤222 @4 GiB. Throughput/numerical sweep remains P1-14)*
 - [x] **V140-04** Demonstrate that CPU/GPU accounting does not double-count shared backing or omit distinct copies. *(Shared backing: device-free and `MemAvailable` deltas track each other and `memory_allocated` is exact; distinct host staging copies (`128 MiB` in `d2h_cpu`/`usm_host` vs `16 KiB` in `gpu_resident`) tracked explicitly via `distinct_staging_bytes` in `ScratchArena` and `reports/traceback_decision.md`)*
 - [x] **V140-05** Compare traceback candidates with identical fixtures and complete latency/pressure measurements. *(Compared `gpu_resident`, `gpu_resident_split`, `d2h_cpu`, and `usm_host` across `K in {2,3,4}` on identical 16-tile fixtures in `artifacts/benchmarks/phase1_encoder_bench.json` and `reports/traceback_decision.md`)*
-- [x] **V140-06** Pass the complete single-layer numerical and memory gate on 140V. *(= Gate 2 `G2-01`/`G2-02`: acceptance tiers 1–4 pass on local numerics (Tier 4 CUDA fixtures blocked by P0-24/P0-25) and 3 sustained layer-conversion iterations measured 0 B swap growth inside the 6.0 GiB reserve; recorded in `reports/gate_2.md` and `artifacts/benchmarks/phase2_layer_bench.json`)*
+- [x] **V140-06** Pass the complete single-layer numerical and memory gate on 140V. *(= Gate 2 `G2-01`/`G2-02`: acceptance tiers 1–4 pass on local numerics — Tier 4 numerics are **E3-quality-bar parity** (upstream `max_mse_per_K` ceilings + `exl3xpu.ref` oracle), *not* E4 CUDA path parity, which is deferred under `skip_cuda.md` — and 3 sustained layer-conversion iterations measured 0 B swap growth inside the 6.0 GiB reserve; recorded in `reports/gate_2.md` and `artifacts/benchmarks/phase2_layer_bench.json`)*
 - [ ] **V140-07** Decide full-model admission from measured calibration/layer/runtime peaks, not the 32 GB label.
 - [ ] **V140-08** Run full-model quality and runtime interop tests only for the supported configuration; publish remaining gaps.
 - [ ] **V140-09** Publish local qualification separately from any later A770/B580/Pro B60 results.
 
 ### Gate 0: Audit readiness
 
-- [~] **G0-01** Confirm the compatibility manifest, algorithm contract, dependency inventory, working extension skeleton, and fixture harness are complete. *(Manifest, contract, dependency inventory, and SYCL extension skeleton complete; comparison harness in place for oracle/perturbations, while CUDA ground-truth fixtures `P0-24`/`P0-25` remain an explicit external blocker)*
+- [~] **G0-01** Confirm the compatibility manifest, algorithm contract, dependency inventory, working extension skeleton, and fixture harness are complete. *(Manifest, contract, dependency inventory, and SYCL extension skeleton complete; comparison harness in place for oracle/perturbations. CUDA ground-truth fixtures `P0-24`/`P0-25` are deferred, not waived, by `skip_cuda.md` / `DEV-2026-10-21-01` — demonstrated evidence classes: E1 source-transcribed, E2 independent-oracle (`exl3xpu.ref`), E3 upstream `max_mse_per_K` quality ceilings; **E4 remains open**.)*
 - [x] **G0-02** Confirm factorization/operator coverage or a measured, explicit fallback exists for the initial scope. *(Verified in `artifacts/environment/operator_coverage.json` and `exl3_quant/ldlq.py`)*
 - [x] **G0-03** Record go/no-go, blockers, owners, and the refined Phase 1 plan in `reports/gate_0.md`. *(Published in `reports/gate_0.md` — conditional GO to Phase 1)*
 
@@ -165,7 +166,7 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### Gate 1: Encoder readiness
 
-- [x] **G1-01** Confirm selected tile encoding passes reference path, reconstruction, and distortion tests under the agreed policy. *(Verified in `tests/test_xpu_quantizer.py` and `reports/gate_1.md`)*
+- [~] **G1-01** Confirm selected tile encoding passes reference path, reconstruction, and distortion tests under the agreed policy. *(Verified for E1/E2/E3 in `tests/test_xpu_quantizer.py`, `tests/test_upstream_encode_oracle.py`, `tests/test_forward_semantics.py`, and `reports/gate_1.md`; per `skip_cuda.md` §5 the gate remains **partial** because its CUDA-ground-truth half (`P0-24`/`P0-25`, evidence class E4) is deferred — flip to `[x]` only after the deferral is lifted and fixtures are captured.)*
 - [x] **G1-02** Confirm bounded scratch behavior, allocation-failure handling, and measured throughput/resource reports. *(Verified in `tests/test_xpu_quantizer.py` and `artifacts/benchmarks/phase1_encoder_bench.json`)*
 - [x] **G1-03** Record the traceback decision, remaining risks, and go/no-go in `reports/gate_1.md`; estimate Phase 2 from measured evidence. *(Published in `reports/gate_1.md` and `reports/traceback_decision.md` — GO to Phase 2)*
 
@@ -188,7 +189,7 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 ### 2.2 Integrate blockwise LDLQ and the encoder
 
 - [x] **P2-08** Implement the audited block traversal: corrected target tile, encoding, reconstruction, and trailing-weight feedback. *(`exl3_quant/ldlq.py::ldlq` transcribes `quantize.py:493-609`: bottom-up spans/blocks, additive compensation through the strictly-lower `L[i+bj:j, i+bi:i+bj]` slice, tensor-core permutation, reconstruction, and trailing-span feedback. Pluggable tile encoder with reference/XPU adapters (`pre_permute=False`; one encoder/arena reused across blocks). 13 tests in `tests/test_ldlq_loop.py`, including an independent dense oracle and XPU↔reference parity)*
-- [~] **P2-09** Compare each block's inputs, factors, reconstructed outputs, and post-feedback trailing weights with reference fixtures. *(Block target inputs are checked against an explicit formula; reconstruction and trailing feedback are checked tensor-for-tensor against an independent dense transcription across `buf_size_k ∈ {16,32,64}`. Upstream CUDA fixtures remain blocked by P0-24/P0-25; no fixture was fabricated)*
+- [~] **P2-09** Compare each block's inputs, factors, reconstructed outputs, and post-feedback trailing weights with reference fixtures. *(Block target inputs are checked against an explicit formula; reconstruction and trailing feedback are checked tensor-for-tensor against an independent dense transcription across `buf_size_k ∈ {16,32,64}`. Upstream CUDA fixtures remain deferred by `skip_cuda.md` / `DEV-2026-10-21-01` (`P0-24`/`P0-25`); no fixture was fabricated)*
 - [x] **P2-10** Preserve dependencies between blocks and projections; prove independence before any concurrency. *(The loop is strictly sequential bottom-up and introduces no concurrency; `test_target_correction_is_added` pins that a block consumes only strictly-lower rows, so any future parallelisation must respect that dependency)*
 - [x] **P2-11** Integrate scratch reuse with layer/module lifetimes and library workspaces; verify synchronization before reuse or eviction. *(`exl3_quant/layer_quant.py::quantize_decoder_layer`: one shared `ScratchArena` and `XPUTrellisEncoder` are reused across all 7 linear projections with explicit `torch.xpu.synchronize()` between projections; clean release verified in `tests/test_layer_quant.py`)*
 - [x] **P2-12** Measure factorization residuals, reconstruction error, tile distortion, and layerwise proxy loss using the pinned objective definition. *(`exl3_quant/layer_quant.py`: computes relative Frobenius error, reconstruction MSE, tile distortion, and Hessian-weighted proxy loss tr(E^T H E) via (H @ E * E).sum(); verified in `tests/test_layer_quant.py` and benchmarked in `artifacts/benchmarks/phase2_layer_bench.json`)*
@@ -204,7 +205,7 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### Gate 2: Single-layer readiness
 
-- [x] **G2-01** Pass applicable acceptance tiers 1–4: structure, packing, reconstruction, and quantizer numerics. *(Tiers 1, 2, 3 verified 100%; Tier 4 local numerics and proxy loss verified; upstream CUDA fixtures blocked by P0-24/P0-25)*
+- [x] **G2-01** Pass applicable acceptance tiers 1–4: structure, packing, reconstruction, and quantizer numerics. *(Tiers 1, 2, 3 verified 100%; Tier 4 verified against local numerics and proxy loss; upstream CUDA fixtures blocked by P0-24/P0-25. Evidence-class labeling per `skip_cuda.md` §4: highest class demonstrated is **E3** — meets upstream's CUDA-derived `max_mse_per_K` ceilings plus container parity vs `exl3xpu.ref` **(E2)**; **E4 (path parity) is NOT claimed while deferral `SKIP-CUDA-2026-10-21-01` is active.**)*
 - [x] **G2-02** Confirm a complete decoder layer converts within measured memory limits without sustained paging, with all fallback and unsupported-mode restrictions documented. *(Verified experimentally in `artifacts/benchmarks/phase2_layer_bench.json` with 0 B swap growth under 6.0 GiB reserve)*
 - [x] **G2-03** Save `reports/gate_2.md` with artifact checksums, numerical/resource results, go/no-go, and a Phase 3 estimate. *(Saved as `reports/gate_2.md` declaring GO to Phase 3)*
 
@@ -243,7 +244,7 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### Gate 3: Initial supported release
 
-- [ ] **G3-01** Pass all six acceptance tiers for the declared supported configuration, including quality and runtime interoperability.
+- [ ] **G3-01** Pass all six acceptance tiers for the declared supported configuration, including quality and runtime interoperability. *(Tier evidence must be labeled with the highest demonstrated evidence class per `skip_cuda.md` §4 — E4 qualifies only if the CUDA deferral is lifted and P0-24/P0-25 fixtures are captured.)*
 - [ ] **G3-02** Confirm fault recovery, bounded memory, repeatability; permit an explicitly 140V-only supported release if all local criteria pass (discrete Arc qualification remains an independent deployment gate).
 - [ ] **G3-03** Publish reproducible build/conversion/test instructions, known limitations, benchmark methodology, and release artifact checksums.
 - [ ] **G3-04** Record `reports/gate_3.md`; claim support only for configurations actually qualified, not arbitrary Hugging Face models.

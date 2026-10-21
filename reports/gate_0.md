@@ -6,6 +6,12 @@
 > **Upstream Reference:** `turboderp-org/exllamav3 @ 4d7b69c7e177c2b0f34ed8c90b7036fe31a7281f`  
 > **Gate Decision:** **CONDITIONAL GO to Phase 1** (SYCL tile encoder & bounded scratch management), with CUDA ground-truth fixture comparison (`P0-24`/`P0-25` and Open Item `O-1`) carried explicitly as a tracked blocker for external parity sign-off.
 
+> **Evidence Class (skip_cuda.md §4):** highest class demonstrated by this report is **E3**
+> ("meets upstream's CUDA-derived quality ceiling", plus **E2** bit-exactness vs the independent
+> `exl3xpu.ref` oracle and **E1** source transcription). **E4 (path parity with upstream's CUDA
+> kernel) is NOT available** while deferral `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`
+> is active — see [`skip_cuda.md`](../skip_cuda.md) §5–§6.
+
 ---
 
 ## 1. Gate 0 Checklist Verification

@@ -8,6 +8,12 @@
 > - [`reports/traceback_decision.md`](./traceback_decision.md)  
 > **Gate Decision:** **GO to Phase 2 (Complete single-layer conversion)**
 
+> **Evidence Class (skip_cuda.md §4):** highest class demonstrated by this report is **E3**
+> ("meets upstream's CUDA-derived quality ceiling", plus **E2** bit-exactness vs the independent
+> `exl3xpu.ref` oracle and **E1** source transcription). **E4 (path parity with upstream's CUDA
+> kernel) is NOT available** while deferral `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`
+> is active — see [`skip_cuda.md`](../skip_cuda.md) §5–§6.
+
 ---
 
 ## 1. Gate 1 Checklist Verification

@@ -1,8 +1,8 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-21 10:20:00 +02:00  
+> **Last Updated:** 2026-10-21 10:55:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). **Phase 3 orchestration started** (P3-01..P3-03 done): 185 unit tests passing (100%). New bounded full-model conversion driver `exl3_quant/converter.py` implements the audited upstream per-module loop (`convert_model.py:1095-1316`) with grouped-Hessian capture on quantized-propagated calibration state, quantized-numerics reload, state advance, unchanged-component pass-through, and memory-mapped sharded streaming with measured host RSS (`artifacts/benchmarks/phase3_stream_bench.json`, PASS).  
+> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). **Phase 3 orchestration started** (P3-01..P3-03 done): 197 unit tests passing (100%, 1 platform-conditional skip). **CUDA ground-truth deferral adopted** (`skip_cuda.md`, `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`): P0-24/P0-25/P0-27 stay open and blocked; all gate evidence is capped at class **E3**; E4 (CUDA path parity) is not claimed. Merged upstream decision record + CPU-runnable tier-4 oracle and forward-semantics test suites; gate reports annotated with evidence classes.
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -371,7 +371,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 
 ## Test Suite Execution Evidence
 
-**158 unit tests** ran and passed cleanly as of [2026-10-21 09:45:00 +0200] (re-verified [2026-10-21 09:50:29 +0200]: `Ran 158 tests in 194.407s OK`) across all test suites:
+**197 unit tests** ran and passed cleanly as of [2026-10-21 10:55:00 +0200] (includes the 27 Step-21 converter tests and the merged CPU-runnable tier-4 oracle + forward-semantics suites; 1 platform-conditional memory-pipeline test skips off-Windows) across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -389,13 +389,15 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_calibration.py`: 7 tests (RMSNorm forward, rotary embeddings complex unit norm, multi-head attention forward, SwiGLU forward, complete layer forward on XPU, exact second-moment Hessian accumulation H = sum X^T X matching explicit formula, dead channel floor and damping safeguard)
 - `test_layer_quant.py`: 4 tests (proxy loss trace formula equivalence, factorization residual check, single module XPU quantization, and complete decoder layer quantization on XPU with ScratchArena reuse)
 - `test_serialization.py`: 4 tests (trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with exl3xpu.ref.weight_orig, and malformed/truncated safetensors rejection)
+- `test_upstream_encode_oracle.py`: 4 tests (CPU-runnable tier-4 oracle derived from upstream's CUDA test recipe: `max_mse_per_K` quality ceilings for K=2..8, tail-biting ring invariant, upstream "ideal encoding" state layout, encode→dequant round trips)
+- `test_forward_semantics.py`: 5 tests (independent audit of the reference encoder's forward ACS pass: branch metric and fp16 accumulation semantics, predecessor table and terminal costs tie-breaking, masking rules, adversarial tie construction, deterministic path reproduction)
 - `test_converter.py`: 27 tests (bounded conversion config rejection of MoE/vision/MTP/pre-quantized/fractional-K/out-of-range-K/bad-geometry/partial-rotary/rope-scaling/sliding-window/bad output dirs; mmap shard index scoping, bit-exact streaming reads, single-file indexing, poisoned-shard isolation, RSS measurement; full 2-layer synthetic conversion on XPU with recorder: ascending layer order, upstream module order, layer-0 capture equality with independent calibration, layer-1 capture derived from layer 0's *quantized* output (differential vs unquantized control), quantized-reload replay equivalence, transposing `w_hat` reload, bit-exact unchanged pass-through, per-layer `qtensors` artifacts with 30 tensors, merged manifest consistency, per-layer RSS recording)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 185 tests in 111.343s
+Ran 197 tests in 174.313s
 
-OK
+OK (skipped=1)
 ```
 
 ---
@@ -453,7 +455,33 @@ OK
 
 ---
 
+### Step 22 [2026-10-21 10:55:00 +02:00]: CUDA Ground-Truth Deferral Adopted & Evidence Classes Enforced (skip_cuda.md / SKIP-CUDA-2026-10-21-01)
+
+* **Merge:** `442520b` — integrated origin/main `db1c6a2..46f0af9`: [`skip_cuda.md`](./skip_cuda.md) (the decision record), waiver `DEV-2026-10-21-01` in [`docs/deviation_log.md`](./docs/deviation_log.md) §6, the platform-native memory counters fix, and two CPU-runnable ground-truth-free test suites.
+
+1. **Deferral decision recorded (`skip_cuda.md`, SKIP-CUDA-2026-10-21-01):**
+   - The NVIDIA eGPU (RTX 3060 12 GB + Thunderbolt-to-PCIe dock + PSU, verified adequate for P0-24/P0-25 capture at every K in scope) is **deliberately not installed**. The CUDA ground-truth requirement is **deferred, not waived**: P0-24 / P0-25 / P0-27 remain open and blocked.
+   - Rationale: encoder format, container, codebook, and search-quality properties are already verifiable against upstream-derived oracles on this host; the only CUDA-only gap is exact *path* parity, which does not block Phase 3.
+
+2. **Evidence classes (skip_cuda.md §4) enforced across the record** — gate documents must label the highest class demonstrated; **any tier-4 statement is qualified as E3 (quality-bar parity), never E4 (path parity)**:
+   - `tasks.md`: governance header registers the decision record; P0-24 (upstream) annotated DEFERRED, P0-25/P0-27 annotated; **G1-01 re-marked `[~]`** (partial) per §5; G0-01/P2-09 notes carry the decision ID; G2-01, V140-06, and G3-01 notes carry explicit E3-not-E4 labeling; P0-29 references the decision ID.
+   - `reports/gate_0.md`, `reports/gate_1.md`, `reports/gate_2.md`: each gains an *Evidence Class* header block (E1 source-transcribed, E2 independent-oracle, E3 upstream-threshold; **E4 unavailable while the deferral is active**); the `gate_2.md` Tier-4 and external-blocker rows are qualified.
+
+3. **Merged upstream test suites strengthen the E1–E3 evidence (no CUDA hardware involved):**
+   - `tests/test_upstream_encode_oracle.py` (4 tests): upstream's own CUDA-derived `max_mse_per_K` ceilings (0.1 @ K=2–5, 0.07 @ K=6, 0.05 @ K=7, 0.04 @ K=8) reproduced on CPU, the tail-biting ring invariant, upstream's "ideal encoding" state layout, and encode→dequant round trips — E3 quality-bar evidence.
+   - `tests/test_forward_semantics.py` (5 tests): independent audit of the reference encoder's forward ACS pass (branch metric/fp16 accumulation, predecessor table and terminal costs, tie-breaking/masking) — supports the E1 transcription claim.
+   - `tests/test_memory_policy.py` platform-native counter additions (3 new tests; 1 Windows-only platform test conditionally skipped on this Linux host) from the `db1c6a2` merge.
+   - What is deliberately **not** claimed: E4 path parity, Open Item O-1 resolution, and upstream's CUDA-build test suite results.
+
+4. **What the deferral does NOT change:** acceptance criteria, algorithm semantics, XPU encoder parity obligations (P1-05, P2-09 stay satisfied by internal-transcription + oracle evidence), and Phase 3 planning — no Phase 3 task depends on E4. **Decision triggers T1–T6** (`skip_cuda.md` §6) are attached to the critical path below and would fire the §7 eGPU resume checklist.
+
+5. **Test evidence:** 197 tests pass post-merge (`Ran 197 tests in 174.313s OK (skipped=1)`) — 185 local + 9 upstream-derived + 3 platform-dependent memory tests (1 conditional skip).
+
+---
+
 ## Critical Path Next Steps (Phase 3)
+
+> **Governing decision — `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`):** CUDA ground truth (P0-24/P0-25/P0-27) is **deferred, not waived**. Phase 3 proceeds without it; revisit the deferral if any trigger fires: T1 XPU encoder MSE exceeds upstream `max_mse_per_K` for any K; T2 reconstructed weights diverge from the CPU reference beyond fp16 tolerance; T3 a gate/reviewer demands E4 path parity; T4 a downstream runtime rejects a produced checkpoint; T5/T6 upstream re-pin or kernel/codebook/container change. Resume per `skip_cuda.md` §7.
 
 1. ~~**P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming**~~ **DONE** (Step 21, [2026-10-21 10:20:00 +02:00]).
 2. **P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery:** Implement atomic checkpoint publication, manifest recording, interrupted-write recovery, and resume argument validation.

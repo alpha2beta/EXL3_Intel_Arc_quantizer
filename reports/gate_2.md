@@ -9,13 +9,19 @@
 > - [`artifacts/environment/operator_coverage.json`](../artifacts/environment/operator_coverage.json)  
 > **Gate Decision:** **GO to Phase 3 (Bounded full-model conversion and qualification)**
 
+> **Evidence Class (skip_cuda.md §4):** highest class demonstrated by this report is **E3**
+> ("meets upstream's CUDA-derived quality ceiling", plus **E2** bit-exactness vs the independent
+> `exl3xpu.ref` oracle and **E1** source transcription). **E4 (path parity with upstream's CUDA
+> kernel) is NOT available** while deferral `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`
+> is active — see [`skip_cuda.md`](../skip_cuda.md) §5–§6.
+
 ---
 
 ## 1. Gate 2 Checklist Verification
 
 | Gate Item | Status | Evidence |
 |---|---|---|
-| **G2-01** Pass applicable acceptance tiers 1–4: structure, packing, reconstruction, and quantizer numerics | **PASS** | `tests/test_serialization.py`, `tests/test_trellis_format.py`, `tests/test_oracle_parity.py`, `tests/test_layer_quant.py`: 100% container match, bit-exact state-history round trips, live decode parity vs `exl3xpu.ref.weight_orig`, and valid Viterbi paths with proxy loss evaluation. (Tier 4 CUDA fixtures carry documented blocker P0-24/P0-25) |
+| **G2-01** Pass applicable acceptance tiers 1–4: structure, packing, reconstruction, and quantizer numerics | **PASS** | `tests/test_serialization.py`, `tests/test_trellis_format.py`, `tests/test_oracle_parity.py`, `tests/test_layer_quant.py`: 100% container match, bit-exact state-history round trips, live decode parity vs `exl3xpu.ref.weight_orig`, and valid Viterbi paths with proxy loss evaluation. (Tier 4 CUDA fixtures carry documented blocker P0-24/P0-25; per `skip_cuda.md` §4 the demonstrated class is **E3**, not E4) |
 | **G2-02** Confirm a complete decoder layer converts within measured memory limits without sustained paging, with all fallback and unsupported-mode restrictions documented | **PASS** | `scripts/benchmark_phase2_layer.py`, `artifacts/benchmarks/phase2_layer_bench.json`: 3 sustained layer conversion iterations; peak allocated 649.7 MiB, peak reserved 672.0 MiB, **0 B swap growth** (`total_swap_growth = -8192 B`), 6.0 GiB OS/driver reserve respected at all times |
 | **G2-03** Save `reports/gate_2.md` with artifact checksums, numerical/resource results, go/no-go, and a Phase 3 estimate | **PASS** | This report (`reports/gate_2.md`) and linked checksummed artifacts |
 
@@ -28,7 +34,7 @@
 | **Tier 1: Container Structure** | Safetensors keys, shapes, dtypes, config metadata | 100% exact match to EXL3 schema | All 7 projections (`q, k, v, o, gate, up, down`) packed into `.trellis` (`int16 [k/16, n/16, 16*K]`), `.suh` (`fp16 [k]`), `.svh` (`fp16 [n]`), `.mul1` (`int32 []`), with `quantization_config.json` | **PASS** |
 | **Tier 2: Discrete Bitpacking** | State-history round-trip (`pack_trellis` → `swap16_storage` → `decode_states`) | 0 bit difference on low $K$ bits | 0 bit mismatch across all tested $K \in \{1, 2, 3, 4\}$; verified state-history preservation | **PASS** |
 | **Tier 3: Weight Reconstruction** | Reconstructed weights vs downstream runtime oracle | Max absolute error $< 5 \times 10^{-3}$ vs fp32 $W_{\text{hat}}$ (exact up to fp16 storage of $su/sv$) | Reconstructed weights loaded from `.safetensors` match `exl3xpu.ref.weight_orig` and `weight_from_quantized` across all 7 projections | **PASS** |
-| **Tier 4: Quantizer Numerics** | LDLQ residual, Viterbi path validity, proxy loss $\text{tr}(E^T H E)$ | Residual $< 10^{-4}$, valid Viterbi transitions, monotonic loss reduction | Factorization residual $< 10^{-5}$, mean MSE $\approx 6.3 \times 10^{-5}$, proxy loss computed via exact $(H @ E \cdot E)$ formula | **PASS** *(Local numerics verified; CUDA reference fixtures blocked by P0-24)* |
+| **Tier 4: Quantizer Numerics** | LDLQ residual, Viterbi path validity, proxy loss $\text{tr}(E^T H E)$ | Residual $< 10^{-4}$, valid Viterbi transitions, monotonic loss reduction | Factorization residual $< 10^{-5}$, mean MSE $\approx 6.3 \times 10^{-5}$, proxy loss computed via exact $(H @ E \cdot E)$ formula | **PASS** *(Local numerics verified at **E3** — upstream CUDA-derived ceiling parity, per `skip_cuda.md` §4; E4 path parity deferred with P0-24)* |
 
 ---
 
@@ -86,7 +92,7 @@ As of commit `3504718` + Phase 2 implementation:
 
 | Blocker ID | Description | Impact | Resolution Plan |
 |---|---|---|---|
-| **P0-24 / P0-25** | Upstream CUDA reference numerical fixtures | External validation gate requiring NVIDIA GPU host | Blocked externally; all local format, contract, and live oracle parity checks against `exl3xpu.ref` are 100% verified |
+| **P0-24 / P0-25** | Upstream CUDA reference numerical fixtures | External validation gate requiring NVIDIA GPU host | **Deferred** by `skip_cuda.md` / `SKIP-CUDA-2026-10-21-01` (RTX 3060 eGPU available, deliberately not installed); all local format, contract, and live oracle parity checks against `exl3xpu.ref` are 100% verified (E2/E3) |
 | **O-1** | Terminal edge ping-pong index verification (`L-1` vs `L-2`) | Encoder edge selection tie-break parity | Awaits CUDA reference run (P0-25) |
 
 ---
