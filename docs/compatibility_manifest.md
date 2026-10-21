@@ -84,6 +84,8 @@
 | **Sequence Handling** | Deterministic non-overlapping chunks, left-truncated, seed `42` |
 | **Hessian Covariance Dtype** | float32 accumulate ($H = \sum X^T X$), damped with $\lambda = 0.01 \cdot \text{mean}(\text{diag}(H))$ |
 
+> **Amendment (2026-10-21, owner decisions — first "Keep MiMo, flag as blocked", then target swap):** the **declared Active Target** for the first complete conversion (`P3-09`) is now [`empero-ai/Qwen3.8-9B-Distill`](https://huggingface.co/empero-ai/Qwen3.8-9B-Distill), succeeding the owner's first declaration [`XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B`](https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B) (2026-10-21). Both are dense BF16 9B (≈ 18 GB; `config.json` of each verified 2026-10-21) and **sibling distills of the same Qwen3.5-VL base** — architecturally **outside this contract and upstream EXL3**: `Qwen3_5ForConditionalGeneration` / `qwen3_5` with 24 of 32 `text_config` layers of type `linear_attention` (3:1 hybrid SSM pattern, `full_attention_interval` 4), a 27-layer ViT `vision_config` plus top-level `image_token_id`/`video_token_id`/`vision_start_token_id`/`vision_end_token_id`, `partial_rotary_factor` 0.25 with interleaved mrope (`mrope_section` [11, 11, 10]), and `mtp_num_hidden_layers` 1. Status: **BLOCKED** on the `P4-12`/`P4-13` architecture-extension track (`tasks.md` §4.3); the converter deterministically rejects both exact config shapes (regression-tested in `tests/test_converter.py::test_declared_target_mimo_is_rejected`). The pinned primary/secondary architectures above are **retained as the contract-compatible fallbacks** for an owner-approved substitute and remain the reference for the pinned calibration recipe.
+
 ---
 
 ## 6. Prototype Quantizer Scope & Target Recipes (P0-03)

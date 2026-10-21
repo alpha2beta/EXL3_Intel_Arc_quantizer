@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-10-21 10:55:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). **Phase 3 orchestration started** (P3-01..P3-03 done): 199 unit tests passing (100%, 1 platform-conditional skip). **CUDA ground-truth deferral adopted** (`skip_cuda.md`, `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`): P0-24/P0-25/P0-27 stay open and blocked; all gate evidence is capped at class **E3**; E4 (CUDA path parity) is not claimed. Merged upstream decision record + CPU-runnable tier-4 oracle and forward-semantics test suites; gate reports annotated with evidence classes.
+> **Current Status:** Gates 0/1/2 closed; **Phase 3 in progress** — P3-01..P3-08 done. 218 unit tests passing (100%, 1 platform-conditional skip). **CUDA ground-truth deferral adopted** (`skip_cuda.md`, `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`): P0-24/P0-25/P0-27 stay open and blocked; all gate evidence is capped at class **E3**; E4 (CUDA path parity) is not claimed. **Declared Active Target: `empero-ai/Qwen3.8-9B-Distill` (BLOCKED)** — qwen3_5 hybrid linear-attention/multimodal architecture outside the pinned contract; successor of the first-declared sibling `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B`; conversion blocked on the P4-12/P4-13 architecture-extension track; validator hardened with regression guards for both config shapes.
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -371,7 +371,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 
 ## Test Suite Execution Evidence
 
-**199 unit tests** ran and passed cleanly as of [2026-10-21 10:55:00 +0200] (includes the 27 Step-21 converter tests, the merged CPU-runnable tier-4 oracle + forward-semantics suites, and the 2 bit-width guard tests from commit 8c71bb7; 1 platform-conditional memory-pipeline test skips off-Windows) across all test suites:
+**218 unit tests** ran and passed cleanly as of [2026-10-21 11:44:00 +0200] (adds 18 P3-04..P3-08 checkpointing/recovery tests and 1 declared-target regression guard over the 199-test review baseline; converter suite grew 27→28; 1 platform-conditional memory-pipeline test skips off-Windows) across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -391,11 +391,12 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_serialization.py`: 6 tests (trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with exl3xpu.ref.weight_orig, malformed/truncated safetensors rejection, and tile encoder bit-width mismatch guards)
 - `test_upstream_encode_oracle.py`: 4 tests (CPU-runnable tier-4 oracle derived from upstream's CUDA test recipe: `max_mse_per_K` quality ceilings for K=2..8, tail-biting ring invariant, upstream "ideal encoding" state layout, encode→dequant round trips)
 - `test_forward_semantics.py`: 5 tests (independent audit of the reference encoder's forward ACS pass: branch metric and fp16 accumulation semantics, predecessor table and terminal costs tie-breaking, masking rules, adversarial tie construction, deterministic path reproduction)
-- `test_converter.py`: 27 tests (bounded conversion config rejection of MoE/vision/MTP/pre-quantized/fractional-K/out-of-range-K/bad-geometry/partial-rotary/rope-scaling/sliding-window/bad output dirs; mmap shard index scoping, bit-exact streaming reads, single-file indexing, poisoned-shard isolation, RSS measurement; full 2-layer synthetic conversion on XPU with recorder: ascending layer order, upstream module order, layer-0 capture equality with independent calibration, layer-1 capture derived from layer 0's *quantized* output (differential vs unquantized control), quantized-reload replay equivalence, transposing `w_hat` reload, bit-exact unchanged pass-through, per-layer `qtensors` artifacts with 30 tensors, merged manifest consistency, per-layer RSS recording)
+- `test_converter.py`: 28 tests (bounded conversion config rejection of MoE/vision/MTP/pre-quantized/fractional-K/out-of-range-K/bad-geometry/partial-rotary/rope-scaling/sliding-window/bad output dirs; declared-target hardening: hybrid `layer_types`, `mtp_num_hidden_layers`, top-level multimodal token ids incl. `vision_end_token_id`, and full structural replicas of BOTH declared target configs (`empero-ai/Qwen3.8-9B-Distill`, `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B`) asserted deterministically rejected with an architecture diagnostic (`test_declared_target_mimo_is_rejected`); mmap shard index scoping, bit-exact streaming reads, single-file indexing, poisoned-shard isolation, RSS measurement; full 2-layer synthetic conversion on XPU with recorder: ascending layer order, upstream module order, layer-0 capture equality with independent calibration, layer-1 capture derived from layer 0's *quantized* output (differential vs unquantized control), quantized-reload replay equivalence, transposing `w_hat` reload, bit-exact unchanged pass-through, per-layer `qtensors` artifacts with 30 tensors, merged manifest consistency, per-layer RSS recording)
+- `test_converter_recovery.py`: 18 tests (P3-04..P3-08 checkpointing/resumability/fault recovery on 3-layer synthetic checkpoints: working-directory layout + manifest progress tracking; atomic .tmp + POSIX-replace publication with 30-tensor-per-layer integrity verification; interruption-safe recovery across calibration/quantization/reload/publication boundaries with clean resume and exact state continuity; rigorous `_validate_resume` invariance with documented `force_resume` override; resilient failure handling — `check_disk_space`, missing shards, corrupted checkpoints)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 199 tests in 192.352s
+Ran 218 tests in 133.074s
 
 OK (skipped=1)
 ```
@@ -479,10 +480,31 @@ OK (skipped=1)
 
 ---
 
+### Step 23 [2026-10-21 11:44:00 +02:00]: Declared Active Target Swapped to `empero-ai/Qwen3.8-9B-Distill` (Blocked); Validator Hardened; P3-04..P3-08 Recorded
+
+**Target-model decisions (owner, 2026-10-21):** the Phase-3 first-conversion target was declared as `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B` ("Keep MiMo, flag as blocked"), then swapped by owner instruction to its sibling distill [`empero-ai/Qwen3.8-9B-Distill`](https://huggingface.co/empero-ai/Qwen3.8-9B-Distill). Both `config.json` files were fetched and verified (2026-10-21); they are the same `Qwen3_5ForConditionalGeneration` / `qwen3_5` architecture with identical geometry (hidden 4096, 32 layers, 16/4 heads, head_dim 256, intermediate 12288, vocab 248320 < 2^24) and the same contract-incompatible shape:
+
+* 24 of 32 `text_config` layers are `linear_attention` (3:1 hybrid SSM pattern, `full_attention_interval` 4, `mamba_ssm_dtype` float32) — outside both the pinned contract and upstream EXL3's per-linear quantization space.
+* 27-layer ViT `vision_config` with top-level `image_token_id` / `video_token_id` / `vision_start_token_id` / (`vision_end_token_id` in Qwen3.8) — multimodal.
+* `partial_rotary_factor` 0.25 with interleaved mrope (`mrope_section` [11, 11, 10]) — contract requires full rotary.
+* `mtp_num_hidden_layers` 1 — MTP head.
+
+**Status: BLOCKED.** Disk budget is not the blocker (dense BF16 9B ≈ 18 GB vs 90 GB free at decision time); the architecture is. Conversion cannot start until the new **`P4-12`** (hybrid linear-attention support decision) and **`P4-13`** (multimodal text-tower-only semantics) extension items land (`tasks.md` §4.3); MTP/vision *quantization* remains parked at P4-04. Contract-compatible fallbacks (pinned Llama-3.1-8B / Qwen2.5-7B manifest rows) stand ready for an owner-approved substitute.
+
+1. **Validator hardening** (`1e53c73`): `load_model_geometry` rejected-mode detection extended with `mtp_num_hidden_layers`, `image_token_id`, `video_token_id`, `vision_start_token_id`, `vision_end_token_id`, and explicit `layer_types` rejection for any non-`full_attention` value (hybrid attention); the earlier MoE/pre-quantized/vision checks are unchanged.
+2. **Regression guards** (`tests/test_converter.py`, 27→28 tests): new variant rejections, plus faithful structural replicas of **both** declared target configs asserted deterministically rejected via `UnsupportedModeError` with an architecture diagnostic (`test_declared_target_mimo_is_rejected`). The engine now *proves* the blocked status instead of asserting it on paper.
+3. **Docs**: `tasks.md` P3-09 annotation (declared target + verified facts + unblock path); `docs/compatibility_manifest.md` dated amendment (declared target recorded, pinned Llama/Qwen2.5 rows retained as fallbacks); README status row + roadmap item 3 updated.
+4. **P3-04..P3-08 recorded complete** (`77ae4d4`): the parallel-session checkpointing/resumability/fault-recovery implementation was verified here before committing — `tests/test_converter_recovery.py` 18/18 OK standalone, full tree suite below. tasks.md P3-04..P3-08 entries were already annotated with implementation evidence.
+5. **Test evidence:** final tree suite `Ran 218 tests in 133.074s OK (skipped=1)` — 199 review baseline + 18 recovery tests + 1 declared-target guard. A transient 1-failure run during a noisy first full-suite attempt (156.152s, FAILED) did not reproduce in either of two subsequent clean runs (144.650s and 133.074s); root cause was running an XPU suite concurrently with the background full suite from this session — avoid overlapping XPU test processes on this device.
+
+---
+
 ## Critical Path Next Steps (Phase 3)
 
 > **Governing decision — `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`):** CUDA ground truth (P0-24/P0-25/P0-27) is **deferred, not waived**. Phase 3 proceeds without it; revisit the deferral if any trigger fires: T1 XPU encoder MSE exceeds upstream `max_mse_per_K` for any K; T2 reconstructed weights diverge from the CPU reference beyond fp16 tolerance; T3 a gate/reviewer demands E4 path parity; T4 a downstream runtime rejects a produced checkpoint; T5/T6 upstream re-pin or kernel/codebook/container change. Resume per `skip_cuda.md` §7.
+>
+> **Declared Active Target (Step 23):** `empero-ai/Qwen3.8-9B-Distill` (BLOCKED on P4-12/P4-13).
 
 1. ~~**P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming**~~ **DONE** (Step 21, [2026-10-21 10:20:00 +02:00]).
-2. **P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery:** Implement atomic checkpoint publication, manifest recording, interrupted-write recovery, and resume argument validation.
-3. **P3-09 .. P3-16 & Gate 3 — First Complete Model Conversion & Evaluation:** Execute full offline conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, evaluate perplexity against downstream runtime (`exl3xpu`), and publish `reports/gate_3.md`.
+2. ~~**P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery**~~ **DONE** (Step 23 / commit `77ae4d4`, [2026-10-21 11:37:10 +02:00]).
+3. **P3-09 .. P3-16 & Gate 3 — First Complete Model Conversion & Evaluation:** Execute full offline conversion of the declared Active Target `empero-ai/Qwen3.8-9B-Distill` — **BLOCKED** on the `P4-12`/`P4-13` architecture-extension track (qwen3_5 hybrid linear-attention + multimodal; sibling of the first-declared `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B`; deterministically rejected by the validator, guarded in `tests/test_converter.py::test_declared_target_mimo_is_rejected`). Contract-compatible fallbacks `Meta-Llama-3.1-8B-Instruct` / `Qwen2.5-7B-Instruct` may substitute only on explicit owner decision; evaluate perplexity against downstream runtime (`exl3xpu`) and publish `reports/gate_3.md`.
