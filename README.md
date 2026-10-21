@@ -109,11 +109,17 @@ Export, reload, and verification of EXL3-compliant checkpoint artifacts (P2-13..
 - Exports compliant `.safetensors` checkpoints with `quantization_config.json` and index weight map.
 - `load_and_verify_layer_safetensors` decodes weights via `exl3xpu.ref.weight_orig` and validates state-history round trips and malformed-file rejection.
 
-### 12. Bounded Full-Model Conversion Orchestrator ([`exl3_quant/converter.py`](./exl3_quant/converter.py))
-Phase 3 driver preserving the audited upstream conversion semantics (P3-01, P3-02, P3-03):
-- **`ConversionConfig` + `validate()`** reject unsupported modes (MoE / vision / MTP / pre-quantized input, non-dense architectures, fractional or out-of-range K, non-`mul1` codebooks, non-128-divisible geometry, partial/scaled rotary, sliding window) in pure Python before any expensive work.
-- **`convert_model`** executes the pinned upstream per-module loop: per decoder layer in ascending order — grouped-Hessian capture on the running state produced by all previously *quantized* layers, quantization, reload of quantized numerics (`w_hat` into `nn.Linear` layout), and advance of the calibration state through the quantized layer. Unchanged components (`embed_tokens`, `lm_head`, RMSNorm) are bit-exact fp16 pass-through with per-layer `qtensors/` artifacts and a merged `quantization_config.json` manifest.
-- **`ShardedSafetensorsIndex`** streams HF-style sharded/single-file checkpoints through memory-mapped `safetensors.safe_open` handles, materializing only the layer under conversion; host RSS is measured (`read_rss_kib`) rather than assumed (see [`artifacts/benchmarks/phase3_stream_bench.json`](./artifacts/benchmarks/phase3_stream_bench.json)).
+### 12. Bounded Full-Model Conversion Orchestrator & Recovery ([`exl3_quant/converter.py`](./exl3_quant/converter.py))
+Phase 3 driver preserving the audited upstream conversion semantics (P3-01..P3-08):
+- **`ConversionConfig` + `validate()`** reject unsupported modes (MoE / vision / MTP / pre-quantized input, non-dense architectures, fractional or out-of-range K, non-`mul1` codebooks, non-128-divisible geometry, partial/scaled rotary, sliding window) in pure Python before any expensive work (P3-01).
+- **`convert_model`** executes the pinned upstream per-module loop: per decoder layer in ascending order — grouped-Hessian capture on the running state produced by all previously *quantized* layers, quantization, reload of quantized numerics (`w_hat` into `nn.Linear` layout), and advance of the calibration state through the quantized layer. Unchanged components (`embed_tokens`, `lm_head`, RMSNorm) are bit-exact fp16 pass-through with per-layer `qtensors/` artifacts and a merged `quantization_config.json` manifest (P3-02).
+- **`ShardedSafetensorsIndex`** streams HF-style sharded/single-file checkpoints through memory-mapped `safetensors.safe_open` handles, materializing only the layer under conversion; host RSS is measured (`read_rss_kib`) rather than assumed (see [`artifacts/benchmarks/phase3_stream_bench.json`](./artifacts/benchmarks/phase3_stream_bench.json)) (P3-03).
+- **Checkpointing, Resumability & Recovery (P3-04..P3-08):**
+  - Atomic publication (`atomic_save_safetensors`) writing `.tmp` before POSIX rename, preventing incomplete artifacts on crash (P3-05).
+  - Checkpoint integrity verification (`verify_layer_checkpoint`) checking all 30 expected tensors per layer (P3-05).
+  - Fault injection testing (`fault_injector`) verifying safe restart across calibration, quantization, and publishing boundaries without dropped or duplicated work (P3-06).
+  - Strict resume argument validation (`_validate_resume`) against `quantization_config.json` with documented `force_resume` override (P3-07).
+  - Pre-checked disk space limits (`check_disk_space`), missing shard handling, and corrupted checkpoint detection (`CorruptedCheckpointError`) (P3-08).
 
 ---
 
