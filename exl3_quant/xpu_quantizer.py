@@ -27,7 +27,6 @@ from typing import Callable, List, Optional, Tuple
 import numpy as np
 
 from exl3_quant.memory_policy import (
-    DEFAULT_RESERVE_BYTES,
     MemoryPolicy,
     MemoryPressureError,
     MemorySnapshot,
@@ -203,7 +202,7 @@ class ScratchArena:
         device_index: int = 0,
         default_cap_b: int = 64,
     ):
-        self.policy = policy or MemoryPolicy(reserve_bytes=DEFAULT_RESERVE_BYTES)
+        self.policy = policy or MemoryPolicy()
         self.device_index = device_index
         self.default_cap_b = default_cap_b
 

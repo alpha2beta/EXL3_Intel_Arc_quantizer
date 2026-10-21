@@ -32,7 +32,7 @@ free counters alone would over-admit.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 BYTES_PER_MIB = 1024 ** 2
@@ -40,6 +40,37 @@ BYTES_PER_GIB = 1024 ** 3
 
 DEFAULT_RESERVE_BYTES = 6 * BYTES_PER_GIB
 DEFAULT_SAFETY_SLACK_BYTES = 256 * BYTES_PER_MIB
+
+#: Environment overrides for the admission reserve. ``..._RESERVE_BYTES`` takes
+#: an integer byte count, ``..._RESERVE_GIB`` a float number of GiB (the GiB
+#: form wins if both are set). Unset means :data:`DEFAULT_RESERVE_BYTES`.
+#:
+#: The reserve is device-side headroom: on an integrated (UMA) device the
+#: scratch arena draws from the same DRAM as the host, and the *device pool*
+#: — not the host's free memory — is the binding dimension. On a host whose
+#: device pool is small but whose RAM has plenty of headroom, a 6 GiB device
+#: reserve can leave no admissible budget at all while the system is in no
+#: danger whatsoever; the override makes that trade-off explicit and
+#: auditable instead of implicit.
+ENV_RESERVE_BYTES = "EXL3_MEMORY_RESERVE_BYTES"
+ENV_RESERVE_GIB = "EXL3_MEMORY_RESERVE_GIB"
+
+
+def default_reserve_bytes() -> int:
+    """The configured admission reserve in bytes (environment aware)."""
+    raw_gib = os.environ.get(ENV_RESERVE_GIB)
+    if raw_gib:
+        try:
+            return int(float(raw_gib) * BYTES_PER_GIB)
+        except (TypeError, ValueError):
+            pass
+    raw_bytes = os.environ.get(ENV_RESERVE_BYTES)
+    if raw_bytes:
+        try:
+            return int(raw_bytes)
+        except (TypeError, ValueError):
+            pass
+    return DEFAULT_RESERVE_BYTES
 
 # /proc/meminfo keys captured verbatim (kB units in the file).
 _MEMINFO_FIELDS = (
@@ -252,7 +283,7 @@ class MemoryPolicy:
     a commit; it never relaxes the pre-allocation check.
     """
 
-    reserve_bytes: int = DEFAULT_RESERVE_BYTES
+    reserve_bytes: int = field(default_factory=default_reserve_bytes)
     safety_slack_bytes: int = DEFAULT_SAFETY_SLACK_BYTES
     max_single_alloc_bytes: Optional[int] = None
 

@@ -1,12 +1,15 @@
 """Unit tests for the configurable memory-pressure policy (V140-02 / P0-20)."""
 
 import os
+import sys
 import tempfile
 import unittest
 
 from exl3_quant.memory_policy import (
     BYTES_PER_GIB,
     BYTES_PER_MIB,
+    ENV_RESERVE_BYTES,
+    ENV_RESERVE_GIB,
     MemoryPolicy,
     MemoryPressureError,
     MemorySnapshot,
@@ -287,5 +290,61 @@ class TestLiveCapture(unittest.TestCase):
             torch.xpu.empty_cache()
 
 
+class TestReserveOverride(unittest.TestCase):
+    """The admission reserve is configurable (P3-09 device-pool headroom).
+
+    On an integrated device the scratch arena draws from the same DRAM as the
+    host, and the *device pool* is the binding dimension. A host with a small
+    device pool but plenty of RAM headroom can end up with no admissible
+    budget at all under the 6 GiB default; the override makes that trade-off
+    explicit (and auditable) instead of implicit.
+    """
+
+    def setUp(self):
+        self._saved = {k: os.environ.get(k) for k in
+                       (ENV_RESERVE_BYTES, ENV_RESERVE_GIB)}
+
+    def tearDown(self):
+        for key, value in self._saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    def test_default_reserve_is_six_gib(self):
+        os.environ.pop(ENV_RESERVE_BYTES, None)
+        os.environ.pop(ENV_RESERVE_GIB, None)
+        self.assertEqual(MemoryPolicy().reserve_bytes, 6 * BYTES_PER_GIB)
+
+    def test_reserve_gib_override_is_applied(self):
+        os.environ.pop(ENV_RESERVE_BYTES, None)
+        os.environ[ENV_RESERVE_GIB] = "4"
+        self.assertEqual(MemoryPolicy().reserve_bytes, 4 * BYTES_PER_GIB)
+
+    def test_reserve_bytes_override_is_applied(self):
+        os.environ.pop(ENV_RESERVE_GIB, None)
+        os.environ[ENV_RESERVE_BYTES] = str(2 * BYTES_PER_GIB)
+        self.assertEqual(MemoryPolicy().reserve_bytes, 2 * BYTES_PER_GIB)
+
+    def test_gib_override_wins_over_bytes_override(self):
+        os.environ[ENV_RESERVE_BYTES] = str(2 * BYTES_PER_GIB)
+        os.environ[ENV_RESERVE_GIB] = "3"
+        self.assertEqual(MemoryPolicy().reserve_bytes, 3 * BYTES_PER_GIB)
+
+    def test_invalid_override_falls_back_to_the_default(self):
+        os.environ.pop(ENV_RESERVE_GIB, None)
+        os.environ[ENV_RESERVE_BYTES] = "not-a-number"
+        self.assertEqual(MemoryPolicy().reserve_bytes, 6 * BYTES_PER_GIB)
+
+    def test_smaller_reserve_admits_more(self):
+        os.environ.pop(ENV_RESERVE_BYTES, None)
+        os.environ[ENV_RESERVE_GIB] = "2"
+        snap = make_snapshot(10 * BYTES_PER_GIB)
+        strict = MemoryPolicy(reserve_bytes=6 * BYTES_PER_GIB)
+        relaxed = MemoryPolicy()
+        self.assertGreater(relaxed.usable_bytes(snap, outstanding_bytes=0),
+                           strict.usable_bytes(snap, outstanding_bytes=0))
+
+
 if __name__ == "__main__":
-    unittest.main()
+    sys.exit(unittest.main())
