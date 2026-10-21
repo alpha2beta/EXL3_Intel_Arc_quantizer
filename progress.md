@@ -1,8 +1,8 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-21 09:30:00 +02:00  
+> **Last Updated:** 2026-10-21 10:20:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). 158 unit tests passing (100%). Complete single-layer conversion pipeline verified on XPU: activation harvesting & grouped Hessian accumulation (`exl3_quant/calibration.py`), full-layer quantization with single `ScratchArena` reuse and proxy loss (`exl3_quant/layer_quant.py`), safetensors bitpacking, export, reload, and verification with `exl3xpu.ref.weight_orig` (`exl3_quant/serialization.py`), and 3-iteration sustained memory benchmark showing 0 B swap growth (`artifacts/benchmarks/phase2_layer_bench.json`).  
+> **Current Status:** Gate 0, Gate 1, and **Gate 2 closed** (GO to Phase 3 recorded in `reports/gate_2.md`). **Phase 3 orchestration started** (P3-01..P3-03 done): 185 unit tests passing (100%). New bounded full-model conversion driver `exl3_quant/converter.py` implements the audited upstream per-module loop (`convert_model.py:1095-1316`) with grouped-Hessian capture on quantized-propagated calibration state, quantized-numerics reload, state advance, unchanged-component pass-through, and memory-mapped sharded streaming with measured host RSS (`artifacts/benchmarks/phase3_stream_bench.json`, PASS).  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -389,10 +389,11 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_calibration.py`: 7 tests (RMSNorm forward, rotary embeddings complex unit norm, multi-head attention forward, SwiGLU forward, complete layer forward on XPU, exact second-moment Hessian accumulation H = sum X^T X matching explicit formula, dead channel floor and damping safeguard)
 - `test_layer_quant.py`: 4 tests (proxy loss trace formula equivalence, factorization residual check, single module XPU quantization, and complete decoder layer quantization on XPU with ScratchArena reuse)
 - `test_serialization.py`: 4 tests (trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with exl3xpu.ref.weight_orig, and malformed/truncated safetensors rejection)
+- `test_converter.py`: 27 tests (bounded conversion config rejection of MoE/vision/MTP/pre-quantized/fractional-K/out-of-range-K/bad-geometry/partial-rotary/rope-scaling/sliding-window/bad output dirs; mmap shard index scoping, bit-exact streaming reads, single-file indexing, poisoned-shard isolation, RSS measurement; full 2-layer synthetic conversion on XPU with recorder: ascending layer order, upstream module order, layer-0 capture equality with independent calibration, layer-1 capture derived from layer 0's *quantized* output (differential vs unquantized control), quantized-reload replay equivalence, transposing `w_hat` reload, bit-exact unchanged pass-through, per-layer `qtensors` artifacts with 30 tensors, merged manifest consistency, per-layer RSS recording)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 158 tests in 112.113s
+Ran 185 tests in 111.343s
 
 OK
 ```
@@ -432,8 +433,28 @@ OK
 
 ---
 
+### Step 21 [2026-10-21 10:20:00 +02:00]: Bounded Conversion Orchestrator, Upstream Propagation & Mmap Shard Streaming (Phase 3, P3-01..P3-03)
+
+1. **Bounded conversion entry point (`exl3_quant/converter.py`, P3-01):**
+   - `ConversionConfig` exposes only the pinned-contract surface: fixed integer K in `[2, 4]` (fractional recipes explicitly deferred to P4-02), `mul1` codebook only (others P4-01), deterministic synthetic calibration corpus parameters (real corpus wiring deferred to P3-09), damping/zero-floor, GSS flag defaulting to the upstream real search (`skip_g_scale=False`), and device selection.
+   - `ConversionConfig.validate()` + `load_model_geometry` reject, in pure Python before any weight bytes are read: MoE (`num_local_experts` etc.), vision/multimodal configs, MTP heads, already-quantized checkpoints, non-dense architectures, non-128-divisible hidden/intermediate/q/kv dims, `head_dim != hidden // num_heads`, partial rotary, rope scaling, sliding-window attention, out-of-bounds vocab, and invalid/occupied output directories.
+
+2. **Upstream calibration propagation & conversion order (`convert_model`, P3-02):**
+   - Executes the audited upstream per-module loop (`convert_model.py:1095-1316`): for each decoder layer in ascending order — grouped-Hessian capture on the running calibration state produced by all previously **quantized** layers (`calibrate_layer`, extended with a `zero_floor` pass-through), quantization against those Hessians via the P2 shared-arena chain (`quantize_decoder_layer`), reload of the module with its quantized numerics (`w_hat` transposed into the `nn.Linear` (out,in) layout), and re-forward of the *same pre-layer* hidden states through the quantized layer to advance the state.
+   - Unchanged components (embed_tokens, lm_head, RMSNorm weights) are never quantized: they are recorded in the merged `quantization_config.json` as fp16 pass-through and exported bit-exact to `qtensors/untouched.safetensors`; per-layer `qtensors/model.layers.N.safetensors` artifacts follow the upstream working-directory layout (7 modules × 4 tensors + 2 norm tensors).
+   - Verified on a deterministic synthetic mini-Llama checkpoint (`tests/fixtures/`): layer-1 captured Hessians differ measurably from the unquantized-layer-0 control (proving quantized-numerics propagation) and are reproduced by replaying the reloaded layer.
+
+3. **Memory-mapped shard streaming with measured host RSS (`ShardedSafetensorsIndex`, P3-03):**
+   - Streams HF-style sharded and single-file checkpoints via memory-mapped `safetensors.safe_open` handles; only the tensors of the layer under conversion are materialized, grouped per shard.
+   - Host RSS (`/proc/self/statm` via `read_rss_kib`) is measured around every phase — baseline, metadata-only pass, streaming pass, full-shard contrast — and recorded per layer in the manifest.
+   - Measured on a deterministic 424 MiB / 4-shard / 16-layer synthetic checkpoint via `scripts/benchmark_phase3_stream.py` → [`artifacts/benchmarks/phase3_stream_bench.json`](./artifacts/benchmarks/phase3_stream_bench.json) (**verdict PASS**: metadata pass materializes 0 B (RSS delta 0.0 MiB); streaming residual RSS delta **2.8 MiB** over a 424 MiB checkpoint; honest disclosure: mmap streaming bounds heap RSS, not the page cache).
+
+4. **Test evidence:** 185/185 tests pass (`Ran 185 tests in 111.343s OK`), baseline 158 + 27 new converter tests + `calibrate_layer(zero_floor=...)` regression-transparent extension.
+
+---
+
 ## Critical Path Next Steps (Phase 3)
 
-1. **P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming:** Implement conversion entry point (`convert_model.py`), streaming model layers from source checkpoints with memory-mapped loading, and rejecting unsupported configurations before execution.
+1. ~~**P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming**~~ **DONE** (Step 21, [2026-10-21 10:20:00 +02:00]).
 2. **P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery:** Implement atomic checkpoint publication, manifest recording, interrupted-write recovery, and resume argument validation.
 3. **P3-09 .. P3-16 & Gate 3 — First Complete Model Conversion & Evaluation:** Execute full offline conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, evaluate perplexity against downstream runtime (`exl3xpu`), and publish `reports/gate_3.md`.

@@ -10,14 +10,15 @@ Compatible with upstream [ExLlamaV3](https://github.com/turboderp-org/exllamav3)
 
 | Metric | Status / Value | Verification Source |
 |---|---|---|
-| **Phase / Maturity** | **Gate 0, Gate 1 & Gate 2 Closed** (Phase 3 Full-Model Conversion Next) | [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md), [`reports/gate_2.md`](./reports/gate_2.md) |
-| **Unit Test Suite** | **158 / 158 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
+| **Phase / Maturity** | **Gate 0, Gate 1 & Gate 2 Closed** (Phase 3 Bounded Orchestrator: P3-01..P3-03 done) | [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md), [`reports/gate_2.md`](./reports/gate_2.md), `exl3_quant/converter.py` |
+| **Unit Test Suite** | **185 / 185 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
 | **Primary Prototype Target** | Intel Core Ultra 7 258V / Arc 140V (32 GB UMA) | [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) |
 | **Downstream Oracle Parity** | **100% Bit-Exact** (CPU Ref & XPU SYCL vs `exl3xpu.ref`) | [`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py), [`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) |
 | **Upstream Pinned Commit** | `turboderp-org/exllamav3 @ 4d7b69c7` | [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) |
 | **Active Target Models** | Meta Llama 3.1 8B / Qwen 2.5 7B | Pinned in compatibility manifest |
 | **XPU Encoder Throughput** | Up to **1,301.5 tiles/s** (43.67 G state transitions/s) | [`artifacts/benchmarks/phase1_encoder_bench.json`](./artifacts/benchmarks/phase1_encoder_bench.json) |
 | **Sustained Layer Conversion** | Peak Alloc **649.7 MiB**, **0 B Swap Growth** across repeated iterations | [`artifacts/benchmarks/phase2_layer_bench.json`](./artifacts/benchmarks/phase2_layer_bench.json) |
+| **Mmap Shard Streaming (P3-03)** | Streaming residual RSS **2.8 MiB** over a **424 MiB** sharded checkpoint | [`artifacts/benchmarks/phase3_stream_bench.json`](./artifacts/benchmarks/phase3_stream_bench.json) |
 
 ---
 
@@ -107,6 +108,12 @@ Export, reload, and verification of EXL3-compliant checkpoint artifacts (P2-13..
 - Exports compliant `.safetensors` checkpoints with `quantization_config.json` and index weight map.
 - `load_and_verify_layer_safetensors` decodes weights via `exl3xpu.ref.weight_orig` and validates state-history round trips and malformed-file rejection.
 
+### 12. Bounded Full-Model Conversion Orchestrator ([`exl3_quant/converter.py`](./exl3_quant/converter.py))
+Phase 3 driver preserving the audited upstream conversion semantics (P3-01, P3-02, P3-03):
+- **`ConversionConfig` + `validate()`** reject unsupported modes (MoE / vision / MTP / pre-quantized input, non-dense architectures, fractional or out-of-range K, non-`mul1` codebooks, non-128-divisible geometry, partial/scaled rotary, sliding window) in pure Python before any expensive work.
+- **`convert_model`** executes the pinned upstream per-module loop: per decoder layer in ascending order — grouped-Hessian capture on the running state produced by all previously *quantized* layers, quantization, reload of quantized numerics (`w_hat` into `nn.Linear` layout), and advance of the calibration state through the quantized layer. Unchanged components (`embed_tokens`, `lm_head`, RMSNorm) are bit-exact fp16 pass-through with per-layer `qtensors/` artifacts and a merged `quantization_config.json` manifest.
+- **`ShardedSafetensorsIndex`** streams HF-style sharded/single-file checkpoints through memory-mapped `safetensors.safe_open` handles, materializing only the layer under conversion; host RSS is measured (`read_rss_kib`) rather than assumed (see [`artifacts/benchmarks/phase3_stream_bench.json`](./artifacts/benchmarks/phase3_stream_bench.json)).
+
 ---
 
 ## Test Suite & Verification
@@ -118,11 +125,12 @@ The test harness enforces exact discrete checks, perturbation detection, and liv
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Complete Test Breakdown (158 Tests Total)
+### Complete Test Breakdown (185 Tests Total)
 
 - **[`tests/test_calibration.py`](./tests/test_calibration.py) (7 tests):** RMSNorm, Rotary embeddings complex unit norm, Attention forward, SwiGLU forward, complete layer forward on XPU, exact second-moment Hessian accumulation matching explicit formula, dead channel floor and damping safeguard.
 - **[`tests/test_layer_quant.py`](./tests/test_layer_quant.py) (4 tests):** Proxy loss trace formula equivalence, factorization residual check, single module XPU quantization, and complete decoder layer quantization on XPU with ScratchArena reuse.
 - **[`tests/test_serialization.py`](./tests/test_serialization.py) (4 tests):** Trellis packing round trip with state-history low K-bit preservation, safetensors schema validation, export/reload verification with `exl3xpu.ref.weight_orig`, and malformed/truncated safetensors rejection.
+- **[`tests/test_converter.py`](./tests/test_converter.py) (27 tests):** Phase 3 bounded conversion (P3-01/02/03) against deterministic synthetic mini-Llama checkpoints (`tests/fixtures/`): config rejection of MoE/vision/MTP/pre-quantized/fractional-K/bounded-K/bad-geometry/partial-rotary/rope-scaling/sliding-window/bad-output cases; mmap shard index scoping, bit-exact streaming reads, single-file indexing, poisoned-shard isolation, RSS measurement; full two-layer XPU conversion with a recorder proving ascending layer order, upstream module order, layer-0 capture equality vs. independent calibration, layer-1 propagation through layer 0's **quantized** numerics (differential vs. unquantized control), reload replay equivalence, transposing `w_hat` reload, bit-exact unchanged pass-through, per-layer `qtensors` artifact layout (30 tensors), merged manifest consistency, and per-layer RSS recording.
 - **[`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) (13 tests):** End-to-end XPU quantizer verification: all 65,536 codebook states, bit-exact parity vs `ReferenceTrellisEncoder` across $K \in \{1, 2, 3, 4\}$ and all 3 codebooks, $L=160$ n-gram rows, live oracle decode via `exl3xpu.ref`, edge cases & ties (zeros, constant, outliers), partial batches & waves, input validation, stream-queue ordering, all 4 traceback placements & kernel variants (`SG16`/`SG32`, SLM/global), `ScratchArena` bounded eviction across $K$, automatic batch halving retry, no double scratch residency during retry (B1), and zero resident scratch leakage on failed acquisition (B2).
 - **[`tests/test_xpu_extension.py`](./tests/test_xpu_extension.py) (7 tests):** Custom SYCL XPU extension sanity, stream execution, memory lifetime, device cap queries, and on-device measurement of Open Item `O-6` (exact fp16 single-rounding FMA verified against 65,536 random and 11 adversarial inputs).
 - **[`tests/test_hadamard.py`](./tests/test_hadamard.py) (11 tests):** Sylvester values/symmetry/orthogonality, non-power-of-two rejection, blockwise-vs-block-diagonal equivalence, involution, in-place validation, bit-exact `exl3xpu.ref.hadamard128`, and decode-order parity with `weight_orig`.
@@ -167,6 +175,6 @@ The project maintains an evidence-backed governance model:
 
 With Gate 0, Gate 1, and Gate 2 successfully closed, Phase 3 focuses on bounded full-model conversion and qualification:
 
-1. **P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming:** Implement conversion entry point (`convert_model.py`), streaming model layers from source checkpoints with memory-mapped loading, and rejecting unsupported configurations before execution.
+1. ~~**P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming**~~ **DONE** — `exl3_quant/converter.py` (Step 21, 2026-10-21).
 2. **P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery:** Implement atomic checkpoint publication, manifest recording, interrupted-write recovery, and resume argument validation.
 3. **P3-09 .. P3-16 & Gate 3 — First Complete Model Conversion & Evaluation:** Execute full offline conversion of `Meta-Llama-3.1-8B-Instruct` or `Qwen2.5-7B-Instruct`, evaluate perplexity against downstream runtime (`exl3xpu`), and publish `reports/gate_3.md`.
