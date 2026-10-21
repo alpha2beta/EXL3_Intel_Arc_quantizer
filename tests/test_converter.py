@@ -229,6 +229,8 @@ class TestStreamingIndex(unittest.TestCase):
                         if index.weight_map[key] == other}
             save_file(pristine, str(self.model_dir / other))
 
+    @unittest.skipUnless(Path("/proc/self/statm").exists(),
+                         "RSS is read from /proc/self/statm (Linux only)")
     def test_read_rss_kib_positive(self):
         rss = conv.read_rss_kib()
         self.assertGreater(rss, 0)

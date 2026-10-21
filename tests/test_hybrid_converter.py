@@ -57,6 +57,15 @@ _TEST_ROOT = Path("/tmp/opencode/exl3_hybrid_tests")
 
 _HYBRID_MODE = "qwen3_5_text_tower"
 
+# The hybrid text-tower reference needs transformers with Qwen3_5 support
+# (>= 5.17). exl3_quant.hybrid sets Qwen3_5DecoderLayer to None when that
+# import fails, and require_support() then raises HybridSupportUnavailable.
+HYBRID_AVAILABLE = getattr(hybrid, "Qwen3_5DecoderLayer", None) is not None
+_skip_no_hybrid = unittest.skipUnless(
+    HYBRID_AVAILABLE,
+    "transformers with Qwen3_5 support (>= 5.17) required",
+)
+
 
 def _write_config(model_dir: Path, raw: dict) -> Path:
     model_dir.mkdir(parents=True, exist_ok=True)
@@ -214,6 +223,7 @@ class TestHybridValidator(unittest.TestCase):
             ["linear_attention", "linear_attention", "full_attention"])
 
 
+@_skip_no_hybrid
 class TestHybridModuleTables(unittest.TestCase):
     """P4-12 decision evidence: which projections are quantized vs passed
     through, and why (encoder divisibility constraints)."""
@@ -301,6 +311,7 @@ class TestHybridModuleTables(unittest.TestCase):
             shutil.rmtree(model_dir, ignore_errors=True)
 
 
+@_skip_no_hybrid
 class TestHybridCalibrationGroups(unittest.TestCase):
     """Shared-input Hessian grouping for both hybrid layer kinds (P2-02
     semantics generalized in P4-12)."""
@@ -413,6 +424,7 @@ class TestHybridCalibrationGroups(unittest.TestCase):
 
 
 @unittest.skipUnless(torch.xpu.is_available(), "Intel XPU device required")
+@_skip_no_hybrid
 class TestHybridConversion(unittest.TestCase):
     """Full opt-in conversion of the hybrid fixture on XPU (P4-12 + P4-13)."""
 

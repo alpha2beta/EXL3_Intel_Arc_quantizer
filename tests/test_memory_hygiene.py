@@ -27,6 +27,8 @@ from exl3_quant import memory_hygiene  # noqa: E402
 class TestMemoryHygiene(unittest.TestCase):
     """Advisory cache/heap release helpers."""
 
+    @unittest.skipUnless(hasattr(os, "posix_fadvise"),
+                         "page-cache eviction needs posix_fadvise (POSIX only)")
     def test_drop_file_cache_preserves_content(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "data.bin"
