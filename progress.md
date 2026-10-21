@@ -1,8 +1,8 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-20 22:55:00 +02:00  
+> **Last Updated:** 2026-10-20 23:25:00 +02:00  
 > **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`), and the Phase 1 hardening review (`review-2026-10-20T21:06:51+02:00`) fully remediated: `ScratchArena` reclamation defects B1/B2 fixed with regression tests, and residuals M2/M3/L2/L5 plus the M1 negative test closed. 124 unit tests passing. Phase 2: Sylvester `H_128` (`P2-06`), the upstream regularization reference path (`P2-04`, GSS search still open), and the one-sided LDLQ error-feedback traversal (`P2-08`) are implemented and tested.  
+> **Current Status:** Gate 0 and Gate 1 complete (GO to Phase 2 recorded in `reports/gate_1.md`), and the Phase 1 hardening review (`review-2026-10-20T21:06:51+02:00`) fully remediated: `ScratchArena` reclamation defects B1/B2 fixed with regression tests, and residuals M2/M3/L2/L5 plus the M1 negative test closed. 143 unit tests passing. Phase 2: Sylvester `H_128` (`P2-06`), the full upstream regularization path including the `g_scale_gss` search (`P2-04`), and the one-sided LDLQ error-feedback traversal (`P2-08`) are implemented and tested.  
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -325,7 +325,7 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
   * `block_rms` reproduces upstream's 32-slice accumulation order (`quantize.py:1079-1092`).
   * `regularize` transcribes the full sequence (`:1130-1236`): output-scale skew heuristic (top 2% of `sqrt(H_diag)` vs the 0.15 cutoff), out-channel RMS normalization, `sv` folding + right Hadamard, `su` folding (`/ -codebook_scale`) + left Hadamard, `zeros` flag, and zero-channel floor (`0.1`) / `sv = 0`.
   * **Round-trip identity** — `regularize` followed by the decode ordering reconstructs the original weight to `< 1e-4` — verified with the heuristic on, forced off, and a global scale of 2.0.
-  * The `g_scale_gss` sample-quantization search is deliberately **not faked**: it is a pluggable `g_scale_fn` (default = upstream's `skip_g_scale=True`) and is driven by a pluggable `g_scale_fn`; the `P2-08` encoder adapters now provide that callback, but the full `sample_scale_tiles` + coarse/fine search is not yet wired, so `P2-04` remains `[~]`.
+  * The `g_scale_gss` sample-quantization search is deliberately **not faked**: it is a pluggable `g_scale_fn` (default = upstream's `skip_g_scale=True`) and is driven by a pluggable `g_scale_fn`; Step 19 wires the full `sample_scale_tiles` + coarse/fine search through those adapters, closing `P2-04` `[x]`.
 * **Ill-conditioned handling (`P2-05`, partial):** zero/degenerate channel paths tested; `block_ldl` damping-retry failure path already covered; measured `cholesky` CPU fallback cost recorded in Gate 0.
 
 ---
@@ -352,9 +352,26 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 
 ---
 
+### Step 19: Global-Scale Search Wiring — P2-04 Closed
+
+* **Time tag:** [2026-10-20 23:25:00 +0200]
+* **Source:** new module [`exl3_quant/gss.py`](./exl3_quant/gss.py) (`sample_scale_tiles`, `g_scale_search_batch`, `select_refined_scale`, `g_scale_gss`, `g_scale_fn_from_encoder`); tests in [`tests/test_gss.py`](./tests/test_gss.py) (19 tests).
+* **Sampling (`quantize.py:895-916`):**
+  * Wrapped diagonal of the tile grid (width 3) so every tile row *and* column is sampled, plus the highest/lowest-RMS tiles (`topk`, `>= 8` and at most half the grid) as outlier insurance; whole-tile extraction matters because outliers are whole channels.
+  * Verified value-exactly against a manual Python extraction per width ∈ {1, 2, 3} with `tensor_core_perm` applied.
+* **Search (`quantize.py:918-1047`):**
+  * Coarse grid `0.1 + 0.2·i` (0.1–1.9) on the strided subsample (`tiles[::3]`), fine grid of 5 points at `0.075` around the coarse argmin on the full sample, then parabolic refinement: `offset = 0.5·(y0−y2)/(y0−2y1+y2)` when `denom > 0`, clamped to ±0.5 steps, result floored at `0.01`.
+  * For a convex fine triple `y0=y1+a, y2=y1+b` the offset is analytically `0.5(a−b)/(a+b) ∈ [−0.5, 0.5]`; the upstream clamp is float-defence only (asserted over randomized basins, plus exact-vertex cases).
+  * Grid evaluations batch into as few `encode_tiles` calls as possible with the upstream 65 536-tile chunk bound; verified chunked vs one-shot results are identical.
+* **Wiring:** `regularize(..., skip_g_scale=False, g_scale_fn=g_scale_fn_from_encoder(...))` folds `weight *= g; su /= g` verbatim (`.py:1224-1225`); `sv`/scales/skew untouched. Decode round-trip with the `g`-scaled `su` reconstructs the original weight `< 1e-3` (the `g` cancels inside `su` at decode).
+* **Measured behavior (Arc XPU, K=2):** tile RMS 0.03 → `g = 2.05` (fine-grid right edge); RMS 0.5 → `g ≈ 1.97`; RMS 8 → `g ≈ 0.136`; RMS 1000 → `g ≈ 0.025` (search correctly walks below the coarse grid on fp16 precision loss). MSE at the found scale is strictly below the `g_scale = 1` baseline.
+* **Result:** `P2-04` is `[x]`; the `g_scale_fn` hook remains as the extension point for a fast/batched search, but the default path now performs the real upstream search.
+
+---
+
 ## Test Suite Execution Evidence
 
-**124 unit tests** ran and passed cleanly as of [2026-10-20 22:55:00 +0200] across all test suites:
+**143 unit tests** ran and passed cleanly as of [2026-10-20 23:25:00 +0200] across all test suites:
 - `test_scratch.py`: 4 tests (scratch arithmetic and allocation limits)
 - `test_negative.py`: 5 tests (perturbation detection and input validation)
 - `test_trellis_format.py`: 17 tests (codebook LUTs, permutations, bitpacking, state decoding)
@@ -368,10 +385,11 @@ Steps 1 through 15 of the foundational and Phase 1 engineering work have been im
 - `test_hadamard.py`: 11 tests (Sylvester values/symmetry/orthogonality, block-diagonal equivalence, involution, oracle `H_128` and `weight_orig` parity)
 - `test_regularize.py`: 13 tests (`block_rms`, regularize→decode round-trip, skew heuristic, zero channels, `zeros` flag, `g_scale` folding, validation)
 - `test_ldlq_loop.py`: 13 tests (identity-`L` equivalence, exact target correction, independent dense oracle across span sizes, feedback objective improvement, span invariance, diagonal-zeroing equivalence, encoded layout/dtype, non-mutation, validation, XPU↔reference parity)
+- `test_gss.py`: 19 tests (wrapped-diagonal coverage and exact tile values, extreme-RMS sampling, stage-by-stage search recomputation, batching/chunking invariance, MSE-below-baseline with the real encoder, determinism, huge-weight walk-down, `select_refined_scale` vertex/floor/bound, `regularize` folding and decode round-trip)
 
 ```text
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
-Ran 124 tests in 91.597s
+Ran 143 tests in 147.531s
 
 OK
 ```
@@ -381,6 +399,7 @@ OK
 ## Git Commit History
 
 ```text
+a452db3 2026-10-20 23:25:00 +0200  feat(gss): wire upstream global-scale search through encoder adapters (P2-04)
 ae5db85 2026-10-20 22:55:00 +0200  feat(ldlq): one-sided error-feedback traversal with pluggable encoders (P2-08)
 f14b8e3 2026-10-20 22:20:00 +0200  feat(preprocess): Sylvester H128 and upstream regularization reference path (P2-04/P2-06)
 fcdedd4 2026-10-20 22:02:00 +0200  docs(test): close Phase 1 hardening residuals (M2/M3/L2/L5/M1-test)

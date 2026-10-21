@@ -11,7 +11,7 @@ Compatible with upstream [ExLlamaV3](https://github.com/turboderp-org/exllamav3)
 | Metric | Status / Value | Verification Source |
 |---|---|---|
 | **Phase / Maturity** | **Gate 0 & Gate 1 Closed** (Phase 2 Single-Layer Conversion Next) | [`reports/gate_0.md`](./reports/gate_0.md), [`reports/gate_1.md`](./reports/gate_1.md) |
-| **Unit Test Suite** | **124 / 124 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
+| **Unit Test Suite** | **143 / 143 passed (100%)** | `python -m unittest discover -s tests -p "test_*.py"` |
 | **Primary Prototype Target** | Intel Core Ultra 7 258V / Arc 140V (32 GB UMA) | [`docs/compatibility_manifest.md`](./docs/compatibility_manifest.md) |
 | **Downstream Oracle Parity** | **100% Bit-Exact** (CPU Ref & XPU SYCL vs `exl3xpu.ref`) | [`tests/test_oracle_parity.py`](./tests/test_oracle_parity.py), [`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) |
 | **Upstream Pinned Commit** | `turboderp-org/exllamav3 @ 4d7b69c7` | [`docs/algorithm_contract.md`](./docs/algorithm_contract.md) |
@@ -87,7 +87,7 @@ Contract §8 reference path, transcribed from upstream `util/hadamard.py`:
 Contract §9.3, transcribed from `quantize.py:1079-1236`:
 - `block_rms` with upstream's 32-slice accumulation order.
 - Output-scale skew heuristic (top 2% of `sqrt(H_diag)` vs 15% cutoff), out-channel RMS normalization, `sv`/`su` sign+scale folding, and the zero-channel floor (`0.1`) / `sv = 0` rule.
-- Global-scale (`g_scale_gss`) search is an explicit pluggable hook, defaulting to upstream's `skip_g_scale` switch. The `P2-08` encoder adapters provide the required test-quantization callback; wiring the full coarse/fine search remains open (`P2-04` is `[~]`).
+- Global-scale (`g_scale_gss`) search ([`exl3_quant/gss.py`](./exl3_quant/gss.py), P2-04 complete): wrapped-diagonal tile sampling with highest/lowest-RMS outlier tiles, then the upstream coarse grid (0.1–1.9, strided subsample) → fine grid (0.075 around the coarse minimum, full sample) → parabolic refinement with a `0.01` floor. Test-quantization runs through the pluggable encoder protocol (Arc XPU by default); grid evaluations are batched into as few encoder calls as possible.
 
 ---
 
@@ -100,11 +100,12 @@ The test harness enforces exact discrete checks, perturbation detection, and liv
 PYTHONPATH=. /home/yanchun/Projects/vllm.xpu/.venv/bin/python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Complete Test Breakdown (124 Tests Total)
+### Complete Test Breakdown (143 Tests Total)
 
 - **[`tests/test_xpu_quantizer.py`](./tests/test_xpu_quantizer.py) (13 tests):** End-to-end XPU quantizer verification: all 65,536 codebook states, bit-exact parity vs `ReferenceTrellisEncoder` across $K \in \{1, 2, 3, 4\}$ and all 3 codebooks, $L=160$ n-gram rows, live oracle decode via `exl3xpu.ref`, edge cases & ties (zeros, constant, outliers), partial batches & waves, input validation, stream-queue ordering, all 4 traceback placements & kernel variants (`SG16`/`SG32`, SLM/global), `ScratchArena` bounded eviction across $K$, automatic batch halving retry, no double scratch residency during retry (B1), and zero resident scratch leakage on failed acquisition (B2).
 - **[`tests/test_xpu_extension.py`](./tests/test_xpu_extension.py) (7 tests):** Custom SYCL XPU extension sanity, stream execution, memory lifetime, device cap queries, and on-device measurement of Open Item `O-6` (exact fp16 single-rounding FMA verified against 65,536 random and 11 adversarial inputs).
 - **[`tests/test_hadamard.py`](./tests/test_hadamard.py) (11 tests):** Sylvester values/symmetry/orthogonality, non-power-of-two rejection, blockwise-vs-block-diagonal equivalence, involution, in-place validation, bit-exact `exl3xpu.ref.hadamard128`, and decode-order parity with `weight_orig`.
+- **[`tests/test_gss.py`](./tests/test_gss.py) (19 tests):** wrapped-diagonal coverage/value verification against manual extraction, extreme-RMS tile inclusion, stage-by-stage recomputation of the coarse→fine→parabolic pipeline, batching/chunking invariance, MSE-below-`g_scale=1` with the real encoder, determinism, huge-weight scale walk-down, `select_refined_scale` floor/basin tests, and `regularize` wiring (folding `weight *= g; su /= g` + decode round-trip with the `g`-scaled `su`).
 - **[`tests/test_ldlq_loop.py`](./tests/test_ldlq_loop.py) (13 tests):** identity-`L` equivalence with independent tile quantization, exact additive target correction, independent dense transcription for `buf_size_k ∈ {16,32,64}`, feedback objective improvement on a correlated Hessian, span invariance, upstream diagonal-zeroing equivalence, encoded layout/dtype, input immutability, validation, and XPU↔reference parity.
 - **[`tests/test_regularize.py`](./tests/test_regularize.py) (13 tests):** `block_rms` accuracy and slice-boundary accumulation, full regularize→decode round-trip (identity, forced out-scales off, and global-scale folding), skew heuristic both directions, zero-channel flooring, all-zero `zeros` flag, non-mutation, and input validation.
 - **[`tests/test_memory_policy.py`](./tests/test_memory_policy.py) (15 tests):** OS `/proc/meminfo` parsing, reserve budget arithmetic, admission boundary enforcement, outstanding allocation tracking, `MemoryPressureError` context, post-commit reserve-breach detection, allocator-growth verification (M1), and live GPU allocation under reserve constraints.
