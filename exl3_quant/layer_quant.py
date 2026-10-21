@@ -279,11 +279,20 @@ def quantize_decoder_layer(
     buf_size_k: int = DEFAULT_BUF_SIZE_K,
     block_size: int = DEFAULT_BLOCK_SIZE,
     memory_policy: Optional[MemoryPolicy] = None,
+    module_names: Optional[List[str]] = None,
 ) -> LayerQuantizationReport:
     """Quantize an entire transformer decoder layer with bounded scratch reuse (P2-11).
 
     Reuses a single `ScratchArena` across all linear projections in the layer,
     synchronizing on the current stream between projections.
+
+    ``module_names`` selects the projections to quantize explicitly. When
+    ``None`` every bias-free ``nn.Linear`` submodule is quantized (the dense
+    llama/qwen2 profile). Hybrid architectures pass their supported table:
+    the Qwen3.5 GatedDeltaNet exposes tiny ``in_proj_a``/``in_proj_b``
+    projections whose output width (``num_value_heads``) is not a multiple of
+    the 128-wide Hadamard block, so those are preserved bit-exact instead
+    (P4-12).
     """
     t_start = time.time()
     if device is None:
@@ -308,26 +317,22 @@ def quantize_decoder_layer(
         tile_encoder = make_reference_tile_encoder(K=K)
 
     # Map of linear projections to quantize
-    module_weights: Dict[str, torch.Tensor] = {}
-    if hasattr(layer, "self_attn"):
-        attn = layer.self_attn
-        if hasattr(attn, "q_proj"):
-            module_weights["self_attn.q_proj"] = attn.q_proj.weight.data
-        if hasattr(attn, "k_proj"):
-            module_weights["self_attn.k_proj"] = attn.k_proj.weight.data
-        if hasattr(attn, "v_proj"):
-            module_weights["self_attn.v_proj"] = attn.v_proj.weight.data
-        if hasattr(attn, "o_proj"):
-            module_weights["self_attn.o_proj"] = attn.o_proj.weight.data
-
-    if hasattr(layer, "mlp"):
-        mlp = layer.mlp
-        if hasattr(mlp, "gate_proj"):
-            module_weights["mlp.gate_proj"] = mlp.gate_proj.weight.data
-        if hasattr(mlp, "up_proj"):
-            module_weights["mlp.up_proj"] = mlp.up_proj.weight.data
-        if hasattr(mlp, "down_proj"):
-            module_weights["mlp.down_proj"] = mlp.down_proj.weight.data
+    available = {
+        name: module
+        for name, module in layer.named_modules()
+        if isinstance(module, nn.Linear) and module.bias is None
+    }
+    if module_names is None:
+        selected = list(available)
+    else:
+        selected = list(module_names)
+        missing = [n for n in selected if n not in available]
+        if missing:
+            raise KeyError(
+                f"requested modules are not bias-free nn.Linear submodules: {missing}"
+            )
+    module_weights: Dict[str, torch.Tensor] = {
+        name: available[name].weight.data for name in selected}
 
     results: Dict[str, QuantizedModuleResult] = {}
     try:

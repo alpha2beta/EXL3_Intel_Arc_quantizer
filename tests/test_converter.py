@@ -54,8 +54,9 @@ _NUM_LAYERS = 2
 # 24/32 hybrid ``linear_attention``/``full_attention`` layer pattern, partial
 # interleaved mrope (`partial_rotary_factor` 0.25), a 1-layer MTP head, and
 # the top-level multimodal token ids. Regression guard: the declared targets
-# must stay deterministically rejected until a contract extension
-# (P4-12/P4-13) exists.
+# must stay deterministically rejected in the DEFAULT (``dense``) mode. The
+# opt-in ``architecture_mode="qwen3_5_text_tower"`` extension (P4-12/P4-13)
+# accepts them; its assertions live in tests/test_hybrid_converter.py.
 _MIMO_V2_6_CONFIG: Dict = {
     "architectures": ["Qwen3_5ForConditionalGeneration"],
     "model_type": "qwen3_5",
@@ -87,7 +88,8 @@ _MIMO_V2_6_CONFIG: Dict = {
 # blocked architecture: hybrid 3:1 ``linear_attention``/``full_attention``
 # layer pattern, a 27-layer ViT tower, partial interleaved mrope, and a 1-layer
 # MTP head. Regression guard: the declared target must stay deterministically
-# rejected until the P4-12/P4-13 contract extension exists.
+# rejected in the DEFAULT (``dense``) mode; the opt-in hybrid mode (P4-12/
+# P4-13) accepts it — see tests/test_hybrid_converter.py.
 _QWEN38_9B_DISTILL_CONFIG: Dict = {
     "architectures": ["Qwen3_5ForConditionalGeneration"],
     "model_type": "qwen3_5",
@@ -361,10 +363,12 @@ class TestConversionConfig(unittest.TestCase):
         `empero-ai/Qwen3.8-9B-Distill` as the replacement declared target).
 
         `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B` and
-        `empero-ai/Qwen3.8-9B-Distill` must remain deterministically rejected —
-        their qwen3_5 hybrid linear-attention + multimodal architecture is
-        outside both the pinned contract and upstream EXL3 — until the
-        P4-12/P4-13 extension track exists.
+        `empero-ai/Qwen3.8-9B-Distill` must remain deterministically rejected
+        by the DEFAULT mode — their qwen3_5 hybrid linear-attention +
+        multimodal architecture is outside the pinned dense contract and
+        upstream EXL3. The opt-in `qwen3_5_text_tower` mode (P4-12/P4-13)
+        converts them; its acceptance is asserted in
+        tests/test_hybrid_converter.py.
         """
         for name, forbidden_key in [
             ("declared_target_mimo", "image_token_id"),

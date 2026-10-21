@@ -222,14 +222,80 @@ class CalibrationTelemetry:
     damping_applied: Dict[str, float] = field(default_factory=dict)
 
 
+def enumerate_linear_modules(layer: nn.Module) -> Dict[str, nn.Linear]:
+    """All bias-free linear submodules keyed by dotted name, in module order.
+
+    Upstream EXL3 quantizes dense linear projections (``torch.nn.Linear`` with no
+    bias) and leaves every other parameter untouched. Enumerating the live
+    module tree (rather than a hard-coded name list) keeps the pipeline correct
+    across architectures: Llama/Qwen2 expose ``self_attn.*``/``mlp.*``;
+    the Qwen3.5 hybrid text tower exposes ``linear_attn.*`` (GatedDeltaNet) in
+    some layers and ``self_attn.*`` in others.
+    """
+    return {
+        name: module
+        for name, module in layer.named_modules()
+        if isinstance(module, nn.Linear) and module.bias is None
+    }
+
+
+def hessian_groups(layer: nn.Module,
+                   modules: Optional[Dict[str, nn.Linear]] = None,
+                   ) -> Dict[str, List[str]]:
+    """Group linear projections that consume the *same* input tensor.
+
+    Returns ``{group_key: [module_name, ...]}`` with the group's first member
+    used as the hook site. Grouping preserves upstream's memory behavior (one
+    Hessian per shared input) instead of accumulating duplicate Hessians.
+
+    Covered structures:
+    * ``self_attn.{q,k,v}_proj`` share the attention input; ``o_proj`` is alone.
+    * ``linear_attn.{in_proj_qkv,in_proj_z,in_proj_b,in_proj_a}`` share the
+      token-mixer input (Qwen3.5 GatedDeltaNet); ``out_proj`` is alone.
+    * ``mlp.{gate,up}_proj`` share the MLP input; ``down_proj`` is alone.
+
+    Any other bias-free linear module gets its own group (never silently
+    dropped), which keeps the collector total for future architectures.
+    """
+    if modules is None:
+        modules = enumerate_linear_modules(layer)
+    groups: Dict[str, List[str]] = {}
+
+    attn_in = [n for n in ("self_attn.q_proj", "self_attn.k_proj",
+                           "self_attn.v_proj") if n in modules]
+    if attn_in:
+        groups["self_attn.input"] = attn_in
+    if "self_attn.o_proj" in modules:
+        groups["self_attn.o_proj"] = ["self_attn.o_proj"]
+
+    lin_in = [n for n in ("linear_attn.in_proj_qkv", "linear_attn.in_proj_z",
+                          "linear_attn.in_proj_b", "linear_attn.in_proj_a")
+              if n in modules]
+    if lin_in:
+        groups["linear_attn.input"] = lin_in
+    if "linear_attn.out_proj" in modules:
+        groups["linear_attn.out_proj"] = ["linear_attn.out_proj"]
+
+    mlp_in = [n for n in ("mlp.gate_proj", "mlp.up_proj") if n in modules]
+    if mlp_in:
+        groups["mlp.input"] = mlp_in
+    if "mlp.down_proj" in modules:
+        groups["mlp.down_proj"] = ["mlp.down_proj"]
+
+    assigned = {name for members in groups.values() for name in members}
+    for name in modules:
+        if name not in assigned:
+            groups[name] = [name]
+    return groups
+
+
 class HessianCollector:
     """Intercepts linear projection inputs and accumulates Hessian second-moments.
 
-    Upstream EXL3 groups projections by shared inputs:
-    1. Attention input: q_proj, k_proj, v_proj share X_attn (d x d)
-    2. Attention output: o_proj takes X_o (d x d)
-    3. MLP input: gate_proj, up_proj share X_mlp (d x d)
-    4. MLP down: down_proj takes X_down (d_mlp x d_mlp)
+    Upstream EXL3 groups projections by shared inputs (see
+    :func:`hessian_groups`). One forward hook per distinct input is registered
+    on the group's first member; :meth:`finalize` maps the accumulated Hessian
+    back to every member that consumes that input.
     """
 
     def __init__(
@@ -237,49 +303,36 @@ class HessianCollector:
         layer: nn.Module,
         device: torch.device,
         dtype: torch.dtype = torch.float32,
+        groups: Optional[Dict[str, List[str]]] = None,
     ):
         self.layer = layer
         self.device = device
         self.dtype = dtype
         self.handles = []
 
+        self.modules = enumerate_linear_modules(layer)
+        self.groups = hessian_groups(layer, self.modules) if groups is None else groups
+        for key, members in self.groups.items():
+            if not members:
+                raise ValueError(f"Hessian group {key!r} has no members")
+            if members[0] not in self.modules:
+                raise ValueError(
+                    f"Hessian group {key!r} representative {members[0]!r} is not "
+                    "a bias-free linear module of this layer")
+
         self.hessians: Dict[str, torch.Tensor] = {}
         self.token_counts: Dict[str, int] = {}
         self._register_hooks()
 
     def _register_hooks(self):
-        # We hook 4 strategic locations to minimize memory:
-        # 1. q_proj input (serves q_proj, k_proj, v_proj)
-        def hook_attn_in(module, input, output):
-            x = input[0].detach()
-            self._accumulate("self_attn.input", x)
-
-        # 2. o_proj input
-        def hook_o_in(module, input, output):
-            x = input[0].detach()
-            self._accumulate("self_attn.o_proj", x)
-
-        # 3. gate_proj input (serves gate_proj, up_proj)
-        def hook_mlp_in(module, input, output):
-            x = input[0].detach()
-            self._accumulate("mlp.input", x)
-
-        # 4. down_proj input
-        def hook_down_in(module, input, output):
-            x = input[0].detach()
-            self._accumulate("mlp.down_proj", x)
-
-        if hasattr(self.layer, "self_attn"):
-            if hasattr(self.layer.self_attn, "q_proj"):
-                self.handles.append(self.layer.self_attn.q_proj.register_forward_hook(hook_attn_in))
-            if hasattr(self.layer.self_attn, "o_proj"):
-                self.handles.append(self.layer.self_attn.o_proj.register_forward_hook(hook_o_in))
-
-        if hasattr(self.layer, "mlp"):
-            if hasattr(self.layer.mlp, "gate_proj"):
-                self.handles.append(self.layer.mlp.gate_proj.register_forward_hook(hook_mlp_in))
-            if hasattr(self.layer.mlp, "down_proj"):
-                self.handles.append(self.layer.mlp.down_proj.register_forward_hook(hook_down_in))
+        # One hook per distinct (shared) input, on the group's first member.
+        for key, members in self.groups.items():
+            def hook(module, input, output, _key=key):
+                if not input:
+                    raise RuntimeError(f"hooked module for group {_key!r} got no input")
+                self._accumulate(_key, input[0].detach())
+            self.handles.append(
+                self.modules[members[0]].register_forward_hook(hook))
 
     def _accumulate(self, key: str, x: torch.Tensor):
         # Flatten batch and sequence dimensions: (B, L, D) -> (B*L, D)
@@ -327,35 +380,22 @@ class HessianCollector:
 
             normalized_hessians[key] = H_norm
 
-        # Map back to all 7 individual projections:
+        # Map each group's Hessian back to every member projection. Members
+        # after the first receive a clone (upstream's q/k/v pattern); the last
+        # member keeps the normalized tensor itself (upstream's o/down pattern).
         out_map: Dict[str, torch.Tensor] = {}
         damp_map: Dict[str, float] = {}
-
-        if "self_attn.input" in normalized_hessians:
-            h_attn = normalized_hessians["self_attn.input"]
-            d_attn = applied_damping["self_attn.input"]
-            out_map["self_attn.q_proj"] = h_attn.clone()
-            out_map["self_attn.k_proj"] = h_attn.clone()
-            out_map["self_attn.v_proj"] = h_attn.clone()
-            damp_map["self_attn.q_proj"] = d_attn
-            damp_map["self_attn.k_proj"] = d_attn
-            damp_map["self_attn.v_proj"] = d_attn
-
-        if "self_attn.o_proj" in normalized_hessians:
-            out_map["self_attn.o_proj"] = normalized_hessians["self_attn.o_proj"]
-            damp_map["self_attn.o_proj"] = applied_damping["self_attn.o_proj"]
-
-        if "mlp.input" in normalized_hessians:
-            h_mlp = normalized_hessians["mlp.input"]
-            d_mlp = applied_damping["mlp.input"]
-            out_map["mlp.gate_proj"] = h_mlp.clone()
-            out_map["mlp.up_proj"] = h_mlp.clone()
-            damp_map["mlp.gate_proj"] = d_mlp
-            damp_map["mlp.up_proj"] = d_mlp
-
-        if "mlp.down_proj" in normalized_hessians:
-            out_map["mlp.down_proj"] = normalized_hessians["mlp.down_proj"]
-            damp_map["mlp.down_proj"] = applied_damping["mlp.down_proj"]
+        for key, members in self.groups.items():
+            if key not in normalized_hessians:
+                continue
+            H = normalized_hessians[key]
+            damp_val = applied_damping[key]
+            for pos, name in enumerate(members):
+                if pos < len(members) - 1:
+                    out_map[name] = H.clone()
+                else:
+                    out_map[name] = H
+                damp_map[name] = damp_val
 
         return out_map, damp_map
 
@@ -367,8 +407,18 @@ def calibrate_layer(
     damping_lambda: float = DEFAULT_DAMPING_LAMBDA,
     memory_policy: Optional[MemoryPolicy] = None,
     zero_floor: float = DEFAULT_ZERO_CHANNEL_FLOOR,
+    layer_runner: Optional[Callable[[nn.Module, torch.Tensor], torch.Tensor]] = None,
+    hessian_groups: Optional[Dict[str, List[str]]] = None,
 ) -> Tuple[Dict[str, torch.Tensor], CalibrationTelemetry]:
-    """Run calibration data through a decoder layer on XPU, returning Hessians and telemetry."""
+    """Run calibration data through a decoder layer on XPU, returning Hessians and telemetry.
+
+    ``layer_runner`` overrides the forward invocation for architectures whose
+    layer signature differs from the dense llama profile (e.g. the Qwen3.5
+    hybrid text tower, whose full-attention layers take partial-mrope
+    ``position_embeddings`` plus a causal mask, and whose linear-attention
+    layers take a padding mask). ``hessian_groups`` overrides the shared-input
+    grouping (see :func:`hessian_groups`).
+    """
     if memory_policy is None:
         memory_policy = MemoryPolicy(reserve_bytes=int(6.0 * (1024**3)))
 
@@ -376,7 +426,8 @@ def calibrate_layer(
     layer.eval()
     layer.to(device=device, dtype=torch.float16)
 
-    collector = HessianCollector(layer, device=device, dtype=torch.float32)
+    collector = HessianCollector(layer, device=device, dtype=torch.float32,
+                                 groups=hessian_groups)
     start_time = time.time()
     total_tokens = 0
     batches = 0
@@ -392,14 +443,17 @@ def calibrate_layer(
                 total_tokens += bsz * seq_len
                 batches += 1
 
-                # Generate matching rotary embeddings
-                head_dim = getattr(layer.self_attn, "head_dim", DEFAULT_HEAD_DIM)
-                pos_emb = make_rotary_embeddings(
-                    seq_len=seq_len, head_dim=head_dim, device=device, dtype=torch.float16
-                )
+                if layer_runner is not None:
+                    _ = layer_runner(layer, x)
+                else:
+                    # Generate matching rotary embeddings
+                    head_dim = getattr(layer.self_attn, "head_dim", DEFAULT_HEAD_DIM)
+                    pos_emb = make_rotary_embeddings(
+                        seq_len=seq_len, head_dim=head_dim, device=device, dtype=torch.float16
+                    )
 
-                # Forward execution on XPU
-                _ = layer(x, position_embeddings=pos_emb)
+                    # Forward execution on XPU
+                    _ = layer(x, position_embeddings=pos_emb)
 
                 if device.type == "xpu":
                     torch.xpu.synchronize(device.index or 0)

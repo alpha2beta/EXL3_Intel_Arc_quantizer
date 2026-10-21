@@ -49,12 +49,25 @@ configuration space* declared in this module:
 Deliberately *not* implemented here (later tasks): real-model qualification
 runs (P3-09+), fractional bitrate recipes (P4-02), MoE / embedding /
 two-sided modes (P4-03..P4-05).
+
+Hybrid extension (P4-12/P4-13): ``architecture_mode="qwen3_5_text_tower"``
+enables text-tower-only conversion of the declared Active Target — a
+``Qwen3_5`` hybrid checkpoint (GatedDeltaNet ``linear_attention`` +
+``full_attention`` layers). Only the biases-free linear projections whose
+widths are multiples of the 128-wide Hadamard block are quantized (the
+exhaustive per-layer table lives in :mod:`exl3_quant.hybrid`); all other
+parameters — GatedDeltaNet state, q/k norms, layer norms, the vision tower,
+and the MTP head — are published bit-exact in per-group
+``qtensors/untouched*.safetensors`` files recorded in the manifest. The mode
+is opt-in: the default ``"dense"`` behavior (and every historical rejection)
+is unchanged.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import platform
 import shutil
 import time
 from dataclasses import dataclass, field
@@ -70,6 +83,7 @@ from exl3_quant.calibration import (
     calibrate_layer,
     make_rotary_embeddings,
 )
+from exl3_quant import hybrid
 from exl3_quant.layer_quant import (
     QuantizedModuleResult,
     quantize_decoder_layer,
@@ -116,7 +130,14 @@ class DiskSpaceError(OSError):
 
 @dataclass
 class ModelGeometry:
-    """Validated geometry extracted from the input model's ``config.json``."""
+    """Validated geometry extracted from the input model's ``config.json``.
+
+    Dense profiles (llama/qwen2/mistral/gemma) use the historical defaults.
+    The Qwen3.5 hybrid text-tower extension (P4-12/P4-13) sets
+    ``architecture_mode='qwen3_5_text_tower'``, nested key prefixes, per-layer
+    ``layer_types``, and the pass-through/multimodal metadata recorded in the
+    manifest.
+    """
 
     architecture: str
     hidden_size: int
@@ -128,19 +149,269 @@ class ModelGeometry:
     rms_norm_eps: float
     vocab_size: int
 
+    # --- P4-12/P4-13 extension (defaults = dense profile) -------------------
+    architecture_mode: str = "dense"
+    layer_types: List[str] = field(default_factory=list)
+    key_prefix: str = "model.layers"
+    text_prefix: str = "model"
+    has_vision: bool = False
+    has_mtp: bool = False
+    tie_word_embeddings: bool = False
+    text_config: Optional[dict] = None
+    hybrid_meta: Dict = field(default_factory=dict)
+
+    @property
+    def is_hybrid(self) -> bool:
+        return self.architecture_mode == "qwen3_5_text_tower"
+
+    def layer_type(self, layer_idx: int) -> str:
+        return self.layer_types[layer_idx] if self.layer_types else "full_attention"
+
+    def quantized_modules(self, layer_idx: int) -> List[str]:
+        if self.is_hybrid:
+            return list(hybrid.quantized_module_names(self.layer_type(layer_idx)))
+        return list(_QUANTIZED_MODULES)
+
+    @property
+    def embed_key(self) -> str:
+        return f"{self.text_prefix}.embed_tokens.weight"
+
+    @property
+    def final_norm_key(self) -> str:
+        return f"{self.text_prefix}.norm.weight"
+
+    @property
+    def lm_head_key(self) -> str:
+        return "lm_head.weight"
+
+    def layer_pass_through_keys(self, layer_idx: int) -> List[str]:
+        """Full checkpoint keys of non-quantized per-layer parameters.
+
+        For the dense profile the layer norms are the only such tensors (they
+        are verified separately via :data:`_NORM_KEYS`), so this returns ``[]``
+        and the historical verification is unchanged. Hybrid layers add the
+        GatedDeltaNet state and q/k norms (bit-exact pass-through, P4-12).
+        """
+        if not self.is_hybrid:
+            return []
+        prefix = f"{self.key_prefix}.{layer_idx}."
+        return [prefix + name
+                for name in hybrid.PASS_THROUGH_MODULE_NAMES[
+                    self.layer_type(layer_idx)]]
+
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise UnsupportedModeError(message)
 
 
-def load_model_geometry(model_dir: Path) -> ModelGeometry:
+#: Architecture modes accepted by :class:`ConversionConfig`.
+ARCHITECTURE_MODES = ("dense", "qwen3_5_text_tower")
+
+
+def _load_qwen35_text_tower_geometry(raw: dict) -> ModelGeometry:
+    """Validate a Qwen3.5 hybrid text tower for text-only conversion (P4-12/P4-13).
+
+    The declared Active Target is a dense (non-MoE) ``qwen3_5`` checkpoint:
+    GatedDeltaNet and full-attention decoder layers, a vision tower, and an MTP
+    head. Only the text-tower linear projections are quantized; vision/MTP are
+    bit-exact pass-through (see ``exl3_quant/hybrid.py``).
+    """
+    archs = [str(a) for a in (raw.get("architectures") or [])]
+    model_type = str(raw.get("model_type", ""))
+    supported = any(a in hybrid.TEXT_TOWER_ARCHITECTURES for a in archs) \
+        or model_type in hybrid.TEXT_TOWER_MODEL_TYPES
+    _require(
+        supported,
+        f"hybrid text-tower mode expects a Qwen3.5 checkpoint "
+        f"(architectures={archs}, model_type={model_type!r}); supported: "
+        f"{list(hybrid.TEXT_TOWER_ARCHITECTURES)}",
+    )
+    _require(
+        not raw.get("quantization_config"),
+        "pre-quantized checkpoints are outside the conversion contract",
+    )
+
+    text = raw.get("text_config")
+    _require(isinstance(text, dict),
+             "qwen3_5 checkpoints require a text_config block for the text tower")
+
+    # MoE variants are a separately scoped extension (P4-05), not this track.
+    moe_keys = ("num_experts", "num_local_experts", "num_experts_per_tok",
+                "moe", "decoder_sparse_step")
+    moe_present = sorted(k for k in moe_keys
+                         if text.get(k) not in (None, [], {}, 0, False))
+    _require(not moe_present,
+             f"MoE qwen3_5 variants are not supported by the text-tower "
+             f"extension (found {moe_present}; MoE is P4-05)")
+
+    core_keys = ("num_hidden_layers", "hidden_size", "intermediate_size",
+                 "num_attention_heads", "vocab_size")
+    missing_core = [k for k in core_keys if k not in text]
+    _require(not missing_core,
+             f"text_config is missing required keys: {missing_core}")
+
+    num_layers = int(text["num_hidden_layers"])
+    # Mirror Qwen3_5TextConfig: absent layer_types are derived from
+    # full_attention_interval (default 4) and legacy names are remapped
+    # (mamba/conv -> linear_attention, attention -> full_attention).
+    layer_types = [str(t) for t in (text.get("layer_types") or [])]
+    if not layer_types:
+        interval = int(text.get("full_attention_interval", 4) or 4)
+        _require(interval >= 1, "full_attention_interval must be >= 1")
+        layer_types = ["linear_attention" if (i + 1) % interval
+                       else "full_attention" for i in range(num_layers)]
+    else:
+        layer_types = [hybrid.LEGACY_LAYER_TYPE_REMAP.get(t, t)
+                       for t in layer_types]
+    _require(len(layer_types) == num_layers,
+             f"layer_types length {len(layer_types)} != num_hidden_layers "
+             f"{num_layers}")
+    unsupported = sorted({t for t in layer_types
+                          if t not in hybrid.SUPPORTED_LAYER_TYPES})
+    _require(not unsupported,
+             f"unsupported hybrid layer types {unsupported}; supported: "
+             f"{list(hybrid.SUPPORTED_LAYER_TYPES)}")
+
+    hidden = int(text["hidden_size"])
+    intermediate = int(text["intermediate_size"])
+    heads = int(text["num_attention_heads"])
+    kv_heads = int(text.get("num_key_value_heads", heads))
+    head_dim = int(text.get("head_dim", hidden // heads))
+    vocab = int(text["vocab_size"])
+    eps = float(text.get("rms_norm_eps", 1e-6))
+
+    _require(kv_heads <= heads, "num_key_value_heads exceeds attention heads")
+    _require(heads % kv_heads == 0,
+             "GQA requires num_attention_heads % num_key_value_heads == 0")
+    _require(head_dim == hidden // heads,
+             "head_dim differing from hidden_size // num_attention_heads is "
+             "outside this text-tower contract")
+    _require(head_dim % 2 == 0, f"head_dim {head_dim} must be even (rotary)")
+    _require(0 < vocab < 2**24, "vocab_size out of supported range")
+
+    # Missing linear-attention fields fall back to the Qwen3_5TextConfig
+    # dataclass defaults so validation mirrors the reference implementation.
+    key_heads = int(text.get("linear_num_key_heads", 16))
+    value_heads = int(text.get("linear_num_value_heads", 32))
+    key_head_dim = int(text.get("linear_key_head_dim", 128))
+    value_head_dim = int(text.get("linear_value_head_dim", 128))
+    _require(key_heads > 0 and value_heads > 0,
+             "linear attention head counts must be positive")
+    _require(value_heads % key_heads == 0,
+             "linear_num_value_heads must be a multiple of linear_num_key_heads")
+    key_dim = key_heads * key_head_dim
+    value_dim = value_heads * value_head_dim
+    _require(int(text.get("linear_conv_kernel_dim", 4)) >= 1,
+             "linear_conv_kernel_dim must be >= 1")
+
+    # Every quantized projection needs its input (k) and output (n) width to be
+    # a multiple of the 128-wide Hadamard block. in_proj_a/in_proj_b are
+    # deliberately excluded (bit-exact pass-through, see hybrid.py).
+    widths = {
+        "hidden_size": hidden,
+        "intermediate_size": intermediate,
+        "attn q width (2 x heads x head_dim)": heads * head_dim * 2,
+        "attn kv width (kv_heads x head_dim)": kv_heads * head_dim,
+        "attn o input (heads x head_dim)": heads * head_dim,
+        "linear value width (value_heads x value_head_dim)": value_dim,
+        "linear qkv width (2 x key_dim + value_dim)": 2 * key_dim + value_dim,
+    }
+    too_narrow = {k: v for k, v in widths.items() if v % HAD_DIM}
+    _require(
+        not too_narrow,
+        f"geometry is not divisible by the {HAD_DIM}-wide Hadamard block: "
+        f"{too_narrow}",
+    )
+
+    rope = text.get("rope_parameters") or {}
+    _require(isinstance(rope, dict),
+             "text_config.rope_parameters must be a mapping when present")
+    # Qwen3_5TextConfig.__post_init__ applies `kwargs.setdefault(
+    # "partial_rotary_factor", 0.25)` for backwards compatibility, so an
+    # unspecified factor behaves as 0.25 in the reference forward.
+    partial = float(rope.get(
+        "partial_rotary_factor", text.get("partial_rotary_factor", 0.25)))
+    rotary_dim = int(head_dim * partial)
+    _require(0 < partial <= 1.0 and rotary_dim % 2 == 0,
+             f"invalid partial_rotary_factor {partial} for head_dim {head_dim}")
+
+    multimodal = {
+        key: raw.get(key)
+        for key in ("image_token_id", "video_token_id",
+                    "vision_start_token_id", "vision_end_token_id")
+        if raw.get(key) is not None
+    }
+    hybrid_meta = {
+        "multimodal": multimodal or None,
+        "vision_config": raw.get("vision_config"),
+        "rope": {
+            "rope_parameters": rope,
+            "rope_theta": rope.get("rope_theta"),
+            "partial_rotary_factor": partial,
+            "rotary_dim": rotary_dim,
+            "mrope_section": rope.get("mrope_section"),
+            "mrope_interleaved": rope.get("mrope_interleaved"),
+        },
+        "norm_semantics": "zero_centered_rmsnorm: y = x_norm * (1 + weight)",
+        "attn_output_gate": bool(text.get("attn_output_gate")),
+        "linear_attention": {
+            "num_key_heads": key_heads,
+            "num_value_heads": value_heads,
+            "key_head_dim": key_head_dim,
+            "value_head_dim": value_head_dim,
+            "key_dim": key_dim,
+            "value_dim": value_dim,
+            "conv_kernel_dim": int(text.get("linear_conv_kernel_dim", 4)),
+            "mamba_ssm_dtype": text.get("mamba_ssm_dtype"),
+            "quantized": list(hybrid.QUANTIZED_MODULES["linear_attention"]),
+            "pass_through": ["linear_attn.in_proj_a.weight",
+                             "linear_attn.in_proj_b.weight",
+                             "linear_attn.conv1d.weight",
+                             "linear_attn.A_log",
+                             "linear_attn.dt_bias",
+                             "linear_attn.norm.weight"],
+        },
+        "mtp_num_hidden_layers": text.get("mtp_num_hidden_layers",
+                                          raw.get("mtp_num_hidden_layers")),
+    }
+
+    return ModelGeometry(
+        architecture="qwen3_5",
+        hidden_size=hidden,
+        intermediate_size=intermediate,
+        num_layers=num_layers,
+        num_heads=heads,
+        num_kv_heads=kv_heads,
+        head_dim=head_dim,
+        rms_norm_eps=eps,
+        vocab_size=vocab,
+        architecture_mode="qwen3_5_text_tower",
+        layer_types=layer_types,
+        key_prefix="model.language_model.layers",
+        text_prefix="model.language_model",
+        has_vision=bool(raw.get("vision_config")),
+        has_mtp=bool(text.get("mtp_num_hidden_layers")
+                     or raw.get("mtp_num_hidden_layers")),
+        tie_word_embeddings=bool(raw.get("tie_word_embeddings", False)),
+        text_config=dict(text),
+        hybrid_meta=hybrid_meta,
+    )
+
+
+def load_model_geometry(model_dir: Path, mode: str = "dense") -> ModelGeometry:
     """Read and validate ``config.json`` *without touching any model weights*."""
     config_path = model_dir / "config.json"
     if not config_path.is_file():
         raise UnsupportedModeError(f"model dir has no config.json: {model_dir}")
     with open(config_path) as f:
         raw = json.load(f)
+
+    if mode == "qwen3_5_text_tower":
+        return _load_qwen35_text_tower_geometry(raw)
+    _require(mode == "dense",
+             f"unknown architecture_mode {mode!r}; supported: "
+             f"{list(ARCHITECTURE_MODES)}")
 
     archs = raw.get("architectures") or []
     arch = ""
@@ -269,6 +540,12 @@ class ConversionConfig:
     checkpoint_interval: int = 1
     min_disk_free_bytes: int = 10 * 1024 * 1024  # 10 MiB safety margin for synthetic/real runs
 
+    # Architecture mode (P4-12/P4-13). "dense" is the historical llama/qwen2
+    # profile; "qwen3_5_text_tower" is the explicit opt-in for the declared
+    # hybrid Active Target (GatedDeltaNet + full-attention text tower; vision
+    # and MTP tensors are bit-exact pass-through, never quantized).
+    architecture_mode: str = "dense"
+
     def __post_init__(self) -> None:
         self.model_dir = str(Path(self.model_dir))
         self.output_dir = str(Path(self.output_dir))
@@ -304,7 +581,15 @@ class ConversionConfig:
             _require(not out_dir.exists() or not any(out_dir.iterdir()),
                      f"output_dir must be empty or not exist: {out_dir}")
 
-        return load_model_geometry(model_dir)
+        _require(self.architecture_mode in ARCHITECTURE_MODES,
+                 f"unknown architecture_mode {self.architecture_mode!r}; "
+                 f"supported: {list(ARCHITECTURE_MODES)}")
+        if self.architecture_mode == "qwen3_5_text_tower":
+            # Fail before any weight byte is read if the pinned reference
+            # implementation (transformers qwen3_5) is unavailable here.
+            hybrid.require_support()
+
+        return load_model_geometry(model_dir, mode=self.architecture_mode)
 
 
 # ---------------------------------------------------------------------------
@@ -372,12 +657,51 @@ class ShardedSafetensorsIndex:
                 keep.append(key)
         return keep
 
+    def pass_through_groups(self, geometry: "ModelGeometry") -> Dict[str, List[str]]:
+        """Partition non-layer tensors into bit-exact pass-through groups (P4-13).
+
+        * ``text`` — text embed / final norm / lm_head (the dense profile's
+          historical :meth:`unchanged_keys` content, byte-identical).
+        * ``vision`` — the multimodal vision tower (``model.visual.*``),
+          preserved, never quantized.
+        * ``mtp`` — the multi-token-prediction head (``mtp.*``), preserved for
+          completeness though unused by text-only inference.
+
+        Each group is written to its own ``qtensors/untouched.*.safetensors``
+        file so no single serialization ever holds all pass-through bytes
+        (the declared target's text group alone is ~4 GiB).
+        """
+        if not geometry.is_hybrid:
+            return {"text": self.unchanged_keys()}
+        text = [k for k in (geometry.embed_key, geometry.final_norm_key)
+                if k in self.weight_map]
+        if geometry.lm_head_key in self.weight_map:
+            text.append(geometry.lm_head_key)
+        return {
+            "text": text,
+            "vision": sorted(k for k in self.weight_map
+                             if k.startswith("model.visual.")),
+            "mtp": sorted(k for k in self.weight_map if k.startswith("mtp.")),
+        }
+
     # -- streaming ----------------------------------------------------------
     def read_tensor(self, key: str) -> torch.Tensor:
         """Materialize exactly one tensor from its shard (mmap-backed)."""
         shard = self.weight_map[key]
         with safe_open(self.model_dir / shard, framework="pt", device="cpu") as f:
             return f.get_tensor(key)
+
+    def read_embedding_rows(self, key: str, rows: torch.Tensor) -> torch.Tensor:
+        """Gather embedding rows for the calibration token ids.
+
+        Reads the table transiently and returns only the gathered rows, so the
+        full embedding (1.9 GiB bf16 for the declared target) is not kept
+        resident for the whole run.
+        """
+        weight = self.read_tensor(key)
+        gathered = weight[rows.to(weight.device)]
+        del weight
+        return gathered
 
     def read_tensors(self, keys: List[str]) -> Dict[str, torch.Tensor]:
         """Materialize only the requested tensors, grouped per shard."""
@@ -392,9 +716,10 @@ class ShardedSafetensorsIndex:
                     out[k] = f.get_tensor(k)
         return out
 
-    def read_layer_tensors(self, layer_idx: int) -> Dict[str, torch.Tensor]:
+    def read_layer_tensors(self, layer_idx: int,
+                           prefix: str = "model.layers") -> Dict[str, torch.Tensor]:
         """Materialize only this layer's tensors, opening each shard once."""
-        keys = self.layer_keys(layer_idx)
+        keys = self.layer_keys(layer_idx, prefix=prefix)
         _require(bool(keys), f"no tensors found for layer {layer_idx}")
         return self.read_tensors(keys)
 
@@ -428,6 +753,9 @@ class LayerConversionEntry:
     elapsed_seconds: float
     rss_kib_before: int
     rss_kib_after: int
+    # P4-12/P4-13: hybrid layer kind + the bit-exact tensors emitted with it
+    layer_type: str = "full_attention"
+    pass_through_keys: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -439,6 +767,8 @@ class ConversionReport:
     unchanged_keys: List[str] = field(default_factory=list)
     device: str = ""
     total_elapsed_seconds: float = 0.0
+    # P4-13: group -> {file, keys, quant_format} for the pass-through files
+    pass_through: Dict[str, dict] = field(default_factory=dict)
 
 
 def _resolve_device(requested: str) -> torch.device:
@@ -448,8 +778,18 @@ def _resolve_device(requested: str) -> torch.device:
 
 
 def _build_layer(geometry: ModelGeometry, tensors: Dict[str, torch.Tensor],
-                 layer_idx: int, device: torch.device) -> TransformerDecoderLayer:
-    """Instantiate a :class:`TransformerDecoderLayer` from streamed tensors."""
+                 layer_idx: int, device: torch.device) -> torch.nn.Module:
+    """Instantiate the decoder layer for this profile from streamed tensors.
+
+    Dense profiles get the historical :class:`TransformerDecoderLayer`;
+    hybrid text-tower layers are built by the pinned reference implementation
+    (``transformers.models.qwen3_5``) so calibration matches the model math.
+    """
+    prefix = f"{geometry.key_prefix}.{layer_idx}."
+    if geometry.is_hybrid:
+        return hybrid.build_layer(
+            hybrid.make_text_config(geometry.text_config),
+            layer_idx, tensors, prefix=geometry.key_prefix, device=device)
     layer = TransformerDecoderLayer(
         hidden_size=geometry.hidden_size,
         intermediate_size=geometry.intermediate_size,
@@ -459,7 +799,6 @@ def _build_layer(geometry: ModelGeometry, tensors: Dict[str, torch.Tensor],
     )
     layer.self_attn.head_dim = geometry.head_dim
     layer.to(device=device, dtype=torch.float16)
-    prefix = f"model.layers.{layer_idx}."
     for name, module in [(m, getattr_path(layer, m)) for m in _QUANTIZED_MODULES]:
         key = prefix + name + ".weight"
         _require(key in tensors, f"layer {layer_idx} is missing required tensor {key}")
@@ -502,8 +841,30 @@ def _build_quantized_layer(
     layer_idx: int,
     device: torch.device,
     K: int,
-) -> TransformerDecoderLayer:
-    """Instantiate a :class:`TransformerDecoderLayer` from decoded quantized tensors (P3-04)."""
+) -> torch.nn.Module:
+    """Instantiate the decoder layer from decoded quantized tensors (P3-04).
+
+    Projections are decoded from their trellis storage; every remaining
+    parameter (the two layer norms, and for hybrid layers the bit-exact
+    pass-through state — GatedDeltaNet conv/A_log/dt_bias/norm or q/k norms)
+    is taken verbatim from the artifact.
+    """
+    prefix = f"{geometry.key_prefix}.{layer_idx}."
+    modules = geometry.quantized_modules(layer_idx)
+
+    if geometry.is_hybrid:
+        decoded: Dict[str, torch.Tensor] = {}
+        for name in modules:
+            base = prefix + name
+            w = decode_weight_from_storage(
+                tensors[f"{base}.trellis"], tensors[f"{base}.suh"],
+                tensors[f"{base}.svh"], K=K)
+            decoded[f"{name}.weight"] = w.T.contiguous()
+        return hybrid.build_layer(
+            hybrid.make_text_config(geometry.text_config),
+            layer_idx, tensors, prefix=geometry.key_prefix,
+            device=device, decoded=decoded)
+
     layer = TransformerDecoderLayer(
         hidden_size=geometry.hidden_size,
         intermediate_size=geometry.intermediate_size,
@@ -513,8 +874,7 @@ def _build_quantized_layer(
     )
     layer.self_attn.head_dim = geometry.head_dim
     layer.to(device=device, dtype=torch.float16)
-    prefix = f"model.layers.{layer_idx}."
-    for name in _QUANTIZED_MODULES:
+    for name in modules:
         base = prefix + name
         trellis = tensors[f"{base}.trellis"]
         suh = tensors[f"{base}.suh"]
@@ -581,12 +941,21 @@ def atomic_save_safetensors(tensors: Dict[str, torch.Tensor], target_path: Path)
     os.replace(str(tmp_path), str(target_path))
 
 
-def verify_layer_checkpoint(layer_path: Path, layer_idx: int) -> bool:
+def verify_layer_checkpoint(layer_path: Path, layer_idx: int,
+                            expected_modules: Optional[List[str]] = None,
+                            key_prefix: str = "model.layers",
+                            expected_extra_keys: Optional[List[str]] = None) -> bool:
     """Verify that a layer's .safetensors artifact is complete and valid (P3-05).
 
     Returns True if valid. Raises CorruptedCheckpointError if file exists but is corrupted/truncated.
     Returns False if file does not exist.
+
+    ``expected_modules``/``key_prefix``/``expected_extra_keys`` generalize the
+    check to hybrid layers (P4-12), whose projection table differs and whose
+    artifact also carries the bit-exact pass-through tensors; the defaults are
+    exactly the dense-profile expectations.
     """
+    modules = _QUANTIZED_MODULES if expected_modules is None else expected_modules
     layer_path = Path(layer_path)
     if not layer_path.is_file():
         return False
@@ -596,18 +965,24 @@ def verify_layer_checkpoint(layer_path: Path, layer_idx: int) -> bool:
         with safe_open(str(layer_path), framework="pt", device="cpu") as f:
             keys = set(f.keys())
             expected_suffixes = (".trellis", ".suh", ".svh", ".mul1")
-            for mod in _QUANTIZED_MODULES:
-                base = f"model.layers.{layer_idx}.{mod}"
+            for mod in modules:
+                base = f"{key_prefix}.{layer_idx}.{mod}"
                 for sfx in expected_suffixes:
                     if f"{base}{sfx}" not in keys:
                         raise CorruptedCheckpointError(
                             f"layer {layer_idx} checkpoint missing tensor: {base}{sfx}"
                         )
             for tail in _NORM_KEYS:
-                norm_key = f"model.layers.{layer_idx}.{tail}"
+                norm_key = f"{key_prefix}.{layer_idx}.{tail}"
                 if norm_key not in keys:
                     raise CorruptedCheckpointError(
                         f"layer {layer_idx} checkpoint missing norm tensor: {norm_key}"
+                    )
+            for extra in expected_extra_keys or ():
+                if extra not in keys:
+                    raise CorruptedCheckpointError(
+                        f"layer {layer_idx} checkpoint missing pass-through "
+                        f"tensor: {extra}"
                     )
             return True
     except Exception as e:
@@ -644,6 +1019,15 @@ def _validate_resume(config: ConversionConfig, geometry: ModelGeometry,
         mismatches.append(f"architecture: config has {geometry.architecture!r}, manifest has {manifest.get('architecture')!r}")
     if manifest.get("num_layers") != geometry.num_layers:
         mismatches.append(f"num_layers: config has {geometry.num_layers}, manifest has {manifest.get('num_layers')}")
+    manifest_mode = manifest.get("architecture_mode", "dense")
+    if manifest_mode != config.architecture_mode:
+        mismatches.append(
+            f"architecture_mode: config has {config.architecture_mode!r}, "
+            f"manifest has {manifest_mode!r}")
+    if geometry.is_hybrid and manifest.get("layer_types") != geometry.layer_types:
+        mismatches.append(
+            "layer_types: config text_config and manifest disagree "
+            f"(manifest has {manifest.get('layer_types')!r})")
 
     if mismatches:
         raise IncompatibleResumeError(
@@ -703,34 +1087,61 @@ def convert_model(
         for _ in range(config.num_calibration_rows)
     ]
 
-    # ---- unchanged components: fp16 pass-through (format contract) ---------
-    unchanged_keys = index.unchanged_keys()
-    say(f"unchanged (pass-through) components: {len(unchanged_keys)}")
-
-    embed_key = "model.embed_tokens.weight"
-    _require(embed_key in index.weight_map,
-             "checkpoint lacks model.embed_tokens.weight")
-    embed_weight = index.read_tensor(embed_key)
-    embed = torch.nn.Embedding(embed_weight.shape[0], embed_weight.shape[1])
-    embed.weight.data.copy_(embed_weight)
-    del embed_weight
-    embed.to(device=device, dtype=torch.float16)
-
-    pos_emb = make_rotary_embeddings(seq_len=config.seq_len,
-                                     head_dim=geometry.head_dim,
-                                     device=device, dtype=torch.float16)
+    # ---- pass-through groups: bit-exact, atomically published (P4-13) ------
+    # Dense profile: one group ("text") identical to the historical
+    # unchanged_keys() content. Hybrid: text + vision + MTP, each in its own
+    # file so no serialization ever holds all pass-through bytes at once.
+    groups = index.pass_through_groups(geometry)
+    group_files = {"text": "untouched.safetensors",
+                   "vision": "untouched.vision.safetensors",
+                   "mtp": "untouched.mtp.safetensors"}
+    say("pass-through groups: " + ", ".join(
+        f"{name}={len(keys)}" for name, keys in groups.items() if keys))
 
     report = ConversionReport(geometry=geometry,
-                              unchanged_keys=unchanged_keys,
+                              unchanged_keys=list(groups["text"]),
                               device=str(device))
     rss_start = read_rss_kib()
+    for group_name, keys in groups.items():
+        if not keys:
+            continue
+        target = qt_dir / group_files[group_name]
+        if not (config.resume and target.is_file()):
+            payload = index.read_tensors(keys)
+            atomic_save_safetensors(payload, target)
+            del payload
+        report.pass_through[group_name] = {
+            "file": f"qtensors/{group_files[group_name]}",
+            "keys": list(keys),
+            "quant_format": "source-dtype",
+            "unchanged": True,
+        }
+    say(f"unchanged (pass-through) components: {len(report.unchanged_keys)}")
 
-    # Self-contained output: copy unchanged pass-through tensors verbatim (atomic)
-    untouched_file = qt_dir / "untouched.safetensors"
-    if not (config.resume and untouched_file.is_file()):
-        unchanged_tensors = index.read_tensors(unchanged_keys)
-        atomic_save_safetensors(unchanged_tensors, untouched_file)
-        del unchanged_tensors
+    embed_key = geometry.embed_key
+    _require(embed_key in index.weight_map,
+             f"checkpoint lacks {embed_key}")
+
+    # -- forward runner: dense profile keeps the pinned rotary invocation,
+    #    hybrid layers use the reference qwen3_5 forward (partial mrope + causal
+    #    mask on full-attention blocks, padding-mask slot on linear blocks).
+    if geometry.is_hybrid:
+        pos_emb = None
+        runner = hybrid.make_calibration_runner(
+            hybrid.make_text_config(geometry.text_config), device)
+    else:
+        pos_emb = make_rotary_embeddings(seq_len=config.seq_len,
+                                         head_dim=geometry.head_dim,
+                                         device=device, dtype=torch.float16)
+
+        def runner(layer: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+            return layer(x, position_embeddings=pos_emb)
+
+    def embed_rows() -> List[torch.Tensor]:
+        """Gather the calibration token rows only (table read transiently)."""
+        with torch.no_grad():
+            return [index.read_embedding_rows(embed_key, row)
+                    .to(device=device, dtype=torch.float16) for row in rows]
 
     # ---- resume detection & validation (P3-04, P3-07) -----------------------
     completed_layers: List[int] = []
@@ -747,7 +1158,11 @@ def convert_model(
             # Check consecutive completed layers on disk
             for idx in range(geometry.num_layers):
                 layer_file = qt_dir / f"model.layers.{idx}.safetensors"
-                if verify_layer_checkpoint(layer_file, idx):
+                if verify_layer_checkpoint(
+                        layer_file, idx,
+                        expected_modules=geometry.quantized_modules(idx),
+                        key_prefix=geometry.key_prefix,
+                        expected_extra_keys=geometry.layer_pass_through_keys(idx)):
                     completed_layers.append(idx)
                 else:
                     break
@@ -768,6 +1183,8 @@ def convert_model(
                         elapsed_seconds=entry_data["elapsed_seconds"],
                         rss_kib_before=entry_data["rss_kib_before"],
                         rss_kib_after=entry_data["rss_kib_after"],
+                        layer_type=entry_data.get("layer_type", "full_attention"),
+                        pass_through_keys=list(entry_data.get("pass_through_keys", [])),
                     ))
                 report.layers = entries
                 report.total_elapsed_seconds = existing_manifest.get("total_elapsed_seconds", 0.0)
@@ -792,13 +1209,14 @@ def convert_model(
                         elapsed_seconds=entry_data["elapsed_seconds"],
                         rss_kib_before=entry_data["rss_kib_before"],
                         rss_kib_after=entry_data["rss_kib_after"],
+                        layer_type=entry_data.get("layer_type", "full_attention"),
+                        pass_through_keys=list(entry_data.get("pass_through_keys", [])),
                     ))
 
     # ---- running calibration state restoration or replay --------------------
     state_file = qt_dir / "calibration_state.pt"
     if resume_from_layer == 0:
-        with torch.no_grad():
-            hidden_states = [embed(row.to(device)) for row in rows]
+        hidden_states = embed_rows()
     else:
         loaded_state = False
         if state_file.is_file():
@@ -816,11 +1234,11 @@ def convert_model(
         if not loaded_state:
             say(f"replaying calibration state through layers 0..{resume_from_layer - 1}")
             with torch.no_grad():
-                hidden_states = [embed(row.to(device)) for row in rows]
+                hidden_states = embed_rows()
                 for l_idx in range(resume_from_layer):
                     tensors = load_file(str(qt_dir / f"model.layers.{l_idx}.safetensors"))
                     prev_layer = _build_quantized_layer(geometry, tensors, l_idx, device, K=config.K)
-                    hidden_states = [prev_layer(x, position_embeddings=pos_emb) for x in hidden_states]
+                    hidden_states = [runner(prev_layer, x) for x in hidden_states]
                     del tensors, prev_layer
 
     for layer_idx in range(resume_from_layer, geometry.num_layers):
@@ -833,9 +1251,21 @@ def convert_model(
             fault_injector("before_calibration", layer_idx)
 
         # P3-03: only this layer's tensors are materialized
-        tensors = index.read_layer_tensors(layer_idx)
-        norm_weights = {tail: tensors[f"model.layers.{layer_idx}.{tail}"]
+        prefix = f"{geometry.key_prefix}.{layer_idx}."
+        tensors = index.read_layer_tensors(layer_idx, prefix=geometry.key_prefix)
+        norm_weights = {tail: tensors[f"{prefix}{tail}"]
                         for tail in _NORM_KEYS}
+        # P4-12/P4-13: parameters that are neither quantized projections nor
+        # the two layer norms (GatedDeltaNet state, q/k norms, ...) are
+        # emitted bit-exact alongside the quantized tensors. The dense profile
+        # keeps its historical key set exactly (nothing else is emitted).
+        norm_key_set = {f"{prefix}{tail}" for tail in _NORM_KEYS}
+        quantized_key_set = {f"{prefix}{name}.weight"
+                             for name in geometry.quantized_modules(layer_idx)}
+        extra_tensors = (
+            {k: v for k, v in tensors.items()
+             if k not in quantized_key_set and k not in norm_key_set}
+            if geometry.is_hybrid else {})
         layer = _build_layer(geometry, tensors, layer_idx, device)
         del tensors
 
@@ -847,6 +1277,7 @@ def convert_model(
             device=device,
             damping_lambda=config.damping_lambda,
             zero_floor=config.zero_floor,
+            layer_runner=runner,
         )
 
         if fault_injector is not None:
@@ -863,6 +1294,7 @@ def convert_model(
             K=config.K,
             device=device,
             skip_g_scale=config.skip_g_scale,
+            module_names=list(geometry.quantized_modules(layer_idx)),
         )
         del hessians
 
@@ -876,16 +1308,23 @@ def convert_model(
         # -- step 4: advance state through the QUANTIZED module --------------
         # Re-forwards the *same pre-layer* hidden states (upstream semantics).
         with torch.no_grad():
-            hidden_states = [layer(x, position_embeddings=pos_emb)
-                             for x in hidden_states]
+            hidden_states = [runner(layer, x) for x in hidden_states]
 
         if fault_injector is not None:
             fault_injector("before_publish", layer_idx)
 
         # -- per-layer working-dir artifact (upstream qtensors layout) -------
         emitted, _storage = build_layer_tensors(
-            results, layer_idx=layer_idx, norm_weights=norm_weights)
-        atomic_save_safetensors(emitted, qt_dir / f"model.layers.{layer_idx}.safetensors")
+            results, layer_idx=layer_idx, prefix=geometry.key_prefix,
+            norm_weights=norm_weights, extra_tensors=extra_tensors,
+            preserve_source_dtype=geometry.is_hybrid)
+        layer_file = qt_dir / f"model.layers.{layer_idx}.safetensors"
+        atomic_save_safetensors(emitted, layer_file)
+        verify_layer_checkpoint(
+            layer_file, layer_idx,
+            expected_modules=geometry.quantized_modules(layer_idx),
+            key_prefix=geometry.key_prefix,
+            expected_extra_keys=sorted(extra_tensors))
 
         # Save calibration state atomically
         state_payload = {
@@ -915,6 +1354,8 @@ def convert_model(
             elapsed_seconds=time.time() - t_layer,
             rss_kib_before=layer_rss_before,
             rss_kib_after=read_rss_kib(),
+            layer_type=geometry.layer_type(layer_idx),
+            pass_through_keys=sorted(extra_tensors),
         )
         report.layers.append(entry)
         say(f"[layer {layer_idx}] done: proxy_loss={entry.proxy_loss:.4e} "
@@ -941,16 +1382,28 @@ def _write_manifest(out_dir: Path, report: ConversionReport,
                     config: ConversionConfig,
                     status: str = "completed") -> None:
     """Merged ``quantization_config.json`` + unchanged-component pass-through (atomic)."""
+    geometry = report.geometry
     tensor_storage: Dict[str, dict] = {}
     for entry in report.layers:
         for module_key in entry.module_keys:
-            tensor_storage[f"model.layers.{entry.layer_index}.{module_key}"] = {
+            tensor_storage[f"{geometry.key_prefix}.{entry.layer_index}.{module_key}"] = {
                 "quant_format": "exl3",
                 "bits_per_weight": config.K,
                 "codebook": config.cb,
             }
-    unchanged = {k: {"quant_format": "fp16", "unchanged": True}
-                 for k in report.unchanged_keys}
+    if geometry.is_hybrid:
+        # Every pass-through group is recorded with its file and source dtype;
+        # per-layer pass-through keys are recorded on their layer entry.
+        for group_name, info in report.pass_through.items():
+            for key in info["keys"]:
+                tensor_storage[key] = {
+                    "quant_format": "source-dtype",
+                    "unchanged": True,
+                    "pass_through_group": group_name,
+                }
+    else:
+        for key in report.unchanged_keys:
+            tensor_storage[key] = {"quant_format": "fp16", "unchanged": True}
     manifest = {
         "status": status,
         "completed_layers": [e.layer_index for e in report.layers],
@@ -958,8 +1411,11 @@ def _write_manifest(out_dir: Path, report: ConversionReport,
         "quant_method": "exl3",
         "bits": config.K,
         "codebook": config.cb,
-        "architecture": report.geometry.architecture,
-        "num_layers": report.geometry.num_layers,
+        "architecture": geometry.architecture,
+        "architecture_mode": config.architecture_mode,
+        "key_prefix": geometry.key_prefix,
+        "num_layers": geometry.num_layers,
+        "layer_types": geometry.layer_types,
         "device": report.device,
         "calibration": {
             "num_rows": config.num_calibration_rows,
@@ -971,11 +1427,30 @@ def _write_manifest(out_dir: Path, report: ConversionReport,
             "skip_g_scale": config.skip_g_scale,
             "corpus": "synthetic-deterministic (real corpus wiring is P3-09)",
         },
-        "tensor_storage": {**tensor_storage, **unchanged},
+        "pass_through": report.pass_through,
+        "hybrid": (None if not geometry.is_hybrid else {
+            "text_tower_only": True,
+            "multimodal": geometry.hybrid_meta.get("multimodal"),
+            "vision_config": geometry.hybrid_meta.get("vision_config"),
+            "mtp_num_hidden_layers": geometry.hybrid_meta.get("mtp_num_hidden_layers"),
+            "rope": geometry.hybrid_meta.get("rope"),
+            "norm_semantics": geometry.hybrid_meta.get("norm_semantics"),
+            "attn_output_gate": geometry.hybrid_meta.get("attn_output_gate"),
+            "linear_attention": geometry.hybrid_meta.get("linear_attention"),
+            "reference_forward": hybrid.environment(),
+        }),
+        "environment": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "torch": torch.__version__,
+        },
+        "tensor_storage": tensor_storage,
         "layers": [
             {
                 "layer_index": e.layer_index,
+                "layer_type": e.layer_type,
                 "modules": e.module_keys,
+                "pass_through_keys": e.pass_through_keys,
                 "quantized_tensors": e.quantized_tensors,
                 "proxy_loss": e.proxy_loss,
                 "normalized_proxy_loss": e.normalized_proxy_loss,

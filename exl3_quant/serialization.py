@@ -89,8 +89,20 @@ def build_layer_tensors(
     layer_idx: int = 0,
     prefix: str = "model.layers",
     norm_weights: Optional[Dict[str, torch.Tensor]] = None,
+    extra_tensors: Optional[Dict[str, torch.Tensor]] = None,
+    preserve_source_dtype: bool = False,
 ) -> Tuple[Dict[str, torch.Tensor], Dict[str, Any]]:
-    """Build the exact dictionary of tensors and metadata matching EXL3 safetensors schema."""
+    """Build the exact dictionary of tensors and metadata matching EXL3 safetensors schema.
+
+    ``extra_tensors`` adds full-keyed bit-exact pass-through tensors (hybrid
+    layers' GatedDeltaNet state and q/k norms, P4-12); they are written
+    verbatim with their source dtype and collide-checked against the emitted
+    quantized/norm keys. ``preserve_source_dtype=True`` additionally keeps the
+    layer norms in their source dtype instead of casting to fp16 — required
+    for the bit-exact pass-through contract of the hybrid text-tower mode
+    (P4-13); the dense profile's historical fp16 normalization is unchanged
+    when it is ``False``.
+    """
     tensors: Dict[str, torch.Tensor] = {}
     tensor_storage: Dict[str, Any] = {}
     layer_prefix = f"{prefix}.{layer_idx}" if prefix else f"layers.{layer_idx}"
@@ -143,7 +155,17 @@ def build_layer_tensors(
     if norm_weights:
         for norm_name, w in norm_weights.items():
             key = f"{layer_prefix}.{norm_name}"
-            tensors[key] = w.detach().cpu().to(torch.float16)
+            cpu_w = w.detach().cpu()
+            tensors[key] = cpu_w if preserve_source_dtype \
+                else cpu_w.to(torch.float16)
+
+    # Bit-exact pass-through tensors (full keys), never cast, never reordered
+    if extra_tensors:
+        for key, w in extra_tensors.items():
+            if key in tensors:
+                raise ValueError(
+                    f"pass-through tensor collides with an emitted tensor: {key}")
+            tensors[key] = w.detach().cpu()
 
     return tensors, tensor_storage
 
