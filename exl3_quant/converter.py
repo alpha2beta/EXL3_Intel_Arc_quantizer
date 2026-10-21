@@ -121,10 +121,16 @@ def load_model_geometry(model_dir: Path) -> ModelGeometry:
         "decoder-only models are covered by the pinned contract",
     )
 
-    # Unsupported structural modes: MoE, vision/multimodal, MTP, pre-quantized
+    # Unsupported structural modes: MoE, vision/multimodal, MTP, pre-quantized.
+    # The MTP and multimodal token-id keys harden against the declared active
+    # targets `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B` and
+    # `empero-ai/Qwen3.8-9B-Distill` (sibling qwen3_5 distills, config.json
+    # verified 2026-10-21), which carry them at top level.
     forbidden_keys = (
         "num_local_experts", "num_experts", "moe", "vision_config",
-        "text_config", "mtp_num_heads", "quantization_config",
+        "text_config", "mtp_num_heads", "mtp_num_hidden_layers",
+        "quantization_config", "image_token_id", "video_token_id",
+        "vision_start_token_id", "vision_end_token_id",
     )
     present = sorted(k for k in forbidden_keys
                      if raw.get(k) not in (None, [], {}))
@@ -132,6 +138,20 @@ def load_model_geometry(model_dir: Path) -> ModelGeometry:
         not present,
         f"unsupported model features present in config: {present}",
     )
+
+    # Hybrid attention: every decoder layer must be standard full attention.
+    # `layer_types` mixes softmax-attention with linear-attention (Mamba-style
+    # SSM) layers in the declared target's architecture; only the dense full-
+    # attention decoder is covered by upstream EXL3 and this port.
+    layer_types = raw.get("layer_types")
+    if layer_types:
+        non_full = sorted({str(t) for t in layer_types
+                           if t != "full_attention"})
+        _require(
+            not non_full,
+            f"hybrid attention layer types {non_full} are outside the "
+            "bounded conversion contract (only full_attention is supported)",
+        )
 
     hidden = int(raw["hidden_size"])
     intermediate = int(raw["intermediate_size"])

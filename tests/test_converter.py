@@ -43,6 +43,90 @@ _TEST_ROOT = Path("/tmp/opencode/exl3_converter_tests")
 _SHARDS = 2
 _NUM_LAYERS = 2
 
+# Structural replica of the declared active targets (owner decisions
+# 2026-10-21): `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B` and its sibling
+# `empero-ai/Qwen3.8-9B-Distill` — see `_MIMO_V2_6_CONFIG` and
+# `_QWEN38_9B_DISTILL_CONFIG` below.
+# Real values are retained (hidden 4096, 16/4 heads, head_dim 256,
+# intermediate 12288, vocab 248320 < 2**24) so the only rejection reasons are
+# the ones that matter: LLM+vision hybrid architecture ("qwen3_5",
+# ForConditionalGeneration), a 27-layer ViT tower under ``text_config``, a
+# 24/32 hybrid ``linear_attention``/``full_attention`` layer pattern, partial
+# interleaved mrope (`partial_rotary_factor` 0.25), a 1-layer MTP head, and
+# the top-level multimodal token ids. Regression guard: the declared targets
+# must stay deterministically rejected until a contract extension
+# (P4-12/P4-13) exists.
+_MIMO_V2_6_CONFIG: Dict = {
+    "architectures": ["Qwen3_5ForConditionalGeneration"],
+    "model_type": "qwen3_5",
+    "image_token_id": 248056,
+    "video_token_id": 248057,
+    "vision_start_token_id": 248053,
+    "vision_config": {"depth": 27, "hidden_size": 1152,
+                      "num_attention_heads": 16},
+    "text_config": {
+        "hidden_size": 4096,
+        "num_hidden_layers": 32,
+        "num_attention_heads": 16,
+        "num_key_value_heads": 4,
+        "head_dim": 256,
+        "intermediate_size": 12288,
+        "vocab_size": 248320,
+        "linear_conv_kernel_dim": 4,
+        "linear_key_head_dim": 128,
+        "mtp_num_hidden_layers": 1,
+        "partial_rotary_factor": 0.25,
+        "rope_parameters": {"mrope_interleaved": True},
+        "layer_types": (["linear_attention"] * 3 + ["full_attention"]) * 8,
+    },
+}
+
+# Structural replica of the DECLARED ACTIVE TARGET
+# (`empero-ai/Qwen3.8-9B-Distill`, config.json verified 2026-10-21), a sibling
+# qwen3_5 distill of `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B` with the same
+# blocked architecture: hybrid 3:1 ``linear_attention``/``full_attention``
+# layer pattern, a 27-layer ViT tower, partial interleaved mrope, and a 1-layer
+# MTP head. Regression guard: the declared target must stay deterministically
+# rejected until the P4-12/P4-13 contract extension exists.
+_QWEN38_9B_DISTILL_CONFIG: Dict = {
+    "architectures": ["Qwen3_5ForConditionalGeneration"],
+    "model_type": "qwen3_5",
+    "image_token_id": 248056,
+    "video_token_id": 248057,
+    "vision_start_token_id": 248053,
+    "vision_end_token_id": 248054,
+    "vision_config": {"depth": 27, "hidden_size": 1152,
+                      "num_attention_heads": 16, "out_hidden_size": 4096,
+                      "patch_size": 16, "spatial_merge_size": 2},
+    "text_config": {
+        "hidden_size": 4096,
+        "num_hidden_layers": 32,
+        "num_attention_heads": 16,
+        "num_key_value_heads": 4,
+        "head_dim": 256,
+        "intermediate_size": 12288,
+        "vocab_size": 248320,
+        "full_attention_interval": 4,
+        "linear_conv_kernel_dim": 4,
+        "linear_key_head_dim": 128,
+        "linear_num_key_heads": 16,
+        "linear_num_value_heads": 32,
+        "linear_value_head_dim": 128,
+        "mamba_ssm_dtype": "float32",
+        "model_type": "qwen3_5_text",
+        "mtp_num_hidden_layers": 1,
+        "mtp_use_dedicated_embeddings": False,
+        "max_position_embeddings": 262144,
+        "attn_output_gate": True,
+        "rope_parameters": {"mrope_interleaved": True,
+                            "mrope_section": [11, 11, 10],
+                            "rope_theta": 10000000,
+                            "partial_rotary_factor": 0.25},
+        "layer_types": (["linear_attention"] * 3 + ["full_attention"]) * 8,
+    },
+}
+
+
 
 def _fresh(path: Path) -> Path:
     if path.exists():
@@ -169,6 +253,15 @@ class TestConversionConfig(unittest.TestCase):
             "sliding_window": {"sliding_window": 4096},
             "single_layer_zero": {"num_hidden_layers": 0},
             "odd_head_dim": {"head_dim": 48},
+            "hybrid_layer_types": {"layer_types": ["linear_attention",
+                                                   "linear_attention",
+                                                   "full_attention"]},
+            "mtp_hidden_layers": {"mtp_num_hidden_layers": 1},
+            "multimodal_token_ids": {"image_token_id": 248056,
+                                     "video_token_id": 248057,
+                                     "vision_start_token_id": 248053},
+            "declared_target_mimo": _MIMO_V2_6_CONFIG,
+            "declared_target_qwen38": _QWEN38_9B_DISTILL_CONFIG,
         }
         for name, overrides in variants.items():
             d = _fresh(_TEST_ROOT / f"variant_{name}")
@@ -247,6 +340,11 @@ class TestConversionConfig(unittest.TestCase):
             ("sliding_window", "sliding window attention"),
             ("single_layer_zero", "no layers"),
             ("odd_head_dim", "head_dim != hidden // heads"),
+            ("hybrid_layer_types", "hybrid linear-attention layer types"),
+            ("mtp_hidden_layers", "MTP hidden layer count"),
+            ("multimodal_token_ids", "top-level multimodal token ids"),
+            ("declared_target_mimo", "declared target MiMo-V2.6 full shape"),
+            ("declared_target_qwen38", "declared target Qwen3.8-9B full shape"),
         ]
         for kind, label in cases:
             with self.subTest(label=label):
@@ -256,6 +354,37 @@ class TestConversionConfig(unittest.TestCase):
                 )
                 with self.assertRaises(conv.UnsupportedModeError):
                     cfg.validate()
+
+    def test_declared_target_mimo_is_rejected(self):
+        """Regression guard for the declared Active Targets (owner decisions
+        2026-10-21: "Keep MiMo, flag as blocked"; then the sibling distill
+        `empero-ai/Qwen3.8-9B-Distill` as the replacement declared target).
+
+        `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B` and
+        `empero-ai/Qwen3.8-9B-Distill` must remain deterministically rejected —
+        their qwen3_5 hybrid linear-attention + multimodal architecture is
+        outside both the pinned contract and upstream EXL3 — until the
+        P4-12/P4-13 extension track exists.
+        """
+        for name, forbidden_key in [
+            ("declared_target_mimo", "image_token_id"),
+            ("declared_target_qwen38", "vision_end_token_id"),
+        ]:
+            with self.subTest(declared_target=name):
+                d = self.variant_dirs[name]
+                cfg = conv.ConversionConfig(
+                    model_dir=str(d),
+                    output_dir=str(_TEST_ROOT / "out_unused"))
+                try:
+                    cfg.validate()
+                except conv.UnsupportedModeError as exc:
+                    # The architecture check is the first line of defense; the
+                    # error must name the offending architecture, not fail
+                    # obliquely.
+                    self.assertIn("Qwen3_5ForConditionalGeneration", str(exc))
+                    self.assertIn("dense llama/qwen2/mistral/gemma", str(exc))
+                else:  # pragma: no cover - guarded by variants subTest
+                    self.fail(f"declared target {name} was not rejected")
 
     def test_rejects_unsupported_calibration_bounds(self):
         for field, value, label in [
