@@ -546,6 +546,41 @@ Full-model attempt approved by owner decision (2026-10-21): launch now; wire the
 
 ---
 
+### Step 26 [2026-10-21 15:35:00 +0200]: P3-09 Run Aborted by the Memory Policy — Diagnosed, Fixed, Relaunched (`cff5e35`)
+
+**Attempt 1 (15:14:11) aborted 65 s into layer 0.** Evidence bundle: `/home/yanchun/p3_09_evidence/run_attempt1_aborted.log`; the input checksums it captured are valid and re-used by attempt 2 (`model.safetensors` sha256 `90d46f174c3cfc0d29a782f49402d7474f46c035df29afd0c815240427f6f062`, 19,306,305,296 bytes; `config.json` `6402b826…`; corpus `7d9d778e…`; `tokenizer.json` `5f9e4d49…`).
+
+```
+MemoryPressureError: memory-pressure abort [K=2 B=1 single-buffer ceiling]:
+need 8.0 MiB but only 0 B usable (binding available 9.60 GiB, reserve 6.00 GiB;
+outstanding 3.67 GiB already committed)
+```
+
+**Diagnosis (measured, not guessed).** The P0-20 admission policy binds on `min(device_free, MemAvailable)` minus the 6 GiB reserve minus the live XPU allocation total. On this device the counters behave asymmetrically (measured with a dedicated probe):
+
+| action | `MemAvailable` | `device_free` | `torch.xpu.memory_allocated` |
+|---|---|---|---|
+| idle | 22.17 GiB | 12.78 GiB | 0 |
+| +2 GiB XPU tensor | 21.57 GiB (−0.60) | 12.47 GiB (−0.31) | 2.00 GiB |
+| +4 GiB host tensor | 18.25 GiB (−3.32) | 10.10 GiB (−2.37) | 2.00 GiB |
+| free + `malloc_trim(0)` | 22.19 GiB | 14.04 GiB | 0 |
+
+So XPU allocations barely move the counters (the driver serves them from a pre-reserved pool) while **host** pressure moves `device_free` by ~60 % of the bytes taken. The conversion itself supplied that host pressure: the pass-through groups (text 4.07 GiB + vision 0.91 GiB + MTP 0.49 GiB) are materialised in host RAM before they are written, and every layer read of the 19.3 GB source leaves its pages in the page cache. The run therefore ate the headroom the policy protects, and the abort fired inside layer 0's first GSS search.
+
+**Fix (commit `cff5e35`, advisory only — no conversion semantics change).** New `exl3_quant/memory_hygiene.py`:
+* `drop_file_cache(path)` — `POSIX_FADV_DONTNEED` on a file (clean pages only; dirty pages are written back first, so file content is never affected; advisory ⇒ never raises);
+* `trim_host_heap()` — `malloc_trim(0)` returns freed host arenas to the OS.
+
+The converter now releases the source shards after each pass-through group and after each layer read, and releases the published layer artifact and `calibration_state.pt` page caches. `ShardedSafetensorsIndex.release_source_cache()` does the shard part for single-file and sharded checkpoints alike.
+
+**Verification of the fix.** The relaunched attempt (15:31:00, PID 59806) passed the previous abort point (65 s into layer 0) with the page cache down from ~10 GiB to **2 GiB** and 17 GiB still available (`buff/cache` 2 GiB, `used` 13 GiB). Memory-hygiene behaviour is regression-guarded by 5 unit tests (`tests/test_memory_hygiene.py`: content preservation, missing file/directory tolerance, best-effort trim) plus 1 XPU integration test asserting that a conversion releases the source shards, the published layer artifacts and the calibration state. Full suite: **`Ran 262 tests in 237.723s OK (skipped=1)`**.
+
+**Also added:** `scripts/verify_conversion_output.py` — the P3-11 check (manifest contract, exact per-layer tensor key sets, dtypes, trellis tile geometry against the source shapes, bit-exact pass-through comparison against the source checkpoint, and reconstruction of every quantized module with its relative Frobenius error), to be executed on the finished bundle.
+
+**Next:** monitor attempt 2 to completion (≈ 15 h), then run the P3-11 verification, then P3-12 quality evaluation and the P3-13 `exl3xpu` load check.
+
+---
+
 ## Critical Path Next Steps (Phase 3)
 
 > **Governing decision — `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`):** CUDA ground truth (P0-24/P0-25/P0-27) is **deferred, not waived**. Phase 3 proceeds without it; revisit the deferral if any trigger fires: T1 XPU encoder MSE exceeds upstream `max_mse_per_K` for any K; T2 reconstructed weights diverge from the CPU reference beyond fp16 tolerance; T3 a gate/reviewer demands E4 path parity; T4 a downstream runtime rejects a produced checkpoint; T5/T6 upstream re-pin or kernel/codebook/container change. Resume per `skip_cuda.md` §7.
