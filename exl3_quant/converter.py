@@ -703,6 +703,21 @@ def read_rss_kib() -> int:
         return 0
 
 
+def read_xpu_allocated_mib() -> Optional[float]:
+    """Live XPU allocation of this process, MiB (``None`` without a device).
+
+    P3-10 evidence: the peak device memory of a conversion is reported per
+    layer next to the host RSS.
+    """
+    try:
+        import torch
+        if not torch.xpu.is_available():
+            return None
+        return round(int(torch.xpu.memory_allocated(0)) / 1024 ** 2, 1)
+    except Exception:
+        return None
+
+
 class ShardedSafetensorsIndex:
     """Lazy, memory-mapped access to a HF-style sharded checkpoint (P3-03).
 
@@ -1262,6 +1277,10 @@ def convert_model(
             # finished with; give the DRAM back instead of pinning it for the
             # whole 32-layer run (the admission policy sees host pressure).
             index.release_source_cache()
+            # The written group is never read again — its pages must not stay
+            # resident either (5.5 GiB of group files otherwise squeeze the
+            # shared device pool).
+            memory_hygiene.release_after_stream(target)
         report.pass_through[group_name] = {
             "file": f"qtensors/{group_files[group_name]}",
             "keys": list(keys),
@@ -1427,7 +1446,9 @@ def convert_model(
         index.release_source_cache()
 
         # -- step 1+2: capture Hessians on the current state, then quantize --
-        say(f"[layer {layer_idx}] capturing grouped Hessians")
+        say(f"[layer {layer_idx}] capturing grouped Hessians "
+            f"(xpu_alloc={read_xpu_allocated_mib()} MiB, "
+            f"rss={read_rss_kib() // 1024} MiB)")
         hessians, _telemetry = calibrate_layer(
             layer=layer,
             calibration_data=hidden_states,
@@ -1526,7 +1547,9 @@ def convert_model(
         )
         report.layers.append(entry)
         say(f"[layer {layer_idx}] done: proxy_loss={entry.proxy_loss:.4e} "
-            f"({entry.elapsed_seconds:.1f}s)")
+            f"({entry.elapsed_seconds:.1f}s, xpu_alloc="
+            f"{read_xpu_allocated_mib()} MiB, rss="
+            f"{read_rss_kib() // 1024} MiB)")
 
         if is_xpu:
             torch.xpu.synchronize(device.index or 0)
