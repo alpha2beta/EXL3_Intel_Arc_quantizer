@@ -185,6 +185,18 @@ def quantize_linear_module(
         else:
             tile_encoder = make_reference_tile_encoder(K=K)
 
+    # The exported container is packed with the *requested* K (serialization.py
+    # packs with res.K), so a tile encoder built for a different bit width would
+    # produce a silently corrupt checkpoint instead of an error. The encoder
+    # adapters expose their K for exactly this check.
+    encoder_k = getattr(tile_encoder, "K", None)
+    if encoder_k is not None and encoder_k != K:
+        raise ValueError(
+            f"Tile encoder K={encoder_k} does not match the requested K={K}. "
+            f"The trellis container would be packed at {K} bpw while the encoder "
+            f"emitted {encoder_k} bpw states. Build the encoder with K={K}."
+        )
+
     # Optional GSS function
     g_scale_fn = None
     if not skip_g_scale:

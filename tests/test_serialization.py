@@ -77,7 +77,10 @@ class TestSafetensorsExportAndReload(unittest.TestCase):
         if device.type == "xpu":
             encoder = make_xpu_tile_encoder(K=2, device_index=0)
         else:
-            encoder = make_reference_tile_encoder(K=4)
+            # Must match the K passed to quantize_linear_module below: the
+            # container is packed at the requested bit width, so a mismatched
+            # encoder would silently corrupt the checkpoint.
+            encoder = make_reference_tile_encoder(K=2)
 
         q_res = quantize_linear_module(
             name="q_proj",
@@ -141,6 +144,35 @@ class TestSafetensorsExportAndReload(unittest.TestCase):
         # Check difference against q_res.w_hat (difference <= 5e-3 due to float16 storage of suh/svh)
         diff = (reconstructed_w.float() - q_res.w_hat.cpu().float()).abs().max().item()
         self.assertLess(diff, 5e-3)
+
+
+class TestEncoderBitWidthGuard(unittest.TestCase):
+    """The container is packed at the requested K, so a mismatched encoder
+    must fail loudly rather than emit a silently corrupt checkpoint."""
+
+    def test_encoder_adapters_expose_their_bit_width(self):
+        self.assertEqual(make_reference_tile_encoder(K=3).K, 3)
+
+    def test_mismatched_encoder_k_is_rejected(self):
+        k = n = 128
+        torch.manual_seed(1)
+        W = torch.randn(k, n)
+        X = torch.randn(64, k)
+        H = (X.T @ X / 64.0) + torch.eye(k) * 0.1
+
+        with self.assertRaises(ValueError) as ctx:
+            quantize_linear_module(
+                name="q_proj",
+                weight=W,
+                H=H,
+                K=2,
+                cb=CB_MUL1,
+                tile_encoder=make_reference_tile_encoder(K=4),
+                skip_g_scale=True,
+                buf_size_k=64,
+                block_size=16,
+            )
+        self.assertIn("does not match the requested K", str(ctx.exception))
 
 
 class TestSafetensorsMalformedRejection(unittest.TestCase):

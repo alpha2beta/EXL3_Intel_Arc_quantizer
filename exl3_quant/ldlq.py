@@ -333,6 +333,11 @@ def make_reference_tile_encoder(K: int = 2) -> TileEncoder:
             torch.from_numpy(indices.view(np.int16)).to(tiles.device),
         )
 
+    # Expose the encoder's bit width so callers can validate it against the
+    # requested K before the container is packed (see quantize_linear_module).
+    encode.K = K
+    encode.cb = CB_MUL1
+
     return encode
 
 
@@ -373,5 +378,10 @@ def make_xpu_tile_encoder(
             torch.from_numpy(reconstructed).to(tiles.device),
             torch.from_numpy(indices.view(np.int16)).to(tiles.device),
         )
+
+    # Expose the encoder's bit width so callers can validate it against the
+    # requested K before the container is packed (see quantize_linear_module).
+    encode.K = K
+    encode.cb = CB_MUL1
 
     return encode
