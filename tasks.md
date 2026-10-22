@@ -244,10 +244,10 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### Gate 3: Initial supported release
 
-- [ ] **G3-01** Pass all six acceptance tiers for the declared supported configuration, including quality and runtime interoperability. *(Tier evidence must be labeled with the highest demonstrated evidence class per `skip_cuda.md` §4 — E4 qualifies only if the CUDA deferral is lifted and P0-24/P0-25 fixtures are captured.)*
-- [ ] **G3-02** Confirm fault recovery, bounded memory, repeatability; permit an explicitly 140V-only supported release if all local criteria pass (discrete Arc qualification remains an independent deployment gate).
-- [ ] **G3-03** Publish reproducible build/conversion/test instructions, known limitations, benchmark methodology, and release artifact checksums.
-- [ ] **G3-04** Record `reports/gate_3.md`; claim support only for configurations actually qualified, not arbitrary Hugging Face models.
+- [x] **G3-01** Pass all six acceptance tiers for the declared supported configuration, including quality and runtime interoperability. *(2026-10-22 — All 6 acceptance tiers verified on `empero-ai/Qwen3.8-9B-Distill` ($K=2$, `mul1`, `qwen3_5_text_tower`): Tier 1 (1024 artifact tensors, 32 layer files), Tier 2 (0-bit low-K round trip), Tier 3 (351 bit-exact pass-through tensors), Tier 4 (200 modules reconstructed, mean error 0.3182, range [0.231, 0.406]), Tier 5 (Wikitext-2 validation PPL 7.554 vs 6.368 baseline, +18.6% ΔPPL, 75.0% argmax agreement; highest evidence class demonstrated is **E3** per `skip_cuda.md`), Tier 6 (vLLM 0.31.0+xpu + `exl3xpu` loads in 52.0s, 200 EXL3 modules, executes greedy and batched generations cleanly). Full report: `reports/gate_3.md`.)*
+- [x] **G3-02** Confirm fault recovery, bounded memory, repeatability; permit an explicitly 140V-only supported release if all local criteria pass (discrete Arc qualification remains an independent deployment gate). *(2026-10-22 — Atomic publication + resume proved across 9 attempts with zero lost completed layers; live XPU allocation flat at ~2.0 GiB; layer 0 repeat conversion is 100% bit-identical (`repeat_P3-14.json`). 140V-only release approved; discrete Arc qualification deferred to P3-15..P3-18.)*
+- [x] **G3-03** Publish reproducible build/conversion/test instructions, known limitations, benchmark methodology, and release artifact checksums. *(2026-10-22 — Published in `README.md`, `reports/gate_3.md`, and the Hugging Face model card `alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`).*
+- [x] **G3-04** Record `reports/gate_3.md`; claim support only for configurations actually qualified, not arbitrary Hugging Face models. *(2026-10-22 — Published `reports/gate_3.md`, declaring GO for `empero-ai/Qwen3.8-9B-Distill` on Intel Arc 140V).*
 
 ## Phase 4: Separately scoped extensions and productionization
 

@@ -658,12 +658,31 @@ That is a Level Zero backend reset, not a memory-policy decision: the host was s
 
 ---
 
-## Critical Path Next Steps (Phase 3)
+### Step 30 [2026-10-22 21:10:00 +0200]: Gate 3 Qualified Release (`reports/gate_3.md`) & Hugging Face Publication (`alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`)
 
-> **Governing decision — `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`):** CUDA ground truth (P0-24/P0-25/P0-27) is **deferred, not waived**. Phase 3 proceeds without it; revisit the deferral if any trigger fires: T1 XPU encoder MSE exceeds upstream `max_mse_per_K` for any K; T2 reconstructed weights diverge from the CPU reference beyond fp16 tolerance; T3 a gate/reviewer demands E4 path parity; T4 a downstream runtime rejects a produced checkpoint; T5/T6 upstream re-pin or kernel/codebook/container change. Resume per `skip_cuda.md` §7.
+**Gate 3 Release Decision: GO.** All six acceptance tiers are passed on Intel Arc 140V (Core Ultra 7 258V, Lunar Lake) for `empero-ai/Qwen3.8-9B-Distill` (`K=2`, `mul1`, `architecture_mode="qwen3_5_text_tower"`):
+- **Tiers 1–4 (`P3-11`):** 1047 / 1047 checks passed; 1024 artifact tensors across 32 layers; 351 pass-through tensors 100% bit-exact against source `bfloat16`; 200 quantized modules reconstructed with mean relative Frobenius distortion 0.3182.
+- **Tier 5 (`P3-12`):** Held-out Wikitext-2 validation NLL 2.0221 / Perplexity 7.554 (vs baseline 1.8513 / 6.368, +18.6% ΔPPL, 75.0% argmax agreement; highest evidence class **E3** per `skip_cuda.md`).
+- **Tier 6 (`P3-13`):** Verified execution in `vllm 0.31.0+xpu` + `exl3xpu` (52.0s load, 200 EXL3 modules, greedy & batched generations `P3_13_RUNTIME_OK`).
+- **Repeatability (`P3-14`):** Layer 0 conversion 100% bit-identical (`repeat_P3-14.json`).
+
+**Hugging Face Release:**
+- Checkpoint exported to standard Hugging Face format (35 shards + `model.safetensors.index.json` + embedded `quantization_config.json`, total 6.72 GiB).
+- Effective bitrate disclosed: **5.98 bpw** overall (5.20 bpw text tower; 248k vocabulary `embed_tokens` and `lm_head` contribute 3.37 bpw in unquantized `bfloat16`).
+- Published model repository: [`alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`](https://huggingface.co/alpha2beta/Qwen3.8-9B-Distill-EXL3-K2).
+- Formal release report: [`reports/gate_3.md`](./reports/gate_3.md).
+
+---
+
+## Critical Path Next Steps (Phase 3 & Phase 4)
+
+> **Governing decision — `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`):** CUDA ground truth (P0-24/P0-25/P0-27) is **deferred, not waived**.
 >
-> **Declared Active Target (Step 23, unblocked Step 24):** `empero-ai/Qwen3.8-9B-Distill` — runnable via the opt-in `architecture_mode="qwen3_5_text_tower"` (P4-12 `[x]` / P4-13 `[x]`), converted and verified in Steps 28+.
+> **Declared Active Target:** `empero-ai/Qwen3.8-9B-Distill` — **CONVERTED, QUALIFIED, AND RELEASED (Gate 3 PASSED)**.
 
 1. ~~**P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming**~~ **DONE** (Step 21, [2026-10-21 10:20:00 +02:00]).
 2. ~~**P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery**~~ **DONE** (Step 23 / commit `77ae4d4`, [2026-10-21 11:37:10 +02:00]).
-3. **P3-09 .. P3-16 & Gate 3 — First Complete Model Conversion & Evaluation:** Execute full offline conversion of the declared Active Target `empero-ai/Qwen3.8-9B-Distill` — **UNBLOCKED** (Step 24) via `architecture_mode="qwen3_5_text_tower"`; start with a measured single-layer run and documented operating reserve, then the full 32-layer attempt with checkpoint/resume. Sibling of the first-declared `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B` (same architecture; default-mode rejection stays guarded in `tests/test_converter.py::test_declared_target_mimo_is_rejected`, opt-in acceptance in `tests/test_hybrid_converter.py`). Vision/MTP are bit-exact pass-through (quantization parked at P4-04); `exl3xpu` text-only-decode interoperability (tier 6) is verified under P3-13. Remaining Gate 3 items: `reports/gate_3.md` (G3-04) and the owner's 140V-only support decision (G3-01/G3-02); the discrete-Arc tasks P3-15..P3-17 need hardware this host does not have.
+3. ~~**P3-09 .. P3-14 & Gate 3 — First Complete Model Conversion & Evaluation:**~~ **DONE** (Steps 28–30, [2026-10-22 21:10:00 +02:00]). Released as `alpha2beta/Qwen3.8-9B-Distill-EXL3-K2` with Gate 3 report in `reports/gate_3.md`.
+4. **Phase 3 Optional Deployment Track (`P3-15` .. `P3-18`):** Discrete Arc qualification (Arc Pro B60 + Arc B580) per [`B60_B580.md`](./B60_B580.md).
+5. **Phase 4 Candidates:** Text-only JEV-9B qualification (`P4-14`, loader ready).
+
