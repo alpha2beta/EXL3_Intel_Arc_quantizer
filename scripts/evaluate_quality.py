@@ -211,7 +211,8 @@ def main() -> int:
               "per_sequence": []}
     base_nll = 0.0
     quant_nll = 0.0
-    total_tokens = 0
+    base_tokens = 0
+    quant_tokens = 0
     kl_values: List[float] = []
     agree = 0
     agree_n = 0
@@ -238,9 +239,10 @@ def main() -> int:
             entry[f"{mode}_tokens"] = counted
             if mode == "baseline":
                 base_nll += nll
+                base_tokens += counted
             else:
                 quant_nll += nll
-            total_tokens = max(total_tokens, counted)
+                quant_tokens += counted
         report["per_sequence"].append(entry)
 
         positions = sorted(rng.sample(range(1, args.seq_len), args.kl_positions))
@@ -259,9 +261,12 @@ def main() -> int:
 
     report["baseline_nll_sum"] = base_nll
     report["quantized_nll_sum"] = quant_nll
-    report["scored_tokens"] = total_tokens
-    report["baseline_mean_nll"] = base_nll / max(total_tokens, 1)
-    report["quantized_mean_nll"] = quant_nll / max(total_tokens, 1)
+    # Both passes score the same positions; keep the counts separate so a
+    # mismatch is visible instead of silently rescaling the perplexity.
+    report["scored_tokens"] = base_tokens
+    report["quantized_scored_tokens"] = quant_tokens
+    report["baseline_mean_nll"] = base_nll / max(base_tokens, 1)
+    report["quantized_mean_nll"] = quant_nll / max(quant_tokens, 1)
     report["baseline_perplexity"] = math.exp(report["baseline_mean_nll"])
     report["quantized_perplexity"] = math.exp(report["quantized_mean_nll"])
     report["mean_kl_divergence"] = (sum(kl_values) / len(kl_values)
