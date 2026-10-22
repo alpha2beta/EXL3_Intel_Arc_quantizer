@@ -27,18 +27,30 @@ Usage
         --quantization exl3 --eval-tokens /path/to/eval_tokens.json \
         --compare baseline.json --out quantized.json
 
-Runtime prerequisite
---------------------
-``LD_LIBRARY_PATH`` must contain the interpreter's ``lib`` directory
-(``<venv>/lib``). The oneCCL V2 core ``libccl.so.2`` carries no ``RUNPATH``
-and ``dlopen``s its legacy plugin ``libccl.so.1`` by bare name, so without
-that directory the engine core dies at process-group creation with::
+Runtime prerequisites
+---------------------
+Run under the pinned runtime's environment (the exports
+``vllm.xpu/scripts/launch_vllm.sh`` performs)::
+
+    export PATH=/opt/intel/oneapi/compiler/latest/bin:$PATH
+    export LD_LIBRARY_PATH=<vllm.xpu>/.venv/lib:$LD_LIBRARY_PATH
+    export CPATH=<vllm.xpu>/tools/sysroot/usr/include:$CPATH
+
+Without ``LD_LIBRARY_PATH`` the engine core dies at process-group creation
+because the oneCCL V2 core ``libccl.so.2`` carries no ``RUNPATH`` and
+``dlopen``s its legacy plugin ``libccl.so.1`` by bare name (both live in
+``<venv>/lib``)::
 
     oneCCL could not be initialized! Could not load any plugin.
-    ... Error core initialization failed. Failed core proc(s): {}
+    ... Engine core initialization failed. Failed core proc(s): {}
 
-The check below fails fast with the exact ``export`` line instead of letting
-the runtime abort ~20 s into engine startup.
+Without ``CPATH`` the Triton JIT fails later, during model warm-up, because
+the distro level-zero headers do not ship ``level_zero/ze_api.h`` (the
+runtime vendors it under ``tools/sysroot``)::
+
+    fatal error: 'level_zero/ze_api.h' file not found
+
+``require_runtime_env`` fails fast with the exact export lines instead.
 """
 
 from __future__ import annotations
@@ -62,32 +74,56 @@ def load_sequences(path: Path, seq_len: int, num_sequences: int) -> List[List[in
     return [tokens[i * seq_len:(i + 1) * seq_len] for i in range(take)]
 
 
-def require_xccl_plugin_path() -> None:
-    """Abort early if oneCCL cannot find its legacy plugin on the loader path.
+def require_runtime_env() -> None:
+    """Abort early when the pinned runtime's environment exports are missing.
 
-    ``libccl.so.2`` (oneCCL V2 core, no ``RUNPATH``) loads ``libccl.so.1``
-    with a bare ``dlopen``; both live in ``<venv>/lib``. ``LD_LIBRARY_PATH``
-    is read by the loader once at process start, so it cannot be fixed from
-    inside this script -- report the exact prerequisite instead.
+    Both variables are read once by their consumers (the loader reads
+    ``LD_LIBRARY_PATH`` at process start, the Triton JIT reads ``CPATH`` when
+    it compiles a kernel), so they cannot be repaired from inside this
+    process -- report the exact prerequisite instead of letting the engine
+    core abort ~20 s into startup.
     """
     import os
 
     lib_dir = (Path(sys.prefix) / "lib").resolve()
     if not (lib_dir / "libccl.so.1").exists():
         return  # not the XPU/oneCCL virtualenv layout; nothing to check
-    entries = [
+
+    problems: List[str] = []
+    loader_entries = {
         Path(entry).resolve()
         for entry in os.environ.get("LD_LIBRARY_PATH", "").split(os.pathsep)
         if entry
+    }
+    if lib_dir not in loader_entries:
+        problems.append(
+            "oneCCL's legacy plugin (libccl.so.1) is not on the loader path; "
+            "the engine core would abort with 'oneCCL could not be "
+            "initialized! Could not load any plugin'.\n"
+            f"    export LD_LIBRARY_PATH={lib_dir}:$LD_LIBRARY_PATH"
+        )
+
+    ze_headers = [Path("/usr/include/level_zero/ze_api.h"),
+                  Path("/usr/local/include/level_zero/ze_api.h")]
+    ze_headers += [
+        Path(entry) / "level_zero" / "ze_api.h"
+        for entry in os.environ.get("CPATH", "").split(os.pathsep)
+        if entry
     ]
-    if lib_dir.resolve() in entries:
-        return
-    raise SystemExit(
-        "oneCCL's legacy plugin is not on the loader path; the engine core "
-        "would abort with 'oneCCL could not be initialized! Could not load "
-        "any plugin'.\nRerun with:\n"
-        f"    export LD_LIBRARY_PATH={lib_dir}:$LD_LIBRARY_PATH"
-    )
+    if not any(path.exists() for path in ze_headers):
+        sysroot = Path(sys.prefix).parent / "tools" / "sysroot" / "usr" / "include"
+        problems.append(
+            "level_zero/ze_api.h is not on the include path; the Triton JIT "
+            "would fail during model warm-up with \"fatal error: "
+            "'level_zero/ze_api.h' file not found\".\n"
+            f"    export CPATH={sysroot}:$CPATH"
+        )
+
+    if problems:
+        raise SystemExit(
+            "missing runtime environment prerequisites:\n- "
+            + "\n- ".join(problems)
+        )
 
 
 def main() -> int:
@@ -111,7 +147,7 @@ def main() -> int:
                     help="0 = runtime default")
     ap.add_argument("--no-prefix-caching", action="store_true")
     args = ap.parse_args()
-    require_xccl_plugin_path()
+    require_runtime_env()
 
     sequences = load_sequences(Path(args.eval_tokens), args.seq_len,
                                 args.num_sequences)
