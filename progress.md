@@ -596,9 +596,23 @@ The converter now releases the source shards after each pass-through group and a
 
 **Attempt 7 (18:05:34, `EXL3_MEMORY_RESERVE_GIB=1`):** the same configuration with a 1 GiB device-pool reserve (host headroom 8 GiB measured at the abort point, pool remainder 6.17 GiB). Expected usable budget ≈ 1 GiB — 128× the 8 MiB the scratch arena needs.
 
+**Attempt 8 (19:37:48, `EXL3_MEMORY_RESERVE_GIB=1` + `EXL3_MEMORY_REFLECT_OUTSTANDING=1` + watchdog) — memory problem solved, device loss instead.** With the corrected counter regime the run was finally *stable*: layers 5, 6, 7, 8 published with the live XPU allocation flat at 2048–2057 MiB, the host RSS down to 1.6 GiB and no memory-policy abort anywhere. At 21:58 (layer 10, ~2.4 h into the attempt) the process died with a **device-level** failure instead of a policy abort:
+
+```
+RuntimeError: level_zero backend failed with error: 20 (UR_RESULT_ERROR_DEVICE_LOST)
+  layer_quant.py:99  compute_factorization_residual -> torch.linalg.norm(diff).item()
+```
+
+That is a Level Zero backend reset, not a memory-policy decision: the host was simultaneously memory-starved (zram holding **5.2 GiB of RAM** for swapped pages, `MemAvailable` 9.9 GiB, device pool down to 5.03 GiB), and the desktop's own GPU allocations had grown (the idle pool fell from 12.78 GiB at 16:00 to 8.87 GiB by 19:35). Thermal was *not* implicated (max 51 °C across all zones). **10 layers (0–9) were published and survived**; the per-layer checkpoint plus the validated resume is what kept this attempt from losing ~5 h of work.
+
+**Server restart (2026-10-22 06:24).** The host restarted while the session was idle; the conversion process was already dead (the device loss above), and the restarted host came back with **more** headroom (device pool 6.21 GiB free, `MemAvailable` 12.3 GiB — the zram pressure had drained).
+
+**Attempt 9 (06:25:09) — resumed from layer 10** with `EXL3_MEMORY_RESERVE_GIB=0.5` + `EXL3_MEMORY_REFLECT_OUTSTANDING=1` + a 20 s watchdog. The resume re-validated all ten published artifacts and replayed the calibration state from `calibration_state.pt` (corpus sha256 verified), so no work was repeated. Remaining: 22 layers ≈ 10.3 h.
+
 **Run configuration for the qualification run (explicit, measured deviations):**
-* `EXL3_MEMORY_RESERVE_GIB=1` — the admission reserve is *device-pool* headroom; on this UMA host the host itself has ~8–18 GiB available while the pool is the binding dimension (measured in the probe table above). The default (6 GiB) leaves no admissible budget once the run's live XPU allocation (4.16 GiB) and the pool remainder (6.17 GiB) are accounted for. The override is explicit, documented and reversible (`af024a8`); the host-side headroom is 8× the reserve at the tightest observed moment.
-* An external cache watchdog drops the *clean* page cache of the source, the group files, the layer artifacts and the calibration state every 60 s. Advisory only: clean pages are evicted, dirty pages are written back first, and no conversion data changes.
+* `EXL3_MEMORY_RESERVE_GIB` — the admission reserve is *device-pool* headroom; on this UMA host the host itself has ~9–18 GiB available while the pool is the binding dimension (measured in the probe table above). The default (6 GiB) leaves no admissible budget once the run's live XPU allocation and the pool remainder are accounted for. The override is explicit, documented and reversible (`af024a8`).
+* `EXL3_MEMORY_REFLECT_OUTSTANDING=1` — on this device the counters *do* fall with the live XPU commitment (idle pool 8.87 GiB → 4.28 GiB while holding 3.68 GiB), so the outstanding bytes must not be subtracted a second time; the default (unset) keeps the historical Arc 140V behaviour (`0dfd4cd`).
+* An external cache watchdog drops the *clean* page cache of the source, the group files, the layer artifacts and the calibration state every 20–30 s. Advisory only: clean pages are evicted, dirty pages are written back first, and no conversion data changes.
 * The converter's own hygiene (`cff5e35`, `2a1f5a7`) releases the same memory inline.
 
 ---
