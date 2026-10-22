@@ -55,8 +55,30 @@ except Exception as exc:  # pragma: no cover - only on hosts without qwen3_5
 
 
 #: Architecture strings accepted in the hybrid text-tower mode.
-TEXT_TOWER_ARCHITECTURES = ("Qwen3_5ForConditionalGeneration",)
-TEXT_TOWER_MODEL_TYPES = ("qwen3_5",)
+#:
+#: ``Qwen3_5ForConditionalGeneration`` / ``qwen3_5`` is the **multimodal
+#: container** of the declared Active Target (``empero-ai/Qwen3.8-9B-
+#: Distill``): the text tower is nested under ``model.language_model``, with a
+#: vision tower and an MTP head alongside it.
+#:
+#: ``Qwen3_5ForCausalLM`` / ``qwen3_5_text`` is the **text-only container**
+#: (P4-14; e.g. ``autotrust/JEV-9B``): no vision tower, no ``text_config``
+#: block — the config *is* the text-tower config — and the decoder stack sits
+#: at the top-level ``model.layers`` prefix (weight index verified
+#: 2026-10-22). Both containers share one layer contract, so the quantized /
+#: pass-through module tables below are unchanged.
+TEXT_TOWER_ARCHITECTURES = (
+    "Qwen3_5ForConditionalGeneration",
+    "Qwen3_5ForCausalLM",
+)
+TEXT_TOWER_MODEL_TYPES = ("qwen3_5", "qwen3_5_text")
+
+#: Markers that identify the **text-only** container (P4-14) *unambiguously*.
+#: A config is treated as flat (no ``text_config`` block) only when one of
+#: these is present, so a multimodal ``qwen3_5`` config that is merely missing
+#: its text block stays a hard rejection instead of being reinterpreted.
+TEXT_ONLY_ARCHITECTURES = ("Qwen3_5ForCausalLM",)
+TEXT_ONLY_MODEL_TYPES = ("qwen3_5_text",)
 
 #: Decoder layer kinds covered by this extension.
 SUPPORTED_LAYER_TYPES = ("linear_attention", "full_attention")

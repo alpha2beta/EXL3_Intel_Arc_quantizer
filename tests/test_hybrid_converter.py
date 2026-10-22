@@ -37,6 +37,7 @@ from fixtures import (  # noqa: E402
     HYBRID_FIXTURE_GEOMETRY,
     build_hybrid_fixture_tensors,
     write_qwen35_hybrid_model,
+    write_qwen35_text_only_model,
 )
 
 import exl3_quant.converter as conv  # noqa: E402
@@ -221,6 +222,186 @@ class TestHybridValidator(unittest.TestCase):
         self.assertEqual(
             geo.layer_types,
             ["linear_attention", "linear_attention", "full_attention"])
+
+
+# ---------------------------------------------------------------------------
+# P4-14: text-only container (flat `qwen3_5_text`, e.g. autotrust/JEV-9B)
+# ---------------------------------------------------------------------------
+
+_LINEAR = "linear_attention"
+_FULL = "full_attention"
+
+#: Faithful replica of `autotrust/JEV-9B`'s published ``config.json``
+#: (fetched and verified 2026-10-22): a text-only ``Qwen3_5ForCausalLM`` — the
+#: Qwen3.5-9B text backbone with the vision tower and MTP head dropped. Trimmed
+#: to the geometry- and container-relevant keys (label maps and generation
+#: flags carry no geometry). Note the *stale* ``mtp_num_hidden_layers: 1``:
+#: the checkpoint ships no ``mtp.*`` tensors.
+_JEV_9B_TEXT_ONLY_CONFIG = {
+    "architectures": ["Qwen3_5ForCausalLM"],
+    "model_type": "qwen3_5_text",
+    "dtype": "bfloat16",
+    "tie_word_embeddings": False,
+    "vocab_size": 248320,
+    "hidden_size": 4096,
+    "intermediate_size": 12288,
+    "num_hidden_layers": 32,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 4,
+    "head_dim": 256,
+    "hidden_act": "silu",
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "attn_output_gate": True,
+    "rms_norm_eps": 1e-06,
+    "max_position_embeddings": 262144,
+    "full_attention_interval": 4,
+    "mlp_only_layers": [],
+    "linear_conv_kernel_dim": 4,
+    "linear_key_head_dim": 128,
+    "linear_value_head_dim": 128,
+    "linear_num_key_heads": 16,
+    "linear_num_value_heads": 32,
+    "mamba_ssm_dtype": "float32",
+    "partial_rotary_factor": 0.25,
+    "mtp_num_hidden_layers": 1,
+    "mtp_use_dedicated_embeddings": False,
+    "rope_parameters": {
+        "rope_type": "default",
+        "rope_theta": 10000000,
+        "partial_rotary_factor": 0.25,
+        "mrope_section": [11, 11, 10],
+        "mrope_interleaved": True,
+    },
+    "layer_types": [_LINEAR, _LINEAR, _LINEAR, _FULL] * 8,
+}
+
+
+class TestTextOnlyContainer(unittest.TestCase):
+    """P4-14: the flat text-only ``qwen3_5_text`` container.
+
+    Same layer contract as the multimodal container of P4-12/P4-13, but a flat
+    config (no ``text_config`` block) and top-level ``model.layers.`` prefixes
+    — the layout of ``autotrust/JEV-9B``. Geometry validation only; no XPU.
+    """
+
+    def setUp(self) -> None:
+        self.root = _TEST_ROOT / "text_only"
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_accepts_jev9b_config_replica(self) -> None:
+        d = _write_config(self.root / "jev9b",
+                          copy.deepcopy(_JEV_9B_TEXT_ONLY_CONFIG))
+        geo = conv.load_model_geometry(d, mode=_HYBRID_MODE)
+        self.assertEqual(geo.architecture_mode, _HYBRID_MODE)
+        self.assertTrue(geo.is_hybrid)
+        self.assertEqual(geo.num_layers, 32)
+        self.assertEqual(geo.hidden_size, 4096)
+        self.assertEqual(geo.intermediate_size, 12288)
+        self.assertEqual(geo.vocab_size, 248320)
+        self.assertEqual(geo.head_dim, 256)
+        # the declared target's 3:1 hybrid pattern
+        self.assertEqual(geo.layer_types.count(_LINEAR), 24)
+        self.assertEqual(geo.layer_types.count(_FULL), 8)
+        # text-only container: decoder stack at the top-level prefixes
+        self.assertEqual(geo.key_prefix, "model.layers")
+        self.assertEqual(geo.text_prefix, "model")
+        self.assertEqual(geo.embed_key, "model.embed_tokens.weight")
+        self.assertEqual(geo.final_norm_key, "model.norm.weight")
+        self.assertEqual(geo.lm_head_key, "lm_head.weight")
+        self.assertEqual(geo.hybrid_meta["text_tower_container"], "text_only")
+        self.assertIsNone(geo.hybrid_meta["multimodal"])
+        # one layer contract for both containers (P4-12 tables unchanged)
+        self.assertEqual(
+            geo.quantized_modules(0)[0], "linear_attn.in_proj_qkv")
+        self.assertEqual(
+            geo.quantized_modules(3)[0], "self_attn.q_proj")
+        self.assertEqual(
+            geo.layer_pass_through_keys(0),
+            [f"model.layers.0.{name}"
+             for name in hybrid.PASS_THROUGH_MODULE_NAMES[_LINEAR]])
+        # rope provenance is read from the flat layout's top level
+        rope = geo.hybrid_meta["rope"]
+        self.assertEqual(rope["partial_rotary_factor"], 0.25)
+        self.assertEqual(rope["rotary_dim"], 64)
+        self.assertEqual(rope["mrope_section"], [11, 11, 10])
+        self.assertTrue(rope["mrope_interleaved"])
+        # no vision tower; the config still *declares* an MTP head, which is
+        # provenance only — pass-through groups are key-derived (below).
+        self.assertFalse(geo.has_vision)
+        self.assertTrue(geo.has_mtp)
+
+    def test_dense_mode_still_rejects_text_only_config(self) -> None:
+        d = _write_config(self.root / "jev_dense",
+                          copy.deepcopy(_JEV_9B_TEXT_ONLY_CONFIG))
+        with self.assertRaises(conv.UnsupportedModeError):
+            conv.load_model_geometry(d)  # default dense profile
+
+    def test_multimodal_config_without_text_block_stays_rejected(self) -> None:
+        # Guard: only the unambiguous text-only markers may go flat, so a
+        # multimodal `qwen3_5` config that is merely missing its text block is
+        # not silently reinterpreted as a text-tower config.
+        raw = copy.deepcopy(HYBRID_FIXTURE_GEOMETRY)
+        raw.pop("text_config")
+        d = _write_config(self.root / "nested_no_text", raw)
+        with self.assertRaises(conv.UnsupportedModeError) as ctx:
+            conv.load_model_geometry(d, mode=_HYBRID_MODE)
+        self.assertIn("text_config", str(ctx.exception))
+
+    def test_flat_fixture_prefixes_and_groups(self) -> None:
+        tensors = write_qwen35_text_only_model(self.root / "flat")
+        geo = conv.load_model_geometry(self.root / "flat", mode=_HYBRID_MODE)
+        self.assertEqual(geo.key_prefix, "model.layers")
+        self.assertEqual(geo.text_prefix, "model")
+        self.assertFalse(geo.has_vision)
+        self.assertEqual(geo.hybrid_meta["text_tower_container"], "text_only")
+        # every tensor the conversion needs is reachable through the derived
+        # prefixes (embed/norm/lm_head + each layer's quantized and
+        # pass-through parameters)
+        self.assertIn(geo.embed_key, tensors)
+        self.assertIn(geo.final_norm_key, tensors)
+        self.assertIn(geo.lm_head_key, tensors)
+        for idx in range(geo.num_layers):
+            for module in geo.quantized_modules(idx):
+                self.assertIn(f"{geo.key_prefix}.{idx}.{module}.weight",
+                              tensors)
+            for key in geo.layer_pass_through_keys(idx):
+                self.assertIn(key, tensors)
+        # the pass-through partition is text-only: no vision or MTP group, so
+        # the stale MTP declaration cannot invent a group file
+        index = conv.ShardedSafetensorsIndex(self.root / "flat")
+        groups = index.pass_through_groups(geo)
+        self.assertEqual(groups["text"],
+                         [geo.embed_key, geo.final_norm_key, geo.lm_head_key])
+        self.assertEqual(groups["vision"], [])
+        self.assertEqual(groups["mtp"], [])
+
+    @_skip_no_hybrid
+    def test_reference_config_and_layer_build_from_flat_layout(self) -> None:
+        # The calibration path must build the pinned reference layer from the
+        # flat layout verbatim (no re-implementation, strict state-dict load).
+        tensors = write_qwen35_text_only_model(self.root / "ref")
+        geo = conv.load_model_geometry(self.root / "ref", mode=_HYBRID_MODE)
+        with open(self.root / "ref" / "config.json") as f:
+            raw = json.load(f)
+        cfg = hybrid.make_text_config(raw)
+        self.assertEqual(cfg.num_hidden_layers, geo.num_layers)
+        self.assertEqual(cfg.hidden_size, geo.hidden_size)
+        self.assertEqual(cfg.layer_types, geo.layer_types)
+        self.assertEqual(cfg._attn_implementation, "eager")
+        for idx, layer_type in enumerate(geo.layer_types):
+            layer = hybrid.build_layer(cfg, idx, tensors,
+                                       prefix=geo.key_prefix,
+                                       device=torch.device("cpu"))
+            # strict load matched the reference module tree; the layer kind
+            # decides which sub-module is present
+            has_linear_attn = any(
+                name.startswith("linear_attn")
+                for name, _ in layer.named_parameters())
+            self.assertEqual(has_linear_attn, layer_type == _LINEAR)
 
 
 @_skip_no_hybrid

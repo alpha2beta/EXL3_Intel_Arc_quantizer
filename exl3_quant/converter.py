@@ -218,6 +218,11 @@ def _load_qwen35_text_tower_geometry(raw: dict) -> ModelGeometry:
     GatedDeltaNet and full-attention decoder layers, a vision tower, and an MTP
     head. Only the text-tower linear projections are quantized; vision/MTP are
     bit-exact pass-through (see ``exl3_quant/hybrid.py``).
+
+    Both containers of that layer contract are accepted (P4-14): the
+    **multimodal** ``qwen3_5`` layout (text tower nested under
+    ``model.language_model``) and the **text-only** ``qwen3_5_text`` layout
+    (e.g. ``autotrust/JEV-9B`` — flat config, decoder stack at ``model.layers``).
     """
     archs = [str(a) for a in (raw.get("architectures") or [])]
     model_type = str(raw.get("model_type", ""))
@@ -235,8 +240,23 @@ def _load_qwen35_text_tower_geometry(raw: dict) -> ModelGeometry:
     )
 
     text = raw.get("text_config")
-    _require(isinstance(text, dict),
-             "qwen3_5 checkpoints require a text_config block for the text tower")
+    nested = isinstance(text, dict)
+    if not nested:
+        # Text-only container (P4-14): `Qwen3_5ForCausalLM` checkpoints such as
+        # `autotrust/JEV-9B` carry no `text_config` block — the config *is*
+        # the text-tower config and the decoder stack lives at the top-level
+        # `model.layers.` prefix. The flat layout is accepted only on the
+        # unambiguous text-only markers, so a multimodal `qwen3_5` config that
+        # is merely missing its text block remains a hard rejection.
+        _require(
+            model_type in hybrid.TEXT_ONLY_MODEL_TYPES
+            or any(a in hybrid.TEXT_ONLY_ARCHITECTURES for a in archs),
+            "qwen3_5 checkpoints require a text_config block for the text "
+            "tower; text-only layouts (flat config) are accepted only for "
+            f"the text-only container {list(hybrid.TEXT_ONLY_ARCHITECTURES)} "
+            f"/ {list(hybrid.TEXT_ONLY_MODEL_TYPES)}",
+        )
+        text = dict(raw)
 
     # MoE variants are a separately scoped extension (P4-05), not this track.
     moe_keys = ("num_experts", "num_local_experts", "num_experts_per_tok",
@@ -344,7 +364,15 @@ def _load_qwen35_text_tower_geometry(raw: dict) -> ModelGeometry:
                     "vision_start_token_id", "vision_end_token_id")
         if raw.get(key) is not None
     }
+    # Container layout decides the checkpoint prefixes (P4-14): the multimodal
+    # container nests the text tower under `model.language_model`; the
+    # text-only container (e.g. `autotrust/JEV-9B`, weight index verified
+    # 2026-10-22) keeps the decoder stack at the top-level `model.layers`.
+    container = "nested" if nested else "text_only"
+    key_prefix = "model.language_model.layers" if nested else "model.layers"
+    text_prefix = "model.language_model" if nested else "model"
     hybrid_meta = {
+        "text_tower_container": container,
         "multimodal": multimodal or None,
         "vision_config": raw.get("vision_config"),
         "rope": {
@@ -390,8 +418,12 @@ def _load_qwen35_text_tower_geometry(raw: dict) -> ModelGeometry:
         vocab_size=vocab,
         architecture_mode="qwen3_5_text_tower",
         layer_types=layer_types,
-        key_prefix="model.language_model.layers",
-        text_prefix="model.language_model",
+        key_prefix=key_prefix,
+        text_prefix=text_prefix,
+        # Provenance flags describe what the *config declares*; the emitted
+        # pass-through groups are key-derived (`index.pass_through_groups`),
+        # so e.g. `autotrust/JEV-9B` declares `mtp_num_hidden_layers: 1` yet
+        # ships no `mtp.*` tensors and produces no MTP group file.
         has_vision=bool(raw.get("vision_config")),
         has_mtp=bool(text.get("mtp_num_hidden_layers")
                      or raw.get("mtp_num_hidden_layers")),

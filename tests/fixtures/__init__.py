@@ -328,3 +328,55 @@ def write_qwen35_hybrid_model(
     tensors = build_hybrid_fixture_tensors(types)
     save_file(tensors, str(model_dir / "model.safetensors"))
     return tensors
+
+
+def write_qwen35_text_only_model(
+    model_dir: Path,
+    layer_types=None,
+) -> Dict[str, torch.Tensor]:
+    """Write the deterministic mini **text-only** qwen3_5 checkpoint (P4-14).
+
+    Same weights as the mini hybrid fixture, re-keyed into the text-only
+    container layout of e.g. ``autotrust/JEV-9B``:
+
+    * flat ``config.json`` — no ``text_config`` block, ``model_type:
+      qwen3_5_text``, ``architectures: [Qwen3_5ForCausalLM]``;
+    * decoder stack at the top-level ``model.layers.`` prefix (no
+      ``model.language_model.`` nesting);
+    * no vision tower and no ``mtp.*`` tensors, while the config keeps the
+      *stale* ``mtp_num_hidden_layers: 1`` declaration JEV-9B ships — the
+      case where config-declared provenance must not invent a pass-through
+      group the checkpoint does not carry.
+
+    Returns the exact tensor dictionary written.
+    """
+    model_dir.mkdir(parents=True, exist_ok=True)
+    types = list(layer_types) if layer_types is not None else list(
+        HYBRID_FIXTURE_GEOMETRY["text_config"]["layer_types"])
+
+    flat = json.loads(json.dumps(
+        HYBRID_FIXTURE_GEOMETRY["text_config"]))  # deep copy of the text block
+    flat["layer_types"] = types
+    flat["num_hidden_layers"] = len(types)
+    # Text-only container keys, mirroring the JEV-9B config shape.
+    flat.update({
+        "architectures": ["Qwen3_5ForCausalLM"],
+        "model_type": "qwen3_5_text",
+        "dtype": "bfloat16",
+        "tie_word_embeddings": False,
+        "partial_rotary_factor": 0.25,
+        "full_attention_interval": 4,
+        "mlp_only_layers": [],
+        "mamba_ssm_dtype": "float32",
+        "mtp_use_dedicated_embeddings": False,
+    })
+    with open(model_dir / "config.json", "w") as f:
+        json.dump(flat, f, indent=2)
+
+    tensors = {
+        k.replace("model.language_model.", "model."): v
+        for k, v in build_hybrid_fixture_tensors(types).items()
+        if not k.startswith(("model.visual.", "mtp."))
+    }
+    save_file(tensors, str(model_dir / "model.safetensors"))
+    return tensors
