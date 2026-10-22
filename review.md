@@ -260,6 +260,7 @@ transcription.
 | `review-2026-10-21T10:32:42+02:00` | 2026-10-21 10:32:42 +02:00 | `c67a469` | 🟢 **PASS / GATE 2 CLOSED — GO TO PHASE 3**: Phase 2 single-layer pipeline complete and verified; 158/158 tests; benchmarks genuine; zero blockers | `review.md` (conclusion below) |
 | `review-2026-10-21T10:48:00+02:00` | 2026-10-21 10:48:00 +02:00 | `8c71bb7` | 🟢 **PASS — PHASE 3 ORCHESTRATION IN PROGRESS**: P3-01..P3-03 accepted (converter orchestrator + streaming, 199/199 tests); CUDA deferral adopted (evidence capped at E3, E4 not claimed); P3-04..P3-08 recommended next | `review.md` (conclusion below) |
 | `review-2026-10-21T11:58:26+02:00` | 2026-10-21 11:58:26 +02:00 | `4d78948` | 🟢 **PASS — P3-04..P3-08 ACCEPTED**: atomic checkpointing/resumability/fault recovery verified (218/218 tests); declared Active Target `empero-ai/Qwen3.8-9B-Distill` blocked (qwen3_5 hybrid arch, proven by validator regression guards) pending `P4-12`/`P4-13`; L1 §4.3→§4.1 renumbering remediated | `review.md` (conclusion below) |
+| `review-2026-10-22T21:00:00+02:00` | 2026-10-22 21:00:00 +02:00 | `72e10f1` | 🟢 **PASS — P3-09..P3-14 ACCEPTED**: conversion completed (32/32, `status: completed`), verification reproduced fresh (1047 checks / 0 failures), runtime loads and decodes (vLLM 0.31.0+xpu, 200 EXL3 modules), quality PPL 6.368 → 7.554 with runtime/repo δ 1.4e-5, repeat layer 0 bit-identical, P3-10 measured from `run.log`; suite 277/277 (first attempt pool-starved — diagnosed and archived); 0 blocking, 2 medium + 4 low findings, all stated in the entries | `review.md` (this file) |
 
 <!-- Future reviews: append a row above and create a new timestamped review file. -->
 
@@ -886,3 +887,38 @@ OK
 2. **Continue Phase 3 (P3-10..P3-16):** real calibration corpus wiring, downstream runtime evaluation plan, and Gate 3 preparation — none depend on E4 or the blocked target swap.
 3. **Housekeeping:** keep suite counts synchronized as converter variants grow (method-level counts + variant lists, per L4).
 
+
+---
+
+## Review Conclusion: Phase 3 Full-Model Evidence — P3-09..P3-14, P3-10 Measurement & Repeat-Layer Reproducibility [2026-10-22 21:00:00 +02:00]
+
+**Reviewed commit:** `72e10f1` (five code commits this batch: `d9b4dee`, `bbc38fb`, `b6bc9d0`, `34f8879`, `72e10f1`) plus the doc changes under review (`tasks.md`, `progress.md`, `README.md`, `docs/compatibility_manifest.md`).
+
+**Scope.** Steps 28–29: the declared target's conversion completion (P3-09), independent verification (P3-11), pinned-runtime load/decode (P3-13), quality against the floating-point baseline (P3-12), repeat-layer reproducibility (P3-14), the stage/wall-clock measurement (P3-10), and the three environment findings that shaped the runtime harness.
+
+### Verification performed (fresh, this session)
+
+- **Git.** `git log --oneline -8` shows the five claimed commits with their conventional timestamps; `git status` is dirty only in the four documentation files being reviewed. No untracked files.
+- **Full suite.** `python -m unittest discover -s tests -p "test_*.py"` → **277 tests, OK, 1 platform-conditional skip, 236.9 s** (`full_suite_2026-10-22.log`). A first attempt reported `failures=1, errors=26`; **every one of the 27 was `MemoryPressureError`** at `binding available 6.04 GiB` against the 6.00 GiB reserve, after the 19.3 GB source checkpoint's page cache had collapsed the UMA pool. Evicting the clean page cache of the 75 checkpoint/bundle files restored the pool 9 → **14.26 GiB** and the identical command passed. No code changed between the runs; the starved run is archived as `full_suite_2026-10-22_attempt1_pool_starved.log` so the failure mode stays on record instead of being quietly re-run.
+- **P3-11 claim re-run** from a fresh process, independently of the evidence file: **1047 checks, 0 failures, 290.6 s**, with metrics identical to `verification_P3-11.json` — `pass_through_tensors_compared` 351, `modules_reconstructed` 200, decode relative error mean `0.31823803654913013` / max `0.40582783472675704`. The published numbers are reproduced, not transcribed.
+- **P3-14 claim re-hashed** outside the report: both `model.layers.0.safetensors` files hash to `6c738529c0d2fc1671b543368e29f66f4a6ff3fda48669dc3061b3fc757a8d9c` at 55,291,968 bytes, matching `repeat_P3-14.json`.
+- **P3-12 numbers recomputed** from `quality_P3-12.json` and `perplexity_P3-12_quantized.json`: fp NLL 1.8513381 / PPL 6.36834, repo-side quantized 2.0220787 / 7.55401, runtime 2.0221065 / 7.5542 → δ 2.776e-5 (1.373e-5 relative), +9.22 % NLL / +18.62 % PPL. Corpora verified by hash and metadata: calibration `7d9d778e…` (test split), evaluation `b9f07ec7…` with `split: validation`.
+- **Runtime export inspected**: 1375 tensors / 35 shards / 6.72 GiB; `config.json` embeds the manifest (`status: completed`, 32 layers, `bits: 2`, `codebook: mul1`); 15 MTP and 333 vision pass-through tensors present.
+- **Environment claims reproduced** (`p3_env_repro.md`): without `LD_LIBRARY_PATH`, oneCCL logs `Cannot open plugin library: libccl.so.1` and exits with SIGFPE; without `CPATH`, the Triton build fails on `level_zero/ze_api.h`; the identical Triton probe with `CPATH` set and a cold cache returns `TRITON_OK 0.0`.
+- **Suite breakdown cross-check**: AST count of `test*` methods per file equals the runner's 277, and the README per-file list sums to exactly 277.
+
+### Findings
+
+**Blocking — none.**
+
+- **M1 — the P3-12 delta is cross-pipeline, by necessity.** The floating-point baseline could not be loaded *inside* the runtime on this device (17.13 GiB of fp16 text-tower + top-level weights against 16.07/28.58 GiB reported free), so the delta compares the runtime's quantized NLL with the repo-side floating-point forward on identical token ids. What licenses that comparison is the measured runtime-vs-repo agreement on the *same* quantized weights (1.4e-5 relative), which the review re-derived. The limitation is stated in `tasks.md` P3-12, `progress.md` Step 28, the manifest's Amendment 4 and the README bullet. **Accepted as documented**, but the wording must never be compressed to "runtime vs runtime quality".
+- **M2 — P3-10 is completed from the delivered run's own timestamps, not from a dedicated measurement pass.** Per-stage values come from `run.log` (n=22 layers of the final segment), and the power/thermal disclosure is the co-located phase-1 telemetry (AC, 40 → 51 °C), not a logger attached during the 26 h conversion. The measurement deliverable is met and the provenance is stated in the entry; the residual gap is thermal logging during production runs, not a missing number.
+
+- **L1 — `require_runtime_env()` hard-exits on a literal path match.** It requires `<venv>/lib` itself to appear in `LD_LIBRARY_PATH`; if an operator placed `libccl.so.1` on another loader path, the guard would block a run that would have worked. Acceptable for a hint-only preflight (the message prints the exact fix), but it is a false-positive risk worth remembering if the runtime layout changes.
+- **L2 — stale public counts, corrected here.** The README claimed 218/218 tests, a 262-test breakdown, and `P4-13 [~]`; all three were behind reality and are now 277/277 (236.9 s), a breakdown summing to 277, and `[x]`.
+- **L3 — P3-14 covers one representative layer (layer 0).** The entry states the claim as per-layer reproducibility and explicitly not bundle-wide, with the measured-cost reason (28 min vs 15 h). Bit-identity of one full `linear_attention` layer under the shared-input Hessian grouping is the strongest available single-stage sample; it does not prove the other 31 layers.
+- **L4 — `p3_12_summary.json` keys are accurate but easy to misread.** `quantized_vs_fp_baseline_*` uses the repo-side quantized NLL while the runtime value is reported separately; the naming is correct, no change required.
+
+### Verdict
+
+🟢 **PASS — P3-09..P3-14 evidence accepted (P3-10 included).** Every number quoted in `tasks.md` / `progress.md` / `README.md` / the compatibility manifest was either reproduced this session (suite, verifier, hashes, corpus hashes, export inventory, environment failures) or is explicitly marked as an unavailable measurement. The documented gaps are real gaps, stated where they occur: the runtime-side floating-point baseline (device memory), the CUDA-quantized reference (deferred, `SKIP-CUDA-2026-10-21-01`), vision/MTP paths in the runtime (not loaded), and the single-layer scope of the reproducibility claim. No task is marked `[x]` on unverified ground. Remaining Phase 3 work is the discrete-Arc gate (P3-15..P3-17), which this host cannot execute.
