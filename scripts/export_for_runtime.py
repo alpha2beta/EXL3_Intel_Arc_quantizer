@@ -142,6 +142,23 @@ def main() -> int:
     (out_dir / "quantization_config.json").write_text(
         json.dumps(manifest, indent=2))
 
+    # P3-13: vLLM resolves the quantization method from the *model config*
+    # (`hf_config.quantization_config` -> `quant_cls.from_config`). A sidecar
+    # file is not enough: with no embedded block, vLLM falls back to
+    # instantiating the config class with no arguments, which fails for any
+    # out-of-tree config with required parameters (observed with the pinned
+    # exl3xpu plugin: "Exl3Config.__init__() missing 3 required positional
+    # arguments"). Embed the manifest in config.json, the HF convention that
+    # quantized checkpoints already follow; the sidecar copy above stays as
+    # the plugin's `tensor_storage` source.
+    model_config_path = out_dir / "config.json"
+    if model_config_path.is_file():
+        model_cfg = json.loads(model_config_path.read_text())
+        model_cfg["quantization_config"] = manifest
+        model_config_path.write_text(json.dumps(model_cfg, indent=2))
+    else:
+        print("WARN: no config.json to embed quantization_config into")
+
     print(f"exported {total} shards, {len(weight_map)} tensors, "
           f"{total_size / 2**30:.2f} GiB -> {out_dir}")
     print(f"sidecar files copied: {copied}")
