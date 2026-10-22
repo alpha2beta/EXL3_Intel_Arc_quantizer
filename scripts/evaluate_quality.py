@@ -173,13 +173,14 @@ def main() -> int:
     states: Dict[str, List[torch.Tensor]] = {}
     for mode in ("baseline", "quantized"):
         log(f"=== {mode} pass ===")
-        hidden = [h.clone() for h in embed]
+        # The reference runner is batched: [num_sequences, seq_len, hidden].
+        hidden = embed.clone()
         t0 = time.time()
         for layer_idx in range(tower.num_layers):
             layer = (tower.build_source_layer(layer_idx) if mode == "baseline"
                      else tower.build_quantized_layer(layer_idx))
             with torch.no_grad():
-                hidden = [runner(layer, x) for x in hidden]
+                hidden = runner(layer, hidden)
             del layer
             if device.type == "xpu":
                 torch.xpu.synchronize(device.index or 0)
@@ -187,7 +188,7 @@ def main() -> int:
             if layer_idx % 8 == 0 or layer_idx == tower.num_layers - 1:
                 log(f"  layer {layer_idx}/{tower.num_layers} "
                     f"({time.time() - t0:.0f}s)")
-        states[mode] = hidden
+        states[mode] = [hidden[i].clone() for i in range(hidden.shape[0])]
 
     # final norm (reference zero-centred RMSNorm) + LM head (bit-exact)
     from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5RMSNorm
