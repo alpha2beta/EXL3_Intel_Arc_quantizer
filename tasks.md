@@ -237,7 +237,7 @@ Testing these arithmetic fixtures does not require allocating every configuratio
 
 ### 3.3 Optional Discrete Arc Deployment Gate
 
-- [ ] **P3-15** Rebuild/probe the pinned stack on discrete Arc targets (A770, B580, Pro B60) and capture device-specific capability/allocation limits.
+- [ ] **P3-15** Rebuild/probe the pinned stack on discrete Arc targets (A770, B580, Pro B60) and capture device-specific capability/allocation limits. *(Execution plan for the Pro B60 + B580 machine: [`B60_B580.md`](./B60_B580.md) — inventory and PCIe-error baseline, encoder tiles/s probe, memory-policy regime determination (the UMA-specific knobs from the 140V run must be re-derived, not copied), fixture/suite/full-layer qualification, the declared full-model run with the identical pinned recipe, P3-11 verification, P3-12/P3-13/P3-14 evidence, and the 140V-vs-discrete comparison; published separately from the 140V results per V140-09.)*
 - [ ] **P3-16** Re-run tile fixtures, scratch stress tests, full-layer tests, and declared full-model qualification on the discrete device.
 - [ ] **P3-17** Tune device-specific batch/geometry settings without changing algorithm semantics; rerun numerical and quality acceptance tests.
 - [ ] **P3-18** Publish a tested model/codebook/K/device/runtime matrix with explicit exclusions and measured results.
