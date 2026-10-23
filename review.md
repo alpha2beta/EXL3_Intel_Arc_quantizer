@@ -922,3 +922,30 @@ OK
 ### Verdict
 
 🟢 **PASS — P3-09..P3-14 evidence accepted (P3-10 included).** Every number quoted in `tasks.md` / `progress.md` / `README.md` / the compatibility manifest was either reproduced this session (suite, verifier, hashes, corpus hashes, export inventory, environment failures) or is explicitly marked as an unavailable measurement. The documented gaps are real gaps, stated where they occur: the runtime-side floating-point baseline (device memory), the CUDA-quantized reference (deferred, `SKIP-CUDA-2026-10-21-01`), vision/MTP paths in the runtime (not loaded), and the single-layer scope of the reproducibility claim. No task is marked `[x]` on unverified ground. Remaining Phase 3 work is the discrete-Arc gate (P3-15..P3-17), which this host cannot execute.
+
+---
+
+## Review Conclusion: Gate 3 Supported Release & Hugging Face Publication (`alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`) [2026-10-23 15:25:00 +02:00]
+
+> **Review ID:** `review-2026-10-23T15:25:00+02:00`  
+> **Reviewed Commits:** `5124b0e..9dc027f` (`9dc027f` in `EXL3_Intel_Arc_quantizer`, `32a11c3` in `vllm.xpu`)  
+> **Files Reviewed:** [`reports/gate_3.md`](./reports/gate_3.md), [`tasks.md`](./tasks.md), [`progress.md`](./progress.md), [`README.md`](./README.md), and Hugging Face repository metadata  
+> **Remote Repository:** [`alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`](https://huggingface.co/alpha2beta/Qwen3.8-9B-Distill-EXL3-K2)  
+> **Verdict:** 🟢 **PASS — GATE 3 FORMALLY CLOSED & INITIAL RELEASE VERIFIED ONLINE**
+
+### 1. Verification Performed
+- **Hugging Face Publication Verified Live:** API query against Hugging Face confirmed the repository [`alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`](https://huggingface.co/alpha2beta/Qwen3.8-9B-Distill-EXL3-K2) is online with 47 tracked files: all 35 safetensors shards, `model.safetensors.index.json`, `config.json` with embedded `quantization_config`, `tokenizer.json`, tokenizers/chat template sidecars, and `README.md` model card. Upload commit `9a1677f5` exited 0.
+- **Model Card Integrity:** The model card accurately details the effective bitrate (**5.98 bpw** overall, **5.20 bpw** text tower, **~2.08 bpw** linear projections) disclosing the unquantized 248k vocabulary tax (`embed_tokens` + `lm_head` in `bfloat16`), full Wikitext-2 validation perplexity table (**7.554** PPL vs 6.368 baseline, +18.6% ΔPPL, 75.0% argmax agreement), and complete vLLM launch commands for Intel Arc GPUs.
+- **Gate 3 Report:** [`reports/gate_3.md`](./reports/gate_3.md) documents all six acceptance tiers, memory footprint on Arc 140V (8.58 GiB weights + 0.37 GiB KV cache), and explicitly bounds the release to `empero-ai/Qwen3.8-9B-Distill` on Intel Arc 140V (Lunar Lake 258V).
+- **Cross-Repo Sync:** `vllm.xpu/README.md` updated and committed (`32a11c3`) with the new EXL3 checkpoint in the published checkpoints table.
+
+### 2. Status of Gates
+- **Phase 0 (Audit & Toolchain):** Closed (Gate 0 `[x]`)
+- **Phase 1 (Tile Encoder & Scratch):** Closed (Gate 1 `[x]`)
+- **Phase 2 (Single-Layer Conversion):** Closed (Gate 2 `[x]`)
+- **Phase 3 (Bounded Full-Model & Release):** **CLOSED (Gate 3 `[x]`)**
+  - Optional Discrete-Arc deployment track (`P3-15`..`P3-18` per `B60_B580.md`) remains open for execution on dedicated multi-card hardware.
+- **Phase 4 (Extensions):**
+  - `P4-12` (Hybrid linear-attention quantization contract): `[x]`
+  - `P4-13` (Multimodal/text-tower pass-through & runtime load): `[x]`
+  - `P4-14` (Text-only `qwen3_5_text` container loader support): `[x]`
