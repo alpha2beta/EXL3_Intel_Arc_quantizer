@@ -8,6 +8,7 @@
 set -u
 
 BOARD="${BOARD:-b580}"
+K="${K:-4}"
 VENV="/home/yanchun/.venvs/exl3"
 REPO_DIR="/mnt/usb/EXL3_Intel_Arc_quantizer"
 
@@ -21,22 +22,23 @@ if [ "$BOARD" = "b580" ]; then
     export ZE_AFFINITY_MASK=1
     export EXL3_MEMORY_RESERVE_GIB=4.0
     export EXL3_MEMORY_REFLECT_OUTSTANDING=1
-    export EXL3_MAX_LAYERS_PER_RUN=1
+    export EXL3_MAX_LAYERS_PER_RUN="${EXL3_MAX_LAYERS_PER_RUN:-1}"
 elif [ "$BOARD" = "b60" ]; then
     export ZE_AFFINITY_MASK=0
     unset EXL3_MEMORY_RESERVE_GIB 2>/dev/null || true
     unset EXL3_MEMORY_REFLECT_OUTSTANDING 2>/dev/null || true
+    export EXL3_MAX_LAYERS_PER_RUN="${EXL3_MAX_LAYERS_PER_RUN:-1}"
 fi
 
 MODEL_DIR="${MODEL_DIR:-/mnt/usb/models/jev9b}"
-OUT_DIR="${OUT_DIR:-/mnt/usb/models/jev9b_exl3_k2_${BOARD}}"
-EVIDENCE_DIR="${EVIDENCE_DIR:-reports/evidence_jev9b_${BOARD}}"
+OUT_DIR="${OUT_DIR:-/mnt/usb/models/jev9b_exl3_k${K}_${BOARD}}"
+EVIDENCE_DIR="${EVIDENCE_DIR:-reports/evidence_jev9b_k${K}_${BOARD}}"
 CORPUS="${CORPUS:-/mnt/usb/models/qwen38/calibration_tokens_wikitext2_test.json}"
 mkdir -p "$EVIDENCE_DIR"
 LOG_FILE="${EVIDENCE_DIR}/run.log"
 
 echo "=================================================================" | tee -a "$LOG_FILE"
-echo "Starting P3-09 Supervisor for Board: ${BOARD^^} at $(date -u)" | tee -a "$LOG_FILE"
+echo "Starting P3-09 Supervisor for Board: ${BOARD^^} (K=${K}) at $(date -u)" | tee -a "$LOG_FILE"
 echo "Output Directory: $OUT_DIR" | tee -a "$LOG_FILE"
 echo "Log File:         $LOG_FILE" | tee -a "$LOG_FILE"
 echo "=================================================================" | tee -a "$LOG_FILE"
@@ -60,6 +62,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     # Launch driver
     "$VENV/bin/python" scripts/run_p3_09.py \
         --board "$BOARD" \
+        -K "$K" \
         --model-dir "$MODEL_DIR" \
         --output-dir "$OUT_DIR" \
         --corpus "$CORPUS" \

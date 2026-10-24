@@ -74,14 +74,16 @@ def parse_args():
     parser.add_argument("--model-dir", type=str, default="/mnt/usb/models/qwen38",
                         help="Path to source unquantized model directory")
     parser.add_argument("--output-dir", type=str, default="",
-                        help="Output directory for quantized bundle (defaults to qwen38_exl3_k2_<board>)")
+                        help="Output directory for quantized bundle (defaults to qwen38_exl3_k<K>_<board>)")
     parser.add_argument("--corpus", type=str,
                         default="/mnt/usb/models/qwen38/calibration_tokens_wikitext2_test.json",
                         help="Path to tokenized calibration corpus")
     parser.add_argument("--evidence", type=str, default="",
-                        help="Path to evidence bundle directory (defaults to evidence_<board>)")
+                        help="Path to evidence bundle directory (defaults to evidence_k<K>_<board>)")
     parser.add_argument("--board", type=str, choices=["b580", "b60", "auto"], default="auto",
                         help="Target board (auto-detected from ZE_AFFINITY_MASK or device name)")
+    parser.add_argument("-K", "--bits-per-weight", "--K", dest="K", type=int, choices=[2, 3, 4], default=2,
+                        help="Trellis bits per weight (default: 2)")
     parser.add_argument("--device", type=str, default="xpu:0",
                         help="Device string (default: xpu:0)")
     parser.add_argument("--resume", action="store_true",
@@ -129,12 +131,12 @@ def main():
     corpus_path = Path(args.corpus).resolve()
 
     if not args.output_dir:
-        args.output_dir = f"/mnt/usb/models/qwen38_exl3_k2_{board}"
+        args.output_dir = f"/mnt/usb/models/qwen38_exl3_k{args.K}_{board}"
     out_dir = Path(args.output_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if not args.evidence:
-        args.evidence = f"reports/evidence_{board}"
+        args.evidence = f"reports/evidence_k{args.K}_{board}"
     evidence_dir = (REPO_ROOT / args.evidence).resolve()
     evidence_dir.mkdir(parents=True, exist_ok=True)
 
@@ -147,7 +149,7 @@ def main():
     print(f"Corpus File:     {corpus_path}")
     print(f"Evidence Dir:    {evidence_dir}")
     print(f"Device:          {args.device}")
-    print(f"Recipe:          K=2, cb=mul1, skip_g_scale={args.skip_g_scale}, {args.num_rows}x{args.seq_len}")
+    print(f"Recipe:          K={args.K}, cb=mul1, skip_g_scale={args.skip_g_scale}, {args.num_rows}x{args.seq_len}")
     print(f"Memory Reserve:  {os.environ.get('EXL3_MEMORY_RESERVE_GIB', '6.0 (default)')} GiB")
     print(f"Reflect Out:     {os.environ.get('EXL3_MEMORY_REFLECT_OUTSTANDING', '0 (default)')}")
     print("================================================================")
@@ -194,7 +196,7 @@ def main():
     cfg = conv.ConversionConfig(
         model_dir=str(model_dir),
         output_dir=str(out_dir),
-        K=2,
+        K=args.K,
         cb="mul1",
         num_calibration_rows=args.num_rows,
         batch_size=1,
@@ -244,7 +246,7 @@ def main():
         "total_elapsed_hours": round(elapsed / 3600, 2),
         "num_layers": len(report.layers),
         "recipe": {
-            "K": 2,
+            "K": args.K,
             "cb": "mul1",
             "skip_g_scale": args.skip_g_scale,
             "rows": args.num_rows,
