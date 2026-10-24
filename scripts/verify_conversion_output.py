@@ -87,6 +87,8 @@ def main() -> int:
     ap.add_argument("--report", default="", help="write a JSON report here")
     ap.add_argument("--max-decode-modules", type=int, default=0,
                     help="decode at most N modules (0 = every module)")
+    ap.add_argument("--bits", "-K", type=int, default=0,
+                    help="expected bits per weight (default: 0 = accept any valid K in {2, 3, 4})")
     ap.add_argument("--skip-decode", action="store_true",
                     help="skip the reconstruction stage entirely")
     args = ap.parse_args()
@@ -108,8 +110,12 @@ def main() -> int:
               f"status={manifest.get('status')!r}")
     rep.check("manifest.quant_method", manifest.get("quant_method") == "exl3",
               f"quant_method={manifest.get('quant_method')!r}")
-    rep.check("manifest.bits", manifest.get("bits") == 2,
-              f"bits={manifest.get('bits')!r}")
+    if args.bits:
+        rep.check("manifest.bits", manifest.get("bits") == args.bits,
+                  f"bits={manifest.get('bits')!r} (expected {args.bits})")
+    else:
+        rep.check("manifest.bits", manifest.get("bits") in {2, 3, 4},
+                  f"bits={manifest.get('bits')!r}")
     rep.check("manifest.codebook", manifest.get("codebook") == "mul1",
               f"codebook={manifest.get('codebook')!r}")
 

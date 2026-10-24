@@ -1,8 +1,8 @@
 # EXL3 Intel Arc Quantizer: Implementation Progress
 
-> **Last Updated:** 2026-10-21 10:55:00 +02:00  
-> **Target Platform:** Intel Core Ultra 7 258V (Lunar Lake), Arc 140V integrated GPU (`0x64A0`), 32 GB shared memory  
-> **Current Status:** Gates 0/1/2 closed; **Phase 3 in progress** — P3-01..P3-08 done. 218 unit tests passing (100%, 1 platform-conditional skip). **CUDA ground-truth deferral adopted** (`skip_cuda.md`, `SKIP-CUDA-2026-10-21-01` / waiver `DEV-2026-10-21-01`): P0-24/P0-25/P0-27 stay open and blocked; all gate evidence is capped at class **E3**; E4 (CUDA path parity) is not claimed. **Declared Active Target: `empero-ai/Qwen3.8-9B-Distill` (BLOCKED)** — qwen3_5 hybrid linear-attention/multimodal architecture outside the pinned contract; successor of the first-declared sibling `XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B`; conversion blocked on the P4-12/P4-13 architecture-extension track; validator hardened with regression guards for both config shapes.
+> **Last Updated:** 2026-10-24 19:00:00 +02:00  
+> **Target Platforms:** Intel Arc 140V (Lunar Lake iGPU), Intel Arc B580 (Battlemage dGPU), Intel Arc Pro B60 (Battlemage Workstation dGPU)  
+> **Current Status:** Gates 0/1/2/3 closed; **Discrete Arc Deployment Track (P3-15..P3-18) fully qualified** per [`B60_B580.md`](./B60_B580.md) & [`reports/discrete_vs_140v.md`](./reports/discrete_vs_140v.md). 272 unit tests passing (100%, 8 platform-conditional skips). Full 32-layer conversions completed and published for [`empero-ai/Qwen3.8-9B-Distill`](https://huggingface.co/empero-ai/Qwen3.8-9B-Distill) ($K=2$ on 140V) and [`autotrust/JEV-9B`](https://huggingface.co/autotrust/JEV-9B) ($K=2$ on B580, $K=4$ on Pro B60). All artifacts verified clean with 0 failures under P3-11.
 > **Time-tag convention:** every entry below carries a local-time timestamp `[YYYY-MM-DD HH:MM:SS ±ZZZZ]` so that entries from different sessions can be ordered unambiguously. Timestamps are taken from the corresponding git commit date where one exists.
 
 ---
@@ -672,17 +672,48 @@ That is a Level Zero backend reset, not a memory-policy decision: the host was s
 - Published model repository: [`alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`](https://huggingface.co/alpha2beta/Qwen3.8-9B-Distill-EXL3-K2).
 - Formal release report: [`reports/gate_3.md`](./reports/gate_3.md).
 
+### Step 31 [2026-10-24 19:00:00 +0200]: Discrete Arc Qualification (Arc B580 & Arc Pro B60) — Full 32-Layer Conversions of JEV-9B ($K=2$ & $K=4$), Verification, and Comparative Report (`5516cc5`, `9d2ba9b`)
+
+**Why.** Complete the P3-15..P3-18 discrete qualification track per [`B60_B580.md`](./B60_B580.md) on dedicated Intel Xe2-HPG Battlemage GPUs (Arc B580 12 GB and Arc Pro B60 24 GB), evaluating both the baseline $K=2$ recipe and the high-fidelity $K=4$ recipe on [`autotrust/JEV-9B`](https://huggingface.co/autotrust/JEV-9B).
+
+**Key Milestones & Measurements:**
+1. **Hardware Probing & Micro-Benchmarking (P3-15):**
+   - Arc B580: 1,711.5 tiles/s (0.584 ms/tile, **2.36× vs 140V**).
+   - Arc Pro B60: 1,464.2 tiles/s (0.683 ms/tile, **2.02× vs 140V**).
+   - Reports: [`reports/discrete_inventory.md`](./reports/discrete_inventory.md), [`reports/discrete_probe.md`](./reports/discrete_probe.md).
+2. **Phase C Suite & Single-Layer Benchmarks:**
+   - Full test suite passed 272/272 tests on both boards (B580 in 129.5 s, Pro B60 in 159.8 s).
+   - Single-layer conversion speedup confirmed at **2.83× (B580, 560.5 s)** and **2.43× (B60, 653.6 s)** vs 140V (1,587.0 s).
+   - Report: [`reports/discrete_phase_c.md`](./reports/discrete_phase_c.md).
+3. **Full 32-Layer JEV-9B ($K=2$) Conversion on Arc B580:**
+   - 32/32 layers converted in **5.00 hours** (17,998 s).
+   - Verification (`reports/verify_jev9b_b580.json`): **1,045 checks, 0 failures**. Mean Frobenius error 0.3185.
+   - Runtime export: 33 shards, 5.42 GiB.
+   - Published: [`alpha2beta/JEV-9B-EXL3-K2`](https://huggingface.co/alpha2beta/JEV-9B-EXL3-K2).
+4. **Full 32-Layer JEV-9B ($K=4$) Conversion on Arc Pro B60:**
+   - Parameterized `$K$` support in `scripts/run_p3_09.py` and `scripts/run_p3_09_supervisor.sh` (`9d2ba9b`).
+   - 32/32 layers converted in **6.07 hours** (21,852 s).
+   - Verification (`reports/verify_jev9b_k4_b60.json`): **1,045 checks, 0 failures**.
+   - Near-lossless precision: Mean relative Frobenius distortion drops to **0.0865** ($3.68\times$ reduction vs $K=2$), mean MSE is **$1.64 \times 10^{-6}$** ($12.2\times$ reduction vs $K=2$).
+   - Runtime export: 33 shards, 7.03 GiB.
+   - Published: [`alpha2beta/JEV-9B-EXL3-K4`](https://huggingface.co/alpha2beta/JEV-9B-EXL3-K4).
+5. **Cross-Platform Qualification Report (P3-18):**
+   - Published [`reports/discrete_vs_140v.md`](./reports/discrete_vs_140v.md) consolidating architectural differences, throughput comparisons, memory regimes, and $K=2$ vs $K=4$ trade-offs across Lunar Lake and Battlemage.
+
 ---
 
 ## Critical Path Next Steps (Phase 3 & Phase 4)
 
 > **Governing decision — `skip_cuda.md` (`SKIP-CUDA-2026-10-21-01`):** CUDA ground truth (P0-24/P0-25/P0-27) is **deferred, not waived**.
 >
-> **Declared Active Target:** `empero-ai/Qwen3.8-9B-Distill` — **CONVERTED, QUALIFIED, AND RELEASED (Gate 3 PASSED)**.
+> **Active Target Deployments:**
+> - `empero-ai/Qwen3.8-9B-Distill` — **QUALIFIED & RELEASED** (`alpha2beta/Qwen3.8-9B-Distill-EXL3-K2`, Arc 140V)
+> - `autotrust/JEV-9B` — **QUALIFIED & RELEASED** (`alpha2beta/JEV-9B-EXL3-K2`, Arc B580)
+> - `autotrust/JEV-9B` ($K=4$) — **QUALIFIED & RELEASED** (`alpha2beta/JEV-9B-EXL3-K4`, Arc Pro B60)
 
-1. ~~**P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming**~~ **DONE** (Step 21, [2026-10-21 10:20:00 +02:00]).
-2. ~~**P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery**~~ **DONE** (Step 23 / commit `77ae4d4`, [2026-10-21 11:37:10 +02:00]).
-3. ~~**P3-09 .. P3-14 & Gate 3 — First Complete Model Conversion & Evaluation:**~~ **DONE** (Steps 28–30, [2026-10-22 21:10:00 +02:00]). Released as `alpha2beta/Qwen3.8-9B-Distill-EXL3-K2` with Gate 3 report in `reports/gate_3.md`.
-4. **Phase 3 Optional Deployment Track (`P3-15` .. `P3-18`):** Discrete Arc qualification (Arc Pro B60 + Arc B580) per [`B60_B580.md`](./B60_B580.md).
-5. **Phase 4 Candidates:** Text-only JEV-9B qualification (`P4-14`, loader ready).
+1. ~~**P3-01 / P3-02 / P3-03 — Bounded Model Orchestrator & Shard Streaming**~~ **DONE** (Step 21).
+2. ~~**P3-04 / P3-05 / P3-06 / P3-07 / P3-08 — Checkpointing, Resumability & Fault Recovery**~~ **DONE** (Step 23).
+3. ~~**P3-09 .. P3-14 & Gate 3 — First Complete Model Conversion & Evaluation:**~~ **DONE** (Steps 28–30).
+4. ~~**P3-15 .. P3-18 — Discrete Arc Deployment Track:**~~ **DONE** (Step 31, [`reports/discrete_vs_140v.md`](./reports/discrete_vs_140v.md)).
+5. **Phase 4 Separately Scoped Extensions:** P4-01 alternate codebooks (`mcg`, `3INST`), P4-02 fractional bitrates, P4-05 MoE conversion, P4-08 larger models.
 

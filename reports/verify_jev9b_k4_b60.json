@@ -1,0 +1,7044 @@
+{
+  "ok": false,
+  "num_checks": 1045,
+  "num_failures": 0,
+  "failures": [],
+  "checks": [
+    {
+      "name": "manifest.status_completed",
+      "ok": true,
+      "detail": "status='completed'"
+    },
+    {
+      "name": "manifest.quant_method",
+      "ok": true,
+      "detail": "quant_method='exl3'"
+    },
+    {
+      "name": "manifest.bits",
+      "ok": true,
+      "detail": "bits=4 (expected 4)"
+    },
+    {
+      "name": "manifest.codebook",
+      "ok": true,
+      "detail": "codebook='mul1'"
+    },
+    {
+      "name": "manifest.layers_complete",
+      "ok": true,
+      "detail": "completed=32 entries=32 num_layers=32"
+    },
+    {
+      "name": "manifest.layer_types_count",
+      "ok": true,
+      "detail": "layer_types=32 num_layers=32"
+    },
+    {
+      "name": "corpus.sha256_matches_manifest",
+      "ok": true,
+      "detail": "manifest=7d9d778e8f6420bb actual=7d9d778e8f6420bb"
+    },
+    {
+      "name": "corpus.skip_g_scale_false",
+      "ok": true,
+      "detail": "skip_g_scale=False"
+    },
+    {
+      "name": "corpus.recipe",
+      "ok": true,
+      "detail": "rows=128 seq=2048 batch=1"
+    },
+    {
+      "name": "layer0.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer0.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer0.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer0.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer0.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer0.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer0.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer0.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer0.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer0.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer0.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer0.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer0.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer0.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer0.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer0.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer0.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer0.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer0.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer0.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer0.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer0.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer1.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer1.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer1.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer1.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer1.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer1.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer1.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer1.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer1.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer1.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer1.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer1.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer1.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer1.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer1.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer1.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer2.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer2.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer2.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer2.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer2.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer2.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer2.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer2.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer2.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer2.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer2.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer2.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer2.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer2.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer2.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer2.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer3.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer3.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer3.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer3.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer3.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer3.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer3.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer3.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer3.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer3.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer3.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer3.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer3.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer3.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer3.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer3.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer3.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer3.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer3.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer3.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer3.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer3.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer3.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer3.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer3.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer3.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer3.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer3.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer3.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer4.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer4.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer4.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer4.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer4.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer4.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer4.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer4.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer4.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer4.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer4.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer4.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer4.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer4.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer4.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer4.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer5.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer5.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer5.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer5.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer5.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer5.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer5.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer5.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer5.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer5.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer5.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer5.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer5.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer5.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer5.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer5.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer6.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer6.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer6.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer6.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer6.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer6.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer6.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer6.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer6.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer6.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer6.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer6.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer6.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer6.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer6.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer6.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer7.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer7.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer7.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer7.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer7.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer7.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer7.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer7.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer7.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer7.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer7.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer7.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer7.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer7.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer7.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer7.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer7.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer7.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer7.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer7.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer7.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer7.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer7.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer7.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer7.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer7.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer7.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer7.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer7.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer8.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer8.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer8.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer8.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer8.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer8.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer8.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer8.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer8.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer8.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer8.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer8.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer8.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer8.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer8.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer8.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer9.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer9.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer9.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer9.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer9.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer9.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer9.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer9.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer9.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer9.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer9.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer9.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer9.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer9.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer9.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer9.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer10.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer10.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer10.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer10.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer10.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer10.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer10.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer10.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer10.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer10.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer10.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer10.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer10.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer10.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer10.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer10.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer11.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer11.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer11.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer11.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer11.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer11.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer11.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer11.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer11.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer11.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer11.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer11.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer11.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer11.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer11.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer11.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer11.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer11.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer11.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer11.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer11.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer11.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer11.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer11.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer11.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer11.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer11.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer11.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer11.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer12.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer12.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer12.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer12.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer12.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer12.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer12.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer12.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer12.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer12.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer12.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer12.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer12.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer12.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer12.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer12.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer13.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer13.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer13.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer13.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer13.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer13.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer13.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer13.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer13.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer13.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer13.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer13.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer13.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer13.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer13.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer13.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer14.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer14.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer14.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer14.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer14.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer14.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer14.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer14.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer14.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer14.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer14.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer14.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer14.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer14.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer14.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer14.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer15.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer15.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer15.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer15.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer15.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer15.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer15.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer15.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer15.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer15.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer15.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer15.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer15.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer15.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer15.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer15.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer15.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer15.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer15.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer15.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer15.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer15.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer15.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer15.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer15.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer15.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer15.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer15.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer15.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer16.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer16.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer16.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer16.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer16.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer16.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer16.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer16.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer16.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer16.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer16.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer16.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer16.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer16.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer16.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer16.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer17.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer17.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer17.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer17.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer17.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer17.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer17.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer17.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer17.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer17.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer17.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer17.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer17.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer17.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer17.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer17.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer18.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer18.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer18.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer18.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer18.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer18.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer18.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer18.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer18.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer18.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer18.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer18.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer18.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer18.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer18.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer18.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer19.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer19.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer19.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer19.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer19.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer19.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer19.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer19.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer19.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer19.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer19.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer19.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer19.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer19.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer19.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer19.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer19.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer19.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer19.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer19.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer19.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer19.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer19.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer19.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer19.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer19.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer19.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer19.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer19.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer20.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer20.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer20.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer20.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer20.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer20.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer20.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer20.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer20.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer20.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer20.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer20.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer20.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer20.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer20.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer20.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer21.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer21.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer21.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer21.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer21.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer21.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer21.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer21.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer21.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer21.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer21.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer21.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer21.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer21.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer21.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer21.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer22.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer22.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer22.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer22.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer22.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer22.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer22.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer22.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer22.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer22.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer22.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer22.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer22.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer22.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer22.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer22.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer23.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer23.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer23.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer23.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer23.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer23.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer23.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer23.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer23.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer23.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer23.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer23.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer23.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer23.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer23.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer23.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer23.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer23.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer23.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer23.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer23.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer23.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer23.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer23.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer23.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer23.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer23.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer23.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer23.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer24.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer24.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer24.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer24.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer24.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer24.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer24.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer24.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer24.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer24.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer24.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer24.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer24.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer24.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer24.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer24.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer25.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer25.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer25.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer25.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer25.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer25.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer25.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer25.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer25.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer25.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer25.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer25.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer25.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer25.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer25.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer25.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer26.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer26.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer26.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer26.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer26.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer26.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer26.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer26.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer26.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer26.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer26.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer26.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer26.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer26.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer26.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer26.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer27.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer27.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer27.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer27.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer27.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer27.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer27.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer27.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer27.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer27.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer27.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer27.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer27.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer27.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer27.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer27.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer27.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer27.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer27.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer27.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer27.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer27.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer27.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer27.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer27.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer27.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer27.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer27.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer27.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer28.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer28.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer28.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer28.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer28.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer28.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer28.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer28.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer28.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer28.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer28.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer28.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer28.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer28.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer28.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer28.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer29.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer29.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer29.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer29.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer29.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer29.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer29.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer29.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer29.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer29.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer29.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer29.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer29.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer29.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer29.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer29.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_qkv.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_qkv.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_qkv.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_qkv.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_qkv.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_z.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_z.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_z.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_z.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.linear_attn.in_proj_z.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.linear_attn.out_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer30.linear_attn.out_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer30.linear_attn.out_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer30.linear_attn.out_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.linear_attn.out_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer30.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer30.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer30.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer30.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer30.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer30.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer30.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer30.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer30.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer30.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer30.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer30.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer30.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.key_set",
+      "ok": true,
+      "detail": "missing=[] extra=[] n_keys=32"
+    },
+    {
+      "name": "layer31.self_attn.q_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer31.self_attn.q_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 512, 64)"
+    },
+    {
+      "name": "layer31.self_attn.q_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,512) src=[8192, 4096]"
+    },
+    {
+      "name": "layer31.self_attn.q_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.self_attn.q_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(8192,)"
+    },
+    {
+      "name": "layer31.self_attn.k_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer31.self_attn.k_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer31.self_attn.k_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer31.self_attn.k_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.self_attn.k_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer31.self_attn.v_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer31.self_attn.v_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 64, 64)"
+    },
+    {
+      "name": "layer31.self_attn.v_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,64) src=[1024, 4096]"
+    },
+    {
+      "name": "layer31.self_attn.v_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.self_attn.v_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(1024,)"
+    },
+    {
+      "name": "layer31.self_attn.o_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer31.self_attn.o_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 256, 64)"
+    },
+    {
+      "name": "layer31.self_attn.o_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,256) src=[4096, 4096]"
+    },
+    {
+      "name": "layer31.self_attn.o_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.self_attn.o_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.mlp.gate_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer31.mlp.gate_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer31.mlp.gate_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer31.mlp.gate_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.mlp.gate_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer31.mlp.up_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer31.mlp.up_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(256, 768, 64)"
+    },
+    {
+      "name": "layer31.mlp.up_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(256,768) src=[12288, 4096]"
+    },
+    {
+      "name": "layer31.mlp.up_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layer31.mlp.up_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer31.mlp.down_proj.trellis_dtype",
+      "ok": true,
+      "detail": "dtype=torch.int16"
+    },
+    {
+      "name": "layer31.mlp.down_proj.trellis_rank",
+      "ok": true,
+      "detail": "shape=(768, 256, 64)"
+    },
+    {
+      "name": "layer31.mlp.down_proj.tile_geometry",
+      "ok": true,
+      "detail": "trellis=(768,256) src=[4096, 12288]"
+    },
+    {
+      "name": "layer31.mlp.down_proj.suh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(12288,)"
+    },
+    {
+      "name": "layer31.mlp.down_proj.svh_dtype",
+      "ok": true,
+      "detail": "dtype=torch.float16 shape=(4096,)"
+    },
+    {
+      "name": "layers.all_artifacts_present",
+      "ok": true,
+      "detail": "every layer artifact must exist"
+    },
+    {
+      "name": "pass_through.text.key_set",
+      "ok": true,
+      "detail": "missing=[] n_keys=3"
+    },
+    {
+      "name": "pass_through.all_bit_exact",
+      "ok": true,
+      "detail": "3 pass-through tensors compared"
+    },
+    {
+      "name": "decode.modules_reconstructed",
+      "ok": true,
+      "detail": "200 modules reconstructed"
+    }
+  ],
+  "metrics": {
+    "layers": 32,
+    "artifact_tensors_total": 1024,
+    "pass_through_tensors_compared": 3,
+    "modules_reconstructed": 200,
+    "decode_rel_error_max": 0.17866282065177852,
+    "decode_rel_error_mean": 0.08649157042016499,
+    "elapsed_seconds": 1475.4205520153046
+  },
+  "decode_metrics": [
+    {
+      "layer": 0,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.08358340679768948,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 0,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.08389317798833301,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 0,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.11938294500503087,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 0,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.08352585145562362,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 0,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.08354717271719737,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 0,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08715544809470033,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 1,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.08045296116056785,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 1,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.08046594130794578,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 1,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09745887958993082,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 1,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.08104544353273328,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 1,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.08094740842477235,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 1,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08026660354805193,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 2,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07814823765098737,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 2,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.08579044221968339,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 2,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08373440114950402,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 2,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07844393025609868,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 2,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07802541214814247,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 2,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08023754047893024,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 3,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.12049888707805945,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 3,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.07610662660259432,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 3,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07629420654848063,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 3,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.09060321724258211,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 3,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07754653016858996,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 3,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07735725464549197,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 3,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07922858390106244,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 4,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07693761958524069,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 4,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.0772716433344163,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 4,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08217224551838362,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 4,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07688036147326187,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 4,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07682543135335554,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 4,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07846146364452991,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 5,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07676007637250354,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 5,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.078677179109541,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 5,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08274195741928285,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 5,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07665553040003903,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 5,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07653732404287338,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 5,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07768505101228758,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 6,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07650419510125284,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 6,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.10580189807287231,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 6,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08053469264123572,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 6,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07685486151348749,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 6,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07699586155229637,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 6,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07928163197521727,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 7,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.13419849196841516,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 7,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.07593276392441771,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 7,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07706590909875242,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 7,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.08523970069741535,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 7,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.0765147621027574,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 7,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07638826345702371,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 7,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07932135735061592,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 8,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07735518532482072,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 8,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.08874782117544697,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 8,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08137738755864193,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 8,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07691958087892094,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 8,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07689003718896222,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 8,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.0791103232288687,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 9,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07812448838607707,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 9,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.10887282242184235,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 9,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.0820103450681946,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 9,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07735119187858841,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 9,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07737224935681689,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 9,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.078087833049225,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 10,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07773563044647905,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 10,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.11152818088532668,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 10,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08153478584991491,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 10,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07732892132726864,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 10,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07746476047840031,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 10,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07817182728377489,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 11,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.14670453325876281,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 11,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.07663735148471858,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 11,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07801120476321223,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 11,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.08659843836444893,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 11,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07689737734373558,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 11,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07697253369720858,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 11,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.0782098196487183,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 12,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07784979747967051,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 12,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.11408356589505667,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 12,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.0838324424420336,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 12,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07774661776748022,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 12,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07776628259808623,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 12,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07881904812953888,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 13,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07812841535603855,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 13,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.12388688341554091,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 13,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08054741027390769,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 13,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07791481501030224,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 13,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07795255436963235,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 13,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07792361851560022,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 14,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07801431744303236,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 14,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.12650734433521513,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 14,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09043233556282979,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 14,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07801944261091669,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 14,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07808489058889209,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 14,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07770477800771002,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 15,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.15999537679661896,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 15,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.07741649146900854,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 15,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07820545346660247,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 15,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.08631590120384862,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 15,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07753687710706791,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 15,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07763247568886635,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 15,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07765955300007048,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 16,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.0776671068772153,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 16,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.12831509994666318,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 16,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08196679371188706,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 16,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07763872685719356,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 16,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07775743287773881,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 16,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07884549642708694,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 17,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07801151696621442,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 17,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.14413592344145415,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 17,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08071091387247632,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 17,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07807082614291981,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 17,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07833110774499154,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 17,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.07986806278092906,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 18,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07859877951752846,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 18,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.13667698050143698,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 18,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08455190598194762,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 18,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07933016104165339,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 18,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07987842696088979,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 18,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08342264631723972,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 19,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.17866282065177852,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 19,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.0803475698181482,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 19,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07793068533490471,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 19,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.08670252695910638,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 19,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07970611730952666,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 19,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.08023952363241728,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 19,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.0836256360997691,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 20,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.08055786917016426,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 20,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.12162338794924889,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 20,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.08951677518644788,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 20,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.08018181836761444,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 20,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.08065485142187179,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 20,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08398761786625511,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 21,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.08028037282603372,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 21,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.11865295743714116,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 21,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09151787930960997,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 21,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.08006033369871883,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 21,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.08040477410358218,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 21,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08448662187340539,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 22,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.0798146113070493,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 22,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.11532103953173943,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 22,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09609262546722766,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 22,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.0800530792744165,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 22,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.08027607874585597,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 22,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08819294831353125,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 23,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.16940004236745654,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 23,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.07751698316185991,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 23,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07844120289716834,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 23,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.08186127797650446,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 23,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07947294910022935,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 23,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.0797002874358143,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 23,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08783220695430068,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 24,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07956856572984129,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 24,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.09100961008747084,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 24,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09490358899310858,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 24,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07959254406432104,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 24,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07950037268450204,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 24,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.0871420386954621,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 25,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07940743418346337,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 25,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.09378527596881679,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 25,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09343124637283147,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 25,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07949984249840311,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 25,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.0789939995374074,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 25,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.0858369702265211,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 26,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07884077765442309,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 26,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.08573341429765818,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 26,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09602579991942681,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 26,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07936744472979851,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 26,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07853537927416618,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 26,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08383445858319154,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 27,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.16394443392485986,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 27,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.07280521972153933,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 27,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07624542196288135,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 27,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.08412472485867564,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 27,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07799614098043876,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 27,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07760893228586667,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 27,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08333965292709855,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 28,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07747405726697527,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 28,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.09554072662765652,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 28,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09610892989446541,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 28,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07788334087663298,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 28,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07740192769990058,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 28,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08595824930811521,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 29,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07733286333145829,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 29,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.08383930102243732,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 29,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09683766573534419,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 29,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07794703750632893,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 29,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07722118709893157,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 29,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08900557403695858,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 30,
+      "module": "linear_attn.in_proj_qkv",
+      "rel_frobenius_error": 0.07743898770162795,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 30,
+      "module": "linear_attn.in_proj_z",
+      "rel_frobenius_error": 0.11080668227871833,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 30,
+      "module": "linear_attn.out_proj",
+      "rel_frobenius_error": 0.09215144702910977,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 30,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.0784050597858474,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 30,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07736181479482958,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 30,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.09107911687855128,
+      "shape": [
+        4096,
+        12288
+      ]
+    },
+    {
+      "layer": 31,
+      "module": "self_attn.q_proj",
+      "rel_frobenius_error": 0.11491950993270518,
+      "shape": [
+        8192,
+        4096
+      ]
+    },
+    {
+      "layer": 31,
+      "module": "self_attn.k_proj",
+      "rel_frobenius_error": 0.07287441802431684,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 31,
+      "module": "self_attn.v_proj",
+      "rel_frobenius_error": 0.07694055288658073,
+      "shape": [
+        1024,
+        4096
+      ]
+    },
+    {
+      "layer": 31,
+      "module": "self_attn.o_proj",
+      "rel_frobenius_error": 0.0910820866427784,
+      "shape": [
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 31,
+      "module": "mlp.gate_proj",
+      "rel_frobenius_error": 0.07927099511677058,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 31,
+      "module": "mlp.up_proj",
+      "rel_frobenius_error": 0.07786203734359642,
+      "shape": [
+        12288,
+        4096
+      ]
+    },
+    {
+      "layer": 31,
+      "module": "mlp.down_proj",
+      "rel_frobenius_error": 0.08963174421762228,
+      "shape": [
+        4096,
+        12288
+      ]
+    }
+  ]
+}

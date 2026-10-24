@@ -1,0 +1,240 @@
+{
+  "board": "b60",
+  "device": "Intel(R) Arc(TM) Pro B60 Graphics",
+  "total_elapsed_seconds": 673.89,
+  "total_elapsed_hours": 0.19,
+  "num_layers": 32,
+  "recipe": {
+    "K": 4,
+    "cb": "mul1",
+    "skip_g_scale": false,
+    "rows": 128,
+    "seq_len": 2048
+  },
+  "layer_summary": [
+    {
+      "layer_index": 0,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 698.9792594909668,
+      "proxy_loss": 4.047137991486427,
+      "mean_mse": 1.665285945288512e-06
+    },
+    {
+      "layer_index": 1,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.2806837558746,
+      "proxy_loss": 0.47465768549591303,
+      "mean_mse": 1.3987714832334557e-06
+    },
+    {
+      "layer_index": 2,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.3658559322357,
+      "proxy_loss": 0.8807115152012557,
+      "mean_mse": 1.3010707107241615e-06
+    },
+    {
+      "layer_index": 3,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 668.1715562343597,
+      "proxy_loss": 3.678002164366522,
+      "mean_mse": 1.7648100814377749e-06
+    },
+    {
+      "layer_index": 4,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.1226589679718,
+      "proxy_loss": 1.6608347088719408,
+      "mean_mse": 1.2486343810754381e-06
+    },
+    {
+      "layer_index": 5,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 686.9639661312103,
+      "proxy_loss": 2.201884767661492,
+      "mean_mse": 1.2266809600684307e-06
+    },
+    {
+      "layer_index": 6,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.3710477352142,
+      "proxy_loss": 2.7942531940837703,
+      "mean_mse": 1.3863930140208443e-06
+    },
+    {
+      "layer_index": 7,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 668.3398153781891,
+      "proxy_loss": 3.530320292072637,
+      "mean_mse": 1.6878200718955277e-06
+    },
+    {
+      "layer_index": 8,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.5522038936615,
+      "proxy_loss": 2.909648603449265,
+      "mean_mse": 1.285938234711163e-06
+    },
+    {
+      "layer_index": 9,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 686.967894077301,
+      "proxy_loss": 3.351389095187187,
+      "mean_mse": 1.4604091613061125e-06
+    },
+    {
+      "layer_index": 10,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 686.7657165527344,
+      "proxy_loss": 3.2248749447365603,
+      "mean_mse": 1.44454536628776e-06
+    },
+    {
+      "layer_index": 11,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 668.6182248592377,
+      "proxy_loss": 3.4554233316864287,
+      "mean_mse": 1.7611458409711695e-06
+    },
+    {
+      "layer_index": 12,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.0073390007019,
+      "proxy_loss": 3.1469652528564134,
+      "mean_mse": 1.4471555023950107e-06
+    },
+    {
+      "layer_index": 13,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.1824402809143,
+      "proxy_loss": 3.886209716399511,
+      "mean_mse": 1.5262916974734253e-06
+    },
+    {
+      "layer_index": 14,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.1511614322662,
+      "proxy_loss": 3.6532915458083153,
+      "mean_mse": 1.5718564820114504e-06
+    },
+    {
+      "layer_index": 15,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 668.180328130722,
+      "proxy_loss": 4.340111467455115,
+      "mean_mse": 1.8364675286518053e-06
+    },
+    {
+      "layer_index": 16,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.5503251552582,
+      "proxy_loss": 4.162101527055104,
+      "mean_mse": 1.4964713273002417e-06
+    },
+    {
+      "layer_index": 17,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.0746319293976,
+      "proxy_loss": 5.5689534818132715,
+      "mean_mse": 1.6384408543975344e-06
+    },
+    {
+      "layer_index": 18,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 686.4909799098969,
+      "proxy_loss": 5.009306569894155,
+      "mean_mse": 1.6356064899506844e-06
+    },
+    {
+      "layer_index": 19,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 668.8557460308075,
+      "proxy_loss": 7.112344316073826,
+      "mean_mse": 2.131814678055629e-06
+    },
+    {
+      "layer_index": 20,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 686.9076595306396,
+      "proxy_loss": 7.190134068330129,
+      "mean_mse": 1.693739941780829e-06
+    },
+    {
+      "layer_index": 21,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.422182559967,
+      "proxy_loss": 7.429264197746913,
+      "mean_mse": 1.6999837650170473e-06
+    },
+    {
+      "layer_index": 22,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.174751996994,
+      "proxy_loss": 8.754975582162539,
+      "mean_mse": 1.7909139842231525e-06
+    },
+    {
+      "layer_index": 23,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 668.1277439594269,
+      "proxy_loss": 10.128490822655815,
+      "mean_mse": 2.185798263911108e-06
+    },
+    {
+      "layer_index": 24,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.26500248909,
+      "proxy_loss": 9.370234842101732,
+      "mean_mse": 1.5675348853013322e-06
+    },
+    {
+      "layer_index": 25,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.6802759170532,
+      "proxy_loss": 10.844160825014114,
+      "mean_mse": 1.62733876625983e-06
+    },
+    {
+      "layer_index": 26,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 686.8310539722443,
+      "proxy_loss": 11.803483555714289,
+      "mean_mse": 1.6033446854635258e-06
+    },
+    {
+      "layer_index": 27,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 667.9930460453033,
+      "proxy_loss": 15.167542134012495,
+      "mean_mse": 2.4205159304204116e-06
+    },
+    {
+      "layer_index": 28,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.9113981723785,
+      "proxy_loss": 14.2639968196551,
+      "mean_mse": 1.6801279135355192e-06
+    },
+    {
+      "layer_index": 29,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.6520674228668,
+      "proxy_loss": 12.958635061979294,
+      "mean_mse": 1.6205516999434622e-06
+    },
+    {
+      "layer_index": 30,
+      "layer_type": "linear_attention",
+      "elapsed_seconds": 687.1275222301483,
+      "proxy_loss": 13.429470002651215,
+      "mean_mse": 1.816968373683873e-06
+    },
+    {
+      "layer_index": 31,
+      "layer_type": "full_attention",
+      "elapsed_seconds": 668.5892016887665,
+      "proxy_loss": 11.516740185873848,
+      "mean_mse": 1.9894469573955575e-06
+    }
+  ]
+}
