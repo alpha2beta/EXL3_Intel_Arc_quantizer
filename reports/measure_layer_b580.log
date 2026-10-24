@@ -1,0 +1,89 @@
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+================================================================
+=== EXL3 Single-Layer Qualification Benchmark (Phase C)     ===
+================================================================
+Device:       Intel(R) Arc(TM) B580 Graphics (11.33 GiB VRAM)
+Model Dir:    /mnt/usb/models/qwen38
+Config:       4 rows x 2048 tokens
+Target Layers:[0, 3]
+Skip GSS:     False
+================================================================
+Loading calibration tokens from calibration_tokens_wikitext2_test.json...
+
+========================================================
+=== Measuring Layer 0 (linear_attention) on xpu:0 ===
+========================================================
+Capturing grouped Hessians (4 rows x 2048 tokens)...
+Hessian working set: 1.000 GiB across 8 groups
+Read: 0.001s | Build: 1.173s | Embed: 1.772s | Cal: 1.902s
+Quantizing 6 projections (K=2, mul1, skip_g_scale=False)...
+  [module linear_attn.in_proj_qkv] quantizing (8192x4096)...
+/mnt/usb/EXL3_Intel_Arc_quantizer/exl3_quant/ldlq.py:98: UserWarning: Aten Op fallback from XPU to CPU happends. This may have performance implications. If need debug the fallback ops please set environment variable `PYTORCH_DEBUG_XPU_FALLBACK=1`  (Triggered internally at /__w/pytorch/pytorch/third_party/torch-xpu-ops/src/ATen/native/xpu/XPUFallback.cpp:58.)
+  chol = torch.linalg.cholesky(work)
+  [module linear_attn.in_proj_qkv] done in 86.68s (g_scale=0.7769, rel_frob=0.3911)
+  [module linear_attn.in_proj_z] quantizing (4096x4096)...
+  [module linear_attn.in_proj_z] done in 43.07s (g_scale=0.7812, rel_frob=0.3896)
+  [module linear_attn.out_proj] quantizing (4096x4096)...
+  [module linear_attn.out_proj] done in 43.02s (g_scale=0.5212, rel_frob=0.3490)
+  [module mlp.gate_proj] quantizing (12288x4096)...
+  [module mlp.gate_proj] done in 127.94s (g_scale=0.7920, rel_frob=0.3953)
+  [module mlp.up_proj] quantizing (12288x4096)...
+  [module mlp.up_proj] done in 127.86s (g_scale=0.7906, rel_frob=0.3957)
+  [module mlp.down_proj] quantizing (4096x12288)...
+  [module mlp.down_proj] done in 131.88s (g_scale=0.7900, rel_frob=0.3910)
+Quantization finished in 560.46 s (9.34 min)
+  linear_attn.in_proj_qkv         : 86.68s | g=0.7769 | rel_frob=0.3911
+  linear_attn.in_proj_z           : 43.07s | g=0.7812 | rel_frob=0.3896
+  linear_attn.out_proj            : 43.02s | g=0.5212 | rel_frob=0.3490
+  mlp.gate_proj                   : 127.94s | g=0.7920 | rel_frob=0.3953
+  mlp.up_proj                     : 127.86s | g=0.7906 | rel_frob=0.3957
+  mlp.down_proj                   : 131.88s | g=0.7900 | rel_frob=0.3910
+
+========================================================
+=== Measuring Layer 3 (full_attention) on xpu:0 ===
+========================================================
+Capturing grouped Hessians (4 rows x 2048 tokens)...
+Hessian working set: 0.938 GiB across 7 groups
+Read: 0.045s | Build: 2.110s | Embed: 1.759s | Cal: 0.472s
+Quantizing 7 projections (K=2, mul1, skip_g_scale=False)...
+  [module self_attn.q_proj] quantizing (8192x4096)...
+  [module self_attn.q_proj] done in 85.39s (g_scale=0.6812, rel_frob=0.4059)
+  [module self_attn.k_proj] quantizing (1024x4096)...
+  [module self_attn.k_proj] done in 14.46s (g_scale=0.7904, rel_frob=0.3886)
+  [module self_attn.v_proj] quantizing (1024x4096)...
+  [module self_attn.v_proj] done in 14.29s (g_scale=0.7946, rel_frob=0.3889)
+  [module self_attn.o_proj] quantizing (4096x4096)...
+  [module self_attn.o_proj] done in 43.00s (g_scale=0.7891, rel_frob=0.3985)
+  [module mlp.gate_proj] quantizing (12288x4096)...
+  [module mlp.gate_proj] done in 127.97s (g_scale=0.7881, rel_frob=0.3638)
+  [module mlp.up_proj] quantizing (12288x4096)...
+  [module mlp.up_proj] done in 127.85s (g_scale=0.7923, rel_frob=0.3629)
+  [module mlp.down_proj] quantizing (4096x12288)...
+  [module mlp.down_proj] done in 131.79s (g_scale=0.7913, rel_frob=0.3487)
+Quantization finished in 544.76 s (9.08 min)
+  self_attn.q_proj                : 85.39s | g=0.6812 | rel_frob=0.4059
+  self_attn.k_proj                : 14.46s | g=0.7904 | rel_frob=0.3886
+  self_attn.v_proj                : 14.29s | g=0.7946 | rel_frob=0.3889
+  self_attn.o_proj                : 43.00s | g=0.7891 | rel_frob=0.3985
+  mlp.gate_proj                   : 127.97s | g=0.7881 | rel_frob=0.3638
+  mlp.up_proj                     : 127.85s | g=0.7923 | rel_frob=0.3629
+  mlp.down_proj                   : 131.79s | g=0.7913 | rel_frob=0.3487
+
+
+======================================================================
+=== SINGLE-LAYER MEASUREMENT SUMMARY TABLE ===
+======================================================================
+Phase                                Layer 0 (linear) Layer 3 (full_a)
+----------------------------------------------------------------------
+read / build / embed gather          0.00 / 1.17 / 1.77 s 0.04 / 2.11 / 1.76 s
+calibration (4x2048 tok)             1.90 s 0.47 s
+quantization (real GSS)              560.5 s (9.34 m) 544.8 s (9.08 m)
+artifact build + save                36.76 + 0.012 s 35.12 + 0.012 s
+XPU Hessian working set              1.00 GiB (8 grp) 0.94 GiB (7 grp)
+peak host RSS (process max)          6.27 GiB 6.45 GiB
+======================================================================
+Layer 0 Quantization: 560.5s vs 140V baseline 1588.0s -> Speedup: 2.83x
+Layer 3 Quantization: 544.8s vs 140V baseline 1536.4s -> Speedup: 2.82x
+
+Saved benchmark record to: reports/measure_layer_b580.json

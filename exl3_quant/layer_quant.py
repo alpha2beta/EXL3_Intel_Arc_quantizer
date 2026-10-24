@@ -341,6 +341,8 @@ def quantize_decoder_layer(
                 raise KeyError(f"Hessian missing for module {name}")
 
             H = hessians[name]
+            t_mod = time.perf_counter()
+            print(f"  [module {name}] quantizing ({W.shape[0]}x{W.shape[1]})...", flush=True)
             res = quantize_linear_module(
                 name=name,
                 weight=W,
@@ -352,6 +354,8 @@ def quantize_decoder_layer(
                 buf_size_k=buf_size_k,
                 block_size=block_size,
             )
+            t_mod_done = time.perf_counter() - t_mod
+            print(f"  [module {name}] done in {t_mod_done:.2f}s (g_scale={res.metrics.g_scale:.4f}, rel_frob={res.metrics.relative_frobenius_error:.4f})", flush=True)
             results[name] = res
 
             # Stream synchronization before reusing the arena on the next module (P2-11)

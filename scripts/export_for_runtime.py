@@ -56,6 +56,9 @@ MODEL_SIDECAR_FILES = (
     "special_tokens_map.json",
     "chat_template.jinja",
     "preprocessor_config.json",
+    "head.safetensors",
+    "judge_config.json",
+    "calibration.json",
 )
 
 

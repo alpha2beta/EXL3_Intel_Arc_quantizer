@@ -1445,6 +1445,10 @@ def convert_model(
                     hidden_states = [runner(prev_layer, x) for x in hidden_states]
                     del tensors, prev_layer
 
+    layers_processed_this_run = 0
+    max_layers_env = os.environ.get("EXL3_MAX_LAYERS_PER_RUN")
+    max_layers_per_run = int(max_layers_env) if max_layers_env else None
+
     for layer_idx in range(resume_from_layer, geometry.num_layers):
         check_disk_space(out_dir, config.min_disk_free_bytes)
         layer_rss_before = read_rss_kib()
@@ -1599,6 +1603,12 @@ def convert_model(
         if (layer_idx + 1) % config.checkpoint_interval == 0 or layer_idx == geometry.num_layers - 1:
             report.total_elapsed_seconds = time.time() - t_start
             _write_manifest(out_dir, report, config, status="in_progress")
+
+        layers_processed_this_run += 1
+        if max_layers_per_run and layers_processed_this_run >= max_layers_per_run:
+            if layer_idx < geometry.num_layers - 1:
+                say(f"Reached EXL3_MAX_LAYERS_PER_RUN={max_layers_per_run}; exiting cleanly to recycle device memory.")
+                return report
 
     say("writing final manifest")
     report.total_elapsed_seconds = time.time() - t_start

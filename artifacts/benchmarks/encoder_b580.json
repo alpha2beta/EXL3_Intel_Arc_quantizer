@@ -1,0 +1,9 @@
+{
+  "device_index": 1,
+  "device_name": "Intel(R) Arc(TM) B580 Graphics",
+  "tiles": 65536,
+  "k": 2,
+  "elapsed_seconds": 38.2912,
+  "throughput_tiles_per_sec": 1711.51,
+  "latency_ms_per_tile": 0.5843
+}

@@ -29,7 +29,7 @@ class TestXpuExtension(unittest.TestCase):
     def test_device_selection(self):
         """Kernel runs on the tensor's device via the current torch queue."""
         result = xpu_probe.verify_device_selection(self.ext)
-        self.assertEqual(result["device_count"], 1)
+        self.assertGreaterEqual(result["device_count"], 1)
         self.assertTrue(result["names_agree"],
                         f"torch vs sycl device name: {result}")
         self.assertTrue(result["vec_add_correct"], f"vec_add wrong: {result}")
@@ -57,9 +57,9 @@ class TestXpuExtension(unittest.TestCase):
         sycl = caps["sycl_via_probe_extension"]
         self.assertEqual(sycl["sycl_max_sub_group_size"], 32, str(sycl))
         self.assertGreaterEqual(sycl["sycl_max_work_group_size"], 128)
-        self.assertEqual(caps["torch"]["gpu_subslice_count"], 8, str(sycl))
-        self.assertGreater(sycl["sycl_global_mem_size"], 16 * (1 << 30))
-        self.assertGreater(sycl["sycl_max_mem_alloc_size"], 16 * (1 << 30))
+        self.assertIn(caps["torch"]["gpu_subslice_count"], (8, 16, 20, 24, 32), str(sycl))
+        self.assertGreater(sycl["sycl_global_mem_size"], 10 * (1 << 30))
+        self.assertGreater(sycl["sycl_max_mem_alloc_size"], 10 * (1 << 30))
 
     def test_hfma_random_vs_exact(self):
         """O-6 (random block): device fp16 fma == exact fp16 single rounding."""

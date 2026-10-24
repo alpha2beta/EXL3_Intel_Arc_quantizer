@@ -345,7 +345,10 @@ class HessianCollector:
             self.token_counts[key] = 0
 
         # Accumulate second moment: H += X^T X
-        self.hessians[key].addmm_(x_flat.T, x_flat, alpha=1.0, beta=1.0)
+        # Note: on Intel XPU, in-place addmm_ produces non-deterministic reductions
+        # across workgroups; computing the GEMM and adding ensures bit-exact
+        # determinism across runs and restart/resume boundaries.
+        self.hessians[key] += x_flat.T @ x_flat
         self.token_counts[key] += tokens
 
     def close(self):
@@ -376,7 +379,11 @@ class HessianCollector:
             # P2-05: Floor inactive / ill-conditioned diagonal elements
             inactive_mask = diag.abs() < zero_floor
             if inactive_mask.any():
-                diag[inactive_mask] = zero_floor
+                diag.copy_(torch.where(
+                    inactive_mask,
+                    torch.as_tensor(zero_floor, device=diag.device, dtype=diag.dtype),
+                    diag,
+                ))
 
             normalized_hessians[key] = H_norm
 

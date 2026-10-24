@@ -1,0 +1,9 @@
+{
+  "device_index": 0,
+  "device_name": "Intel(R) Arc(TM) Pro B60 Graphics",
+  "tiles": 65536,
+  "k": 2,
+  "elapsed_seconds": 44.7603,
+  "throughput_tiles_per_sec": 1464.15,
+  "latency_ms_per_tile": 0.683
+}

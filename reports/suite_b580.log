@@ -1,0 +1,370 @@
+test_all_zeros_and_all_max_values (test_bitpack.TestSubByteBitPacker.test_all_zeros_and_all_max_values)
+Test boundary vectors: all zeros and all 1s (maximum discrete value). ... ok
+test_empty_array (test_bitpack.TestSubByteBitPacker.test_empty_array)
+Test packing and unpacking an empty array. ... ok
+test_out_of_bounds_rejection (test_bitpack.TestSubByteBitPacker.test_out_of_bounds_rejection)
+P2-15: Test that negative or out-of-range values raise ValueError. ... ok
+test_round_trip_all_supported_bit_widths (test_bitpack.TestSubByteBitPacker.test_round_trip_all_supported_bit_widths)
+P2-15: Test exact round trips for all supported bit widths across various lengths. ... ok
+test_attention_forward (test_calibration.TestCalibrationPrimitives.test_attention_forward) ... ok
+test_mlp_forward (test_calibration.TestCalibrationPrimitives.test_mlp_forward) ... ok
+test_rmsnorm_forward (test_calibration.TestCalibrationPrimitives.test_rmsnorm_forward) ... ok
+test_rotary_embeddings_shape (test_calibration.TestCalibrationPrimitives.test_rotary_embeddings_shape) ... ok
+test_xpu_calibrate_layer (test_calibration.TestCalibrationXPUExecution.test_xpu_calibrate_layer) ... ok
+test_hessian_collector_matches_explicit_formula (test_calibration.TestHessianAccumulationParity.test_hessian_collector_matches_explicit_formula) ... ok
+test_inactive_channel_damping_safeguard (test_calibration.TestHessianAccumulationParity.test_inactive_channel_damping_safeguard)
+P2-05: Inactive/dead channels get damped and clamped to floor. ... ok
+/mnt/usb/EXL3_Intel_Arc_quantizer/exl3_quant/ldlq.py:98: UserWarning: Aten Op fallback from XPU to CPU happends. This may have performance implications. If need debug the fallback ops please set environment variable `PYTORCH_DEBUG_XPU_FALLBACK=1`  (Triggered internally at /__w/pytorch/pytorch/third_party/torch-xpu-ops/src/ATen/native/xpu/XPUFallback.cpp:58.)
+  chol = torch.linalg.cholesky(work)
+test_calibration_state_records_corpus_identity (test_converter.TestCalibrationTokenCorpusPipeline.test_calibration_state_records_corpus_identity) ... ok
+test_manifest_records_corpus_provenance (test_converter.TestCalibrationTokenCorpusPipeline.test_manifest_records_corpus_provenance) ... ok
+test_resume_with_different_corpus_is_rejected (test_converter.TestCalibrationTokenCorpusPipeline.test_resume_with_different_corpus_is_rejected) ... ok
+test_resume_with_same_corpus_succeeds (test_converter.TestCalibrationTokenCorpusPipeline.test_resume_with_same_corpus_succeeds) ... ok
+test_load_returns_ordered_rows_and_metadata (test_converter.TestCalibrationTokenCorpusValidation.test_load_returns_ordered_rows_and_metadata) ... ok
+test_synthetic_default_needs_no_corpus_file (test_converter.TestCalibrationTokenCorpusValidation.test_synthetic_default_needs_no_corpus_file) ... ok
+test_validate_rejects_malformed_corpora (test_converter.TestCalibrationTokenCorpusValidation.test_validate_rejects_malformed_corpora) ... ok
+test_declared_target_mimo_is_rejected (test_converter.TestConversionConfig.test_declared_target_mimo_is_rejected)
+Regression guard for the declared Active Targets (owner decisions ... ok
+test_rejects_bad_output_dirs (test_converter.TestConversionConfig.test_rejects_bad_output_dirs) ... ok
+test_rejects_missing_model_dir (test_converter.TestConversionConfig.test_rejects_missing_model_dir) ... ok
+test_rejects_out_of_range_or_fractional_K (test_converter.TestConversionConfig.test_rejects_out_of_range_or_fractional_K) ... ok
+test_rejects_unsupported_calibration_bounds (test_converter.TestConversionConfig.test_rejects_unsupported_calibration_bounds) ... ok
+test_rejects_unsupported_codebook (test_converter.TestConversionConfig.test_rejects_unsupported_codebook) ... ok
+test_rejects_variant_configs (test_converter.TestConversionConfig.test_rejects_variant_configs) ... ok
+test_valid_config_produces_geometry (test_converter.TestConversionConfig.test_valid_config_produces_geometry) ... ok
+test_layer0_capture_matches_independent_calibration (test_converter.TestConverterPipeline.test_layer0_capture_matches_independent_calibration)
+Driver capture for layer 0 == independent capture on embed states. ... ok
+test_layer1_capture_derived_from_quantized_layer0_forward (test_converter.TestConverterPipeline.test_layer1_capture_derived_from_quantized_layer0_forward)
+End-to-end equivalence: re-running layer 0 with quantized weights ... ok
+test_layers_converted_in_ascending_order (test_converter.TestConverterPipeline.test_layers_converted_in_ascending_order) ... ok
+test_manifest_contents (test_converter.TestConverterPipeline.test_manifest_contents) ... ok
+test_metrics_consistent_with_module_reports (test_converter.TestConverterPipeline.test_metrics_consistent_with_module_reports) ... ok
+test_module_keys_match_upstream_projection_order (test_converter.TestConverterPipeline.test_module_keys_match_upstream_projection_order) ... ok
+test_per_layer_artifacts_match_upstream_qtensor_layout (test_converter.TestConverterPipeline.test_per_layer_artifacts_match_upstream_qtensor_layout) ... ok
+test_propagation_uses_quantized_numerics (test_converter.TestConverterPipeline.test_propagation_uses_quantized_numerics)
+Layer 1's Hessian comes from layer 0's *quantized* output. ... ok
+test_quantized_weights_differ_from_original (test_converter.TestConverterPipeline.test_quantized_weights_differ_from_original)
+The reload step really replaced weights (sanity vs. no-op). ... ok
+test_reload_swaps_transposed_w_hat_into_linear (test_converter.TestConverterPipeline.test_reload_swaps_transposed_w_hat_into_linear)
+``w_hat`` is (in, out); nn.Linear expects (out, in) — transpose. ... ok
+test_report_metrics_finite (test_converter.TestConverterPipeline.test_report_metrics_finite) ... ok
+test_rss_measurements_recorded_per_layer (test_converter.TestConverterPipeline.test_rss_measurements_recorded_per_layer) ... ok
+test_untouched_components_bit_exact_pass_through (test_converter.TestConverterPipeline.test_untouched_components_bit_exact_pass_through) ... ok
+test_index_parses_weight_map (test_converter.TestStreamingIndex.test_index_parses_weight_map) ... ok
+test_layer_keys_are_scoped (test_converter.TestStreamingIndex.test_layer_keys_are_scoped) ... ok
+test_read_layer_tensors_bit_exact (test_converter.TestStreamingIndex.test_read_layer_tensors_bit_exact) ... ok
+test_read_rss_kib_positive (test_converter.TestStreamingIndex.test_read_rss_kib_positive) ... ok
+test_single_file_model_indexed (test_converter.TestStreamingIndex.test_single_file_model_indexed) ... ok
+test_streaming_does_not_touch_other_shards (test_converter.TestStreamingIndex.test_streaming_does_not_touch_other_shards) ... ok
+test_unchanged_keys_cover_contract_components (test_converter.TestStreamingIndex.test_unchanged_keys_cover_contract_components) ... ok
+test_conversion_releases_source_and_artifact_caches (test_converter.TestStreamingMemoryHygiene.test_conversion_releases_source_and_artifact_caches) ... ok
+test_atomic_save_safetensors_cleans_tmp_on_failure (test_converter_recovery.TestAtomicPublicationAndIntegrity.test_atomic_save_safetensors_cleans_tmp_on_failure) ... ok
+test_atomic_save_safetensors_creates_valid_file (test_converter_recovery.TestAtomicPublicationAndIntegrity.test_atomic_save_safetensors_creates_valid_file) ... ok
+test_verify_layer_checkpoint_missing_file_returns_false (test_converter_recovery.TestAtomicPublicationAndIntegrity.test_verify_layer_checkpoint_missing_file_returns_false) ... ok
+test_verify_layer_checkpoint_rejects_empty_file (test_converter_recovery.TestAtomicPublicationAndIntegrity.test_verify_layer_checkpoint_rejects_empty_file) ... ok
+test_verify_layer_checkpoint_rejects_missing_keys (test_converter_recovery.TestAtomicPublicationAndIntegrity.test_verify_layer_checkpoint_rejects_missing_keys) ... ok
+test_verify_layer_checkpoint_rejects_truncated_file (test_converter_recovery.TestAtomicPublicationAndIntegrity.test_verify_layer_checkpoint_rejects_truncated_file) ... ok
+test_verify_layer_checkpoint_success (test_converter_recovery.TestAtomicPublicationAndIntegrity.test_verify_layer_checkpoint_success) ... ok
+test_corrupted_existing_checkpoint_halts_resume (test_converter_recovery.TestFailureModesAndResilience.test_corrupted_existing_checkpoint_halts_resume) ... ok
+test_insufficient_disk_space_raises (test_converter_recovery.TestFailureModesAndResilience.test_insufficient_disk_space_raises) ... ok
+test_missing_model_shard_raises (test_converter_recovery.TestFailureModesAndResilience.test_missing_model_shard_raises) ... ok
+test_interruption_and_safe_resumption (test_converter_recovery.TestFaultRecoveryAndResumption.test_interruption_and_safe_resumption) ... ok
+test_resume_with_deleted_calibration_state_falls_back_to_replay (test_converter_recovery.TestFaultRecoveryAndResumption.test_resume_with_deleted_calibration_state_falls_back_to_replay)
+If calibration_state.pt is deleted, resume replays through published layers. ... ok
+test_force_resume_overrides_mismatches (test_converter_recovery.TestResumeArgumentValidation.test_force_resume_overrides_mismatches) ... ok
+test_matching_config_validates (test_converter_recovery.TestResumeArgumentValidation.test_matching_config_validates) ... ok
+test_rejects_mismatched_K (test_converter_recovery.TestResumeArgumentValidation.test_rejects_mismatched_K) ... ok
+test_rejects_mismatched_calibration_seed (test_converter_recovery.TestResumeArgumentValidation.test_rejects_mismatched_calibration_seed) ... ok
+test_rejects_mismatched_calibration_seq_len (test_converter_recovery.TestResumeArgumentValidation.test_rejects_mismatched_calibration_seq_len) ... ok
+test_rejects_mismatched_geometry_num_layers (test_converter_recovery.TestResumeArgumentValidation.test_rejects_mismatched_geometry_num_layers) ... ok
+test_batch_encoding (test_encoder.TestReferenceTrellisEncoder.test_batch_encoding)
+Test encoding a batch of tiles. ... ok
+test_bit_exact_reconstruction_property (test_encoder.TestReferenceTrellisEncoder.test_bit_exact_reconstruction_property)
+Verify that output_tile equals codebook_lut[output_indices] bit for bit. ... ok
+test_distortion_bounded_across_seeds (test_encoder.TestReferenceTrellisEncoder.test_distortion_bounded_across_seeds)
+P1-05: Verify that TCQ Viterbi reconstruction distortion is bounded across seeds. ... ok
+test_distortion_matches_recomputed_path_error (test_encoder.TestReferenceTrellisEncoder.test_distortion_matches_recomputed_path_error)
+P1-05: Verify that reported distortion and path cost match recomputed path metrics. ... ok
+test_end_to_end_container_roundtrip (test_encoder.TestReferenceTrellisEncoder.test_end_to_end_container_roundtrip)
+Verify that encoded packed output round-trips bit-for-bit through decode_states. ... ok
+test_input_validation (test_encoder.TestReferenceTrellisEncoder.test_input_validation)
+Test strict input validation. ... ok
+test_trellis_shift_register_identity (test_encoder.TestReferenceTrellisEncoder.test_trellis_shift_register_identity)
+Verify the exact mathematical inverse identity for all states and edges. ... ok
+test_two_pass_tail_biting_continuity (test_encoder.TestReferenceTrellisEncoder.test_two_pass_tail_biting_continuity)
+Verify that the emitted 16-bit states form an unbroken circular trellis ring. ... ok
+test_constrained_pass_matches (test_forward_semantics.TestForwardPassAudit.test_constrained_pass_matches)
+A wrap constraint (pre_state >= 0) masks other predecessors. ... ok
+test_forward_matches_independent_transcription (test_forward_semantics.TestForwardPassAudit.test_forward_matches_independent_transcription)
+Unconstrained pass: temp_edges and terminal costs agree bit for bit. ... ok
+test_infinite_input_does_not_produce_nan_paths (test_forward_semantics.TestForwardPassAudit.test_infinite_input_does_not_produce_nan_paths)
+A degenerate infinite tile must not silently yield NaN costs. ... ok
+test_rotated_ring_matches (test_forward_semantics.TestForwardPassAudit.test_rotated_ring_matches)
+Pass 1 uses roll = L // 2; the ring indexing must agree. ... ok
+test_ties_keep_the_lowest_branch (test_forward_semantics.TestForwardPassAudit.test_ties_keep_the_lowest_branch)
+Strict '<' means an exact tie keeps the earlier (lower-k) branch. ... ok
+test_batching_does_not_change_pairwise_mse (test_gss.TestGScaleSearchBatch.test_batching_does_not_change_pairwise_mse) ... ok
+test_chunked_calls_match_oneshot_calls (test_gss.TestGScaleSearchBatch.test_chunked_calls_match_oneshot_calls)
+Forcing several encoder calls must not change the results. ... ok
+test_deterministic (test_gss.TestGScaleSearchBatch.test_deterministic) ... ok
+test_empty_samples (test_gss.TestGScaleSearchBatch.test_empty_samples) ... ok
+test_huge_weights_push_scale_down (test_gss.TestGScaleSearchBatch.test_huge_weights_push_scale_down)
+fp16 trellis precision loss dominates at extreme magnitudes, so the ... ok
+test_invalid_sample_shape (test_gss.TestGScaleSearchBatch.test_invalid_sample_shape) ... ok
+test_matches_stage_by_stage_recomputation (test_gss.TestGScaleSearchBatch.test_matches_stage_by_stage_recomputation)
+The documented coarse->fine->parabolic pipeline, recomputed manually. ... ok
+test_search_finds_lower_mse_than_scale_one (test_gss.TestGScaleSearchBatch.test_search_finds_lower_mse_than_scale_one)
+On low-magnitude tiles the optimum sits above 1 (measured 2.05). ... ok
+test_regularize_folds_g_scale_like_upstream (test_gss.TestRegularizeWiring.test_regularize_folds_g_scale_like_upstream) ... ok
+test_regularize_still_requires_fn_when_not_skipping (test_gss.TestRegularizeWiring.test_regularize_still_requires_fn_when_not_skipping) ... ok
+test_round_trip_with_g_scale (test_gss.TestRegularizeWiring.test_round_trip_with_g_scale)
+Decode with the g-scaled su must reconstruct the original weight. ... ok
+test_extreme_rms_tiles_are_sampled (test_gss.TestSampleScaleTiles.test_extreme_rms_tiles_are_sampled) ... ok
+test_sample_takes_whole_rows (test_gss.TestSampleScaleTiles.test_sample_takes_whole_rows)
+Outlier channels are whole rows/columns, so samples must be full tiles. ... ok
+test_sample_values_match_manual_extraction (test_gss.TestSampleScaleTiles.test_sample_values_match_manual_extraction) ... ok
+test_wrapped_diagonal_covers_every_row_and_column (test_gss.TestSampleScaleTiles.test_wrapped_diagonal_covers_every_row_and_column) ... ok
+test_left_side_basin_pulls_scale_down (test_gss.TestSelectRefinedScale.test_left_side_basin_pulls_scale_down) ... ok
+test_parabolic_offset_interpolates (test_gss.TestSelectRefinedScale.test_parabolic_offset_interpolates) ... ok
+test_parabolic_offset_never_exceeds_half_step (test_gss.TestSelectRefinedScale.test_parabolic_offset_never_exceeds_half_step)
+For any convex triple y0=y1+a, y2=y1+b the offset is analytically ... ok
+test_tied_curve_walks_to_left_edge_and_floors (test_gss.TestSelectRefinedScale.test_tied_curve_walks_to_left_edge_and_floors) ... ok
+test_inplace_variants_match_out_of_place_and_validate (test_hadamard.TestBlockwiseApplication.test_inplace_variants_match_out_of_place_and_validate) ... ok
+test_involution_both_directions (test_hadamard.TestBlockwiseApplication.test_involution_both_directions) ... ok
+test_left_equals_block_diagonal_matmul (test_hadamard.TestBlockwiseApplication.test_left_equals_block_diagonal_matmul) ... ok
+test_rejects_non_divisible_shapes (test_hadamard.TestBlockwiseApplication.test_rejects_non_divisible_shapes) ... ok
+test_right_equals_block_diagonal_matmul (test_hadamard.TestBlockwiseApplication.test_right_equals_block_diagonal_matmul) ... ok
+test_decode_order_matches_weight_orig (test_hadamard.TestOracleParity.test_decode_order_matches_weight_orig) ... skipped 'exl3xpu.ref oracle not available'
+test_hadamard128_bit_exact_vs_oracle (test_hadamard.TestOracleParity.test_hadamard128_bit_exact_vs_oracle) ... skipped 'exl3xpu.ref oracle not available'
+test_fast_path_cache_is_consistent (test_hadamard.TestSylvesterConstruction.test_fast_path_cache_is_consistent) ... ok
+test_orthonormal_scaling (test_hadamard.TestSylvesterConstruction.test_orthonormal_scaling) ... ok
+test_rejects_non_power_of_two (test_hadamard.TestSylvesterConstruction.test_rejects_non_power_of_two) ... ok
+test_values_symmetry_and_orthogonality (test_hadamard.TestSylvesterConstruction.test_values_symmetry_and_orthogonality) ... ok
+test_dense_geometry_defaults (test_hybrid_converter.TestDenseProfileUnchanged.test_dense_geometry_defaults) ... ok
+test_hessian_groups_dense_profile_match_legacy (test_hybrid_converter.TestDenseProfileUnchanged.test_hessian_groups_dense_profile_match_legacy) ... ok
+test_calibrated_hessians_cover_all_quantized_modules (test_hybrid_converter.TestHybridCalibrationGroups.test_calibrated_hessians_cover_all_quantized_modules) ... [transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+ok
+test_every_linear_module_is_assigned (test_hybrid_converter.TestHybridCalibrationGroups.test_every_linear_module_is_assigned) ... ok
+test_group_members_receive_identical_input_tensor (test_hybrid_converter.TestHybridCalibrationGroups.test_group_members_receive_identical_input_tensor)
+Grouping is only exact if all members consume the same tensor; ... ok
+test_group_membership_full_layer (test_hybrid_converter.TestHybridCalibrationGroups.test_group_membership_full_layer) ... ok
+test_group_membership_linear_layer (test_hybrid_converter.TestHybridCalibrationGroups.test_group_membership_linear_layer) ... ok
+test_layer_artifacts_expected_key_sets (test_hybrid_converter.TestHybridConversion.test_layer_artifacts_expected_key_sets) ... ok
+test_layer_entries_record_kind_and_pass_through (test_hybrid_converter.TestHybridConversion.test_layer_entries_record_kind_and_pass_through) ... ok
+test_manifest_records_hybrid_contract (test_hybrid_converter.TestHybridConversion.test_manifest_records_hybrid_contract) ... ok
+test_pass_through_group_files_are_bit_exact (test_hybrid_converter.TestHybridConversion.test_pass_through_group_files_are_bit_exact) ... ok
+test_per_layer_pass_through_is_bit_exact (test_hybrid_converter.TestHybridConversion.test_per_layer_pass_through_is_bit_exact) ... ok
+test_quantized_projection_weights_are_reconstructed (test_hybrid_converter.TestHybridConversion.test_quantized_projection_weights_are_reconstructed)
+Decode an artifact projection and check it is a real (finite) ... ok
+test_rebuilt_layer_forward_is_deterministic_and_finite (test_hybrid_converter.TestHybridConversion.test_rebuilt_layer_forward_is_deterministic_and_finite) ... ok
+test_resume_completes_after_publish_fault (test_hybrid_converter.TestHybridConversion.test_resume_completes_after_publish_fault) ... ok
+test_resume_validates_architecture_mode (test_hybrid_converter.TestHybridConversion.test_resume_validates_architecture_mode)
+A manifest recorded under another architecture_mode must refuse ... ok
+test_geometry_tables_follow_layer_type (test_hybrid_converter.TestHybridModuleTables.test_geometry_tables_follow_layer_type) ... ok
+test_pass_through_covers_non_quantized_parameters (test_hybrid_converter.TestHybridModuleTables.test_pass_through_covers_non_quantized_parameters)
+Every reference-layer parameter is either quantized, a layer norm, ... ok
+test_quantized_widths_satisfy_encoder_contract (test_hybrid_converter.TestHybridModuleTables.test_quantized_widths_satisfy_encoder_contract)
+ldlq/regularize require k % 128 and n % 128 (Hadamard block = ... ok
+test_tables_are_disjoint_and_exhaustive (test_hybrid_converter.TestHybridModuleTables.test_tables_are_disjoint_and_exhaustive) ... ok
+test_dense_mode_still_rejects_hybrid_fixture (test_hybrid_converter.TestHybridValidator.test_dense_mode_still_rejects_hybrid_fixture) ... ok
+test_layer_types_derived_from_interval_when_absent (test_hybrid_converter.TestHybridValidator.test_layer_types_derived_from_interval_when_absent) ... ok
+test_legacy_layer_type_names_are_remapped (test_hybrid_converter.TestHybridValidator.test_legacy_layer_type_names_are_remapped) ... ok
+test_optin_accepts_both_declared_target_replicas (test_hybrid_converter.TestHybridValidator.test_optin_accepts_both_declared_target_replicas) ... ok
+test_optin_accepts_hybrid_fixture_geometry (test_hybrid_converter.TestHybridValidator.test_optin_accepts_hybrid_fixture_geometry) ... ok
+test_rejects_layer_types_length_mismatch (test_hybrid_converter.TestHybridValidator.test_rejects_layer_types_length_mismatch) ... ok
+test_rejects_missing_text_config (test_hybrid_converter.TestHybridValidator.test_rejects_missing_text_config) ... ok
+test_rejects_moe_text_config (test_hybrid_converter.TestHybridValidator.test_rejects_moe_text_config) ... ok
+test_rejects_unknown_architecture_mode (test_hybrid_converter.TestHybridValidator.test_rejects_unknown_architecture_mode) ... ok
+test_rejects_unknown_layer_type (test_hybrid_converter.TestHybridValidator.test_rejects_unknown_layer_type) ... ok
+test_rejects_widths_outside_hadamard_block (test_hybrid_converter.TestHybridValidator.test_rejects_widths_outside_hadamard_block) ... ok
+test_quantize_decoder_layer_xpu (test_layer_quant.TestDecoderLayerQuantization.test_quantize_decoder_layer_xpu)
+P2-11: Full layer quantization on Intel XPU with ScratchArena reuse. ... ok
+test_factorization_residual (test_layer_quant.TestLayerQuantizationMetrics.test_factorization_residual) ... ok
+test_proxy_loss_formula_matches_matrix_trace (test_layer_quant.TestLayerQuantizationMetrics.test_proxy_loss_formula_matches_matrix_trace) ... ok
+test_quantize_linear_module_xpu (test_layer_quant.TestSingleModuleQuantization.test_quantize_linear_module_xpu) ... ok
+test_block_diagonal_becomes_identity (test_ldlq.TestBlockLDL.test_block_diagonal_becomes_identity) ... ok
+test_cholesky_matches_h (test_ldlq.TestBlockLDL.test_cholesky_matches_h) ... ok
+test_fails_after_retry_budget (test_ldlq.TestBlockLDL.test_fails_after_retry_budget) ... ok
+test_fold_formula (test_ldlq.TestBlockLDL.test_fold_formula) ... ok
+test_input_not_mutated_by_damping (test_ldlq.TestBlockLDL.test_input_not_mutated_by_damping) ... ok
+test_invalid_inputs (test_ldlq.TestBlockLDL.test_invalid_inputs) ... ok
+test_inverse_matches_diagonal_block (test_ldlq.TestBlockLDL.test_inverse_matches_diagonal_block) ... ok
+test_positive_definite_needs_no_retries (test_ldlq.TestBlockLDL.test_positive_definite_needs_no_retries) ... ok
+test_retry_damping_succeeds (test_ldlq.TestBlockLDL.test_retry_damping_succeeds) ... ok
+test_xpu_matches_cpu (test_ldlq.TestBlockLDL.test_xpu_matches_cpu) ... ok
+test_feedback_reduces_weighted_error (test_ldlq_loop.TestErrorFeedback.test_feedback_reduces_weighted_error) ... ok
+test_matches_naive_implementation_for_multiple_spans (test_ldlq_loop.TestErrorFeedback.test_matches_naive_implementation_for_multiple_spans) ... ok
+test_result_is_invariant_to_span_size (test_ldlq_loop.TestErrorFeedback.test_result_is_invariant_to_span_size)
+Span buffering is a summation-order choice, not part of the math. ... ok
+test_target_correction_is_added (test_ldlq_loop.TestErrorFeedback.test_target_correction_is_added)
+The upper block target is ``weight + L_lower.T @ error`` (added). ... ok
+test_trailing_feedback_reaches_next_span (test_ldlq_loop.TestErrorFeedback.test_trailing_feedback_reaches_next_span) ... ok
+test_identity_L_matches_independent_quantization (test_ldlq_loop.TestIdentityL.test_identity_L_matches_independent_quantization)
+No coupling => each 16-row block is quantized in isolation. ... ok
+test_identity_quantizer_reproduces_weight (test_ldlq_loop.TestIdentityL.test_identity_quantizer_reproduces_weight) ... ok
+test_encoded_layout_and_dtype (test_ldlq_loop.TestLayoutAndContract.test_encoded_layout_and_dtype) ... ok
+test_encoder_output_validation (test_ldlq_loop.TestLayoutAndContract.test_encoder_output_validation) ... ok
+test_inputs_are_not_mutated (test_ldlq_loop.TestLayoutAndContract.test_inputs_are_not_mutated) ... ok
+test_validation_errors (test_ldlq_loop.TestLayoutAndContract.test_validation_errors) ... ok
+test_zeroed_diagonal_is_equivalent (test_ldlq_loop.TestLayoutAndContract.test_zeroed_diagonal_is_equivalent)
+Upstream zeroes ``L``'s diagonal before the loop; it must not matter. ... ok
+test_xpu_matches_reference_encoder (test_ldlq_loop.TestXPUParity.test_xpu_matches_reference_encoder) ... ok
+test_drop_file_cache_directory_is_not_an_error (test_memory_hygiene.TestMemoryHygiene.test_drop_file_cache_directory_is_not_an_error) ... ok
+test_drop_file_cache_missing_file_is_not_an_error (test_memory_hygiene.TestMemoryHygiene.test_drop_file_cache_missing_file_is_not_an_error) ... ok
+test_drop_file_cache_preserves_content (test_memory_hygiene.TestMemoryHygiene.test_drop_file_cache_preserves_content) ... ok
+test_release_after_stream_accepts_none (test_memory_hygiene.TestMemoryHygiene.test_release_after_stream_accepts_none) ... ok
+test_trim_host_heap_is_best_effort (test_memory_hygiene.TestMemoryHygiene.test_trim_host_heap_is_best_effort) ... ok
+test_capture_snapshot_on_host (test_memory_policy.TestLiveCapture.test_capture_snapshot_on_host) ... ok
+test_gpu_allocation_under_policy (test_memory_policy.TestLiveCapture.test_gpu_allocation_under_policy) ... ok
+test_parses_captured_keys_in_bytes (test_memory_policy.TestMeminfoParsing.test_parses_captured_keys_in_bytes) ... ok
+test_explicit_path_overrides_platform (test_memory_policy.TestPlatformMemorySource.test_explicit_path_overrides_platform) ... ok
+test_platform_source_returns_all_fields (test_memory_policy.TestPlatformMemorySource.test_platform_source_returns_all_fields) ... ok
+test_windows_mapping_is_self_consistent (test_memory_policy.TestPlatformMemorySource.test_windows_mapping_is_self_consistent) ... skipped 'Windows-specific mapping'
+test_admission_boundary (test_memory_policy.TestPolicyArithmetic.test_admission_boundary) ... ok
+test_allocator_growth_assertion (test_memory_policy.TestPolicyArithmetic.test_allocator_growth_assertion)
+M1: the commit check verifies allocator-visible growth, not OS counters. ... ok
+test_binding_uses_min_of_overlapping_counters (test_memory_policy.TestPolicyArithmetic.test_binding_uses_min_of_overlapping_counters) ... ok
+test_error_dict_has_full_context (test_memory_policy.TestPolicyArithmetic.test_error_dict_has_full_context) ... ok
+test_format_bytes (test_memory_policy.TestPolicyArithmetic.test_format_bytes) ... ok
+test_negative_need_rejected (test_memory_policy.TestPolicyArithmetic.test_negative_need_rejected) ... ok
+test_negative_outstanding_rejected (test_memory_policy.TestPolicyArithmetic.test_negative_outstanding_rejected) ... ok
+test_outstanding_commitments_reduce_budget (test_memory_policy.TestPolicyArithmetic.test_outstanding_commitments_reduce_budget) ... ok
+test_post_commit_breach_detection (test_memory_policy.TestPolicyArithmetic.test_post_commit_breach_detection) ... ok
+test_reserve_above_available_blocks_everything (test_memory_policy.TestPolicyArithmetic.test_reserve_above_available_blocks_everything) ... ok
+test_single_allocation_ceiling (test_memory_policy.TestPolicyArithmetic.test_single_allocation_ceiling) ... ok
+test_usable_subtracts_reserve_and_clamps_at_zero (test_memory_policy.TestPolicyArithmetic.test_usable_subtracts_reserve_and_clamps_at_zero) ... ok
+test_default_subtracts_outstanding (test_memory_policy.TestReflectOutstandingMode.test_default_subtracts_outstanding) ... ok
+test_env_values_are_parsed (test_memory_policy.TestReflectOutstandingMode.test_env_values_are_parsed) ... ok
+test_reflected_mode_keeps_the_outstanding_in_the_binding (test_memory_policy.TestReflectOutstandingMode.test_reflected_mode_keeps_the_outstanding_in_the_binding) ... ok
+test_reflected_mode_still_honours_the_reserve (test_memory_policy.TestReflectOutstandingMode.test_reflected_mode_still_honours_the_reserve) ... ok
+test_default_reserve_is_six_gib (test_memory_policy.TestReserveOverride.test_default_reserve_is_six_gib) ... ok
+test_gib_override_wins_over_bytes_override (test_memory_policy.TestReserveOverride.test_gib_override_wins_over_bytes_override) ... ok
+test_invalid_override_falls_back_to_the_default (test_memory_policy.TestReserveOverride.test_invalid_override_falls_back_to_the_default) ... ok
+test_reserve_bytes_override_is_applied (test_memory_policy.TestReserveOverride.test_reserve_bytes_override_is_applied) ... ok
+test_reserve_gib_override_is_applied (test_memory_policy.TestReserveOverride.test_reserve_gib_override_is_applied) ... ok
+test_smaller_reserve_admits_more (test_memory_policy.TestReserveOverride.test_smaller_reserve_admits_more) ... ok
+test_bit_corruption_detected (test_negative.TestNegativePerturbations.test_bit_corruption_detected)
+P0-28: Deliberately flip 1 bit in packed container; assert harness detects mismatch. ... ok
+test_codebook_level_mutation_detected (test_negative.TestNegativePerturbations.test_codebook_level_mutation_detected)
+P0-28: Mutate codebook decoding parameter; assert harness detects reconstruction error. ... ok
+test_illegal_trellis_transition_detected (test_negative.TestNegativePerturbations.test_illegal_trellis_transition_detected)
+P0-28: Deliberately swap adjacent path states; assert invalid transition detection. ... ok
+test_insufficient_memory_rejection (test_negative.TestNegativePerturbations.test_insufficient_memory_rejection)
+Verify that calculate_max_batch_size fails cleanly if even B=1 cannot fit. ... ok
+test_non_integer_float_rejection (test_negative.TestNegativePerturbations.test_non_integer_float_rejection)
+Verify that floating-point numbers with non-zero fractional parts are rejected. ... ok
+test_codebook_lut_oracle_identity (test_oracle_parity.TestOracleParity.test_codebook_lut_oracle_identity)
+Verify codebook LUT values match exl3xpu.ref for all 3 codebooks across all 65536 states. ... skipped 'exl3xpu.ref oracle not available'
+test_decode_states_oracle_identity (test_oracle_parity.TestOracleParity.test_decode_states_oracle_identity)
+Verify decode_states reproduces exl3xpu.ref bit for bit across all K in {1..8}. ... skipped 'exl3xpu.ref oracle not available'
+test_encoder_output_oracle_reconstruction (test_oracle_parity.TestOracleParity.test_encoder_output_oracle_reconstruction)
+Verify that ReferenceTrellisEncoder output decodes through exl3xpu.ref identically. ... skipped 'exl3xpu.ref oracle not available'
+test_tensor_core_perm_oracle_identity (test_oracle_parity.TestOracleParity.test_tensor_core_perm_oracle_identity)
+Verify tensor_core_perm matches exl3xpu.ref bit for bit. ... skipped 'exl3xpu.ref oracle not available'
+test_block_boundary_accumulation (test_regularize.TestBlockRMS.test_block_boundary_accumulation) ... ok
+test_matches_direct_computation (test_regularize.TestBlockRMS.test_matches_direct_computation) ... ok
+test_all_zero_weight_sets_zeros_flag (test_regularize.TestRegularize.test_all_zero_weight_sets_zeros_flag) ... ok
+test_explicit_apply_out_scales_overrides_heuristic (test_regularize.TestRegularize.test_explicit_apply_out_scales_overrides_heuristic) ... ok
+test_input_weight_not_mutated (test_regularize.TestRegularize.test_input_weight_not_mutated) ... ok
+test_missing_global_scale_hook_raises (test_regularize.TestRegularize.test_missing_global_scale_hook_raises) ... ok
+test_roundtrip_reconstructs_weight (test_regularize.TestRegularize.test_roundtrip_reconstructs_weight) ... ok
+test_roundtrip_with_forced_out_scales_off (test_regularize.TestRegularize.test_roundtrip_with_forced_out_scales_off) ... ok
+test_roundtrip_with_global_scale_hook (test_regularize.TestRegularize.test_roundtrip_with_global_scale_hook) ... ok
+test_scales_are_folded_as_expected (test_regularize.TestRegularize.test_scales_are_folded_as_expected) ... ok
+test_skew_heuristic (test_regularize.TestRegularize.test_skew_heuristic) ... ok
+test_validation (test_regularize.TestRegularize.test_validation) ... ok
+test_zero_output_channel_is_zeroed_and_floored (test_regularize.TestRegularize.test_zero_output_channel_is_zeroed_and_floored) ... ok
+test_adaptive_batch_calculator_arc_b580_12gb (test_scratch.TestScratchEstimator.test_adaptive_batch_calculator_arc_b580_12gb)
+Arc B580 (12 GiB) with 2 GiB reserve and 4 GiB single alloc limit. ... ok
+test_binary_vs_decimal_distinction (test_scratch.TestScratchEstimator.test_binary_vs_decimal_distinction)
+P1-10: Distinguish GiB/MiB (1024) from decimal GB/MB (1000). ... ok
+test_invalid_parameters_raise (test_scratch.TestScratchEstimator.test_invalid_parameters_raise)
+Verify parameter bounds checking. ... ok
+test_tasks_md_regression_fixtures (test_scratch.TestScratchEstimator.test_tasks_md_regression_fixtures)
+Verify the exact allocation fixtures declared in tasks.md lines 121-129. ... ok
+test_encoder_adapters_expose_their_bit_width (test_serialization.TestEncoderBitWidthGuard.test_encoder_adapters_expose_their_bit_width) ... ok
+test_mismatched_encoder_k_is_rejected (test_serialization.TestEncoderBitWidthGuard.test_mismatched_encoder_k_is_rejected) ... ok
+test_layer_export_and_reload_verification (test_serialization.TestSafetensorsExportAndReload.test_layer_export_and_reload_verification) ... ok
+test_missing_file_raises_error (test_serialization.TestSafetensorsMalformedRejection.test_missing_file_raises_error) ... ok
+test_truncated_safetensors_raises_error (test_serialization.TestSafetensorsMalformedRejection.test_truncated_safetensors_raises_error) ... ok
+test_trellis_pack_unpack_shape_and_dtype (test_serialization.TestTrellisPackingRoundTrip.test_trellis_pack_unpack_shape_and_dtype) ... ok
+test_codebook_range_is_finite (test_trellis_format.TestCodebookLUT.test_codebook_range_is_finite) ... ok
+test_extremes_follow_the_byte_sum (test_trellis_format.TestCodebookLUT.test_extremes_follow_the_byte_sum)
+mul1 is affine in the byte sum, so the extremes are determined by it. ... ok
+test_level_count (test_trellis_format.TestCodebookLUT.test_level_count)
+mul1 collapses 65536 states onto the distinct byte sums. ... ok
+test_mul1_formula_is_exact (test_trellis_format.TestCodebookLUT.test_mul1_formula_is_exact)
+mul1: x = state*0x83DCD12D; sum = byte sum + 1024; __hfma(inv, bias). ... ok
+test_mul1_is_not_a_uniform_grid (test_trellis_format.TestCodebookLUT.test_mul1_is_not_a_uniform_grid)
+Regression guard: the codebook must not be an arithmetic progression. ... ok
+test_decode_pack_identity_on_random_bitstream (test_trellis_format.TestPackingLayout.test_decode_pack_identity_on_random_bitstream)
+The layout property that does not need the encoder. ... ok
+test_only_low_k_bits_are_stored (test_trellis_format.TestPackingLayout.test_only_low_k_bits_are_stored)
+The container is a state-history encoding, not independent symbols. ... ok
+test_packed_size (test_trellis_format.TestPackingLayout.test_packed_size) ... ok
+test_swap16_pairing (test_trellis_format.TestPackingLayout.test_swap16_pairing)
+pack.cu:55-56 writes uint16 pairs as half-word-swapped uint32. ... ok
+test_window_ends_at_bit (test_trellis_format.TestPackingLayout.test_window_ends_at_bit)
+ref.py:81-87: element t's window ends at bit (t+1)*K. ... ok
+test_scatter_matches_permutation (test_trellis_format.TestPermutationAwareDecode.test_scatter_matches_permutation) ... ok
+test_codebook_perturbation_is_detected (test_trellis_format.TestPerturbationDetection.test_codebook_perturbation_is_detected) ... ok
+test_flipped_bit_is_detected (test_trellis_format.TestPerturbationDetection.test_flipped_bit_is_detected) ... ok
+test_reversed_bit_order_is_detected (test_trellis_format.TestPerturbationDetection.test_reversed_bit_order_is_detected)
+An MSB-first vs LSB-first confusion must not pass silently. ... ok
+test_inverse (test_trellis_format.TestTilePermutation.test_inverse) ... ok
+test_is_a_permutation (test_trellis_format.TestTilePermutation.test_is_a_permutation) ... ok
+test_known_entries (test_trellis_format.TestTilePermutation.test_known_entries)
+Spot-check the upstream table structure (quantize.py:36-43). ... ok
+test_mse_ceiling_per_K (test_upstream_encode_oracle.TestUpstreamEncodeOracle.test_mse_ceiling_per_K)
+Reconstruction MSE must stay below upstream's per-K ceiling. ... ok
+test_tail_biting_invariant (test_upstream_encode_oracle.TestUpstreamEncodeOracle.test_tail_biting_invariant)
+states[0] >> K must equal the low (16-K) bits of states[255]. ... ok
+test_packed_container_carries_those_low_bits (test_upstream_encode_oracle.TestUpstreamStateLayout.test_packed_container_carries_those_low_bits)
+The container stores the low K bits of each state, nothing more. ... ok
+test_symbol_occupies_the_low_k_bits (test_upstream_encode_oracle.TestUpstreamStateLayout.test_symbol_occupies_the_low_k_bits) ... ok
+test_device_capability_capture (test_xpu_extension.TestXpuExtension.test_device_capability_capture)
+P0-19: SYCL-side caps must agree with torch properties. ... ok
+test_device_selection (test_xpu_extension.TestXpuExtension.test_device_selection)
+Kernel runs on the tensor's device via the current torch queue. ... ok
+test_hfma_adversarial_vs_exact (test_xpu_extension.TestXpuExtension.test_hfma_adversarial_vs_exact)
+O-6 (adversarial block): device fma must NOT match the fp32 ... ok
+test_hfma_random_vs_exact (test_xpu_extension.TestXpuExtension.test_hfma_random_vs_exact)
+O-6 (random block): device fp16 fma == exact fp16 single rounding. ... ok
+test_output_correctness_bit_exact (test_xpu_extension.TestXpuExtension.test_output_correctness_bit_exact)
+Kernel adds a scalar bit-exactly against a CPU reference. ... ok
+test_queue_ordering_interleaved (test_xpu_extension.TestXpuExtension.test_queue_ordering_interleaved)
+Torch ops and custom kernels alternate correctly on one queue. ... ok
+test_tensor_lifetime_reuse (test_xpu_extension.TestXpuExtension.test_tensor_lifetime_reuse)
+Freed tensors do not corrupt later allocations via unsafe reuse. ... ok
+test_bounded_eviction_and_reuse_across_k (test_xpu_quantizer.TestScratchArenaLifecycle.test_bounded_eviction_and_reuse_across_k)
+P1-12 / P1-15 / P1-16: Alternating K evicts old buffers with no memory leak. ... ok
+test_failed_acquisition_frees_all_scratch_b2 (test_xpu_quantizer.TestScratchArenaLifecycle.test_failed_acquisition_frees_all_scratch_b2)
+B2 regression: failed acquisition leaves 0 resident bytes and frees buffers. ... ok
+test_retry_path_no_double_residency_b1 (test_xpu_quantizer.TestScratchArenaLifecycle.test_retry_path_no_double_residency_b1)
+B1 regression: halving retry drops attempt n before allocating attempt n+1. ... ok
+test_smaller_batch_retry_and_clean_rejection (test_xpu_quantizer.TestScratchArenaLifecycle.test_smaller_batch_retry_and_clean_rejection)
+P1-13: Automatically halves B on failure and rejects cleanly when B=1 fails. ... ok
+test_all_traceback_modes_and_kernel_variants_agree (test_xpu_quantizer.TestXPUTrellisEncoder.test_all_traceback_modes_and_kernel_variants_agree)
+P1-17..P1-20, P1-25, P1-26: Traceback placements, SG16/32, SLM/global. ... ok
+test_batches_partial_chunks_and_waves (test_xpu_quantizer.TestXPUTrellisEncoder.test_batches_partial_chunks_and_waves)
+P1-07: Single tile, multi-batch, partial final batch, and multi-wave. ... ok
+test_codebook_bit_exact_on_xpu (test_xpu_quantizer.TestXPUTrellisEncoder.test_codebook_bit_exact_on_xpu)
+P1-02 / P1-03: All 65536 states match numpy codebook_lut bit-for-bit. ... ok
+test_edge_cases_and_tie_handling (test_xpu_quantizer.TestXPUTrellisEncoder.test_edge_cases_and_tie_handling)
+P0-26 / P1-06: Zeros, repeated values, outliers, and tie verification. ... ok
+test_input_validation_rejects_invalid_configs (test_xpu_quantizer.TestXPUTrellisEncoder.test_input_validation_rejects_invalid_configs)
+P1-07: Reject invalid K, cb, tile_len, and malformed C++ tensors. ... ok
+test_l160_ngram_row_support (test_xpu_quantizer.TestXPUTrellisEncoder.test_l160_ngram_row_support)
+Contract §4.1: L=160 n-gram rows with CB_MUL1. ... ok
+test_live_oracle_decode_parity (test_xpu_quantizer.TestXPUTrellisEncoder.test_live_oracle_decode_parity)
+P1-05: XPU-encoded packed container decodes bit-for-bit via exl3xpu.ref. ... skipped 'exl3xpu.ref oracle not available'
+test_parity_across_k_and_codebooks (test_xpu_quantizer.TestXPUTrellisEncoder.test_parity_across_k_and_codebooks)
+P1-03 / P1-04 / P1-05: Bit-exact parity vs ReferenceTrellisEncoder. ... ok
+test_queue_ordering_and_async_invocation (test_xpu_quantizer.TestXPUTrellisEncoder.test_queue_ordering_and_async_invocation)
+P1-08: Interleaved torch XPU ops and custom kernel on current stream. ... ok
+
+----------------------------------------------------------------------
+Ran 272 tests in 153.979s
+
+OK (skipped=8)

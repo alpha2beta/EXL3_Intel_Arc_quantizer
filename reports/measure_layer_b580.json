@@ -1,0 +1,122 @@
+{
+  "timestamp": "2026-10-22T13:21:55.060823+00:00",
+  "device_name": "Intel(R) Arc(TM) B580 Graphics",
+  "total_vram_gib": 11.333202362060547,
+  "model_dir": "/mnt/usb/models/qwen38",
+  "num_rows": 4,
+  "seq_len": 2048,
+  "results": [
+    {
+      "layer_index": 0,
+      "layer_type": "linear_attention",
+      "read_seconds": 0.001,
+      "build_seconds": 1.173,
+      "embed_gather_seconds": 1.772,
+      "calibration_seconds": 1.902,
+      "quantization_seconds": 560.46,
+      "artifact_build_seconds": 36.756,
+      "artifact_save_seconds": 0.012,
+      "hessian_working_set_gib": 1.0,
+      "hessian_groups": 8,
+      "peak_host_rss_mib": 6419.4,
+      "live_xpu_allocated_mib": 6211.7,
+      "modules": {
+        "linear_attn.in_proj_qkv": {
+          "elapsed_seconds": 86.68067526817322,
+          "g_scale": 0.7768511208814886,
+          "mse": 4.492643347475678e-05,
+          "relative_frobenius": 0.3910729407931441
+        },
+        "linear_attn.in_proj_z": {
+          "elapsed_seconds": 43.07364892959595,
+          "g_scale": 0.7811722738660173,
+          "mse": 4.266208998160437e-05,
+          "relative_frobenius": 0.38956922105441844
+        },
+        "linear_attn.out_proj": {
+          "elapsed_seconds": 43.022931814193726,
+          "g_scale": 0.5211884905685914,
+          "mse": 2.8957649192307144e-05,
+          "relative_frobenius": 0.34896774620602217
+        },
+        "mlp.gate_proj": {
+          "elapsed_seconds": 127.93752145767212,
+          "g_scale": 0.7919957687762114,
+          "mse": 1.9691484340000898e-05,
+          "relative_frobenius": 0.39532115507704163
+        },
+        "mlp.up_proj": {
+          "elapsed_seconds": 127.86478185653687,
+          "g_scale": 0.7906018242144067,
+          "mse": 1.7409965948900208e-05,
+          "relative_frobenius": 0.39566662730375035
+        },
+        "mlp.down_proj": {
+          "elapsed_seconds": 131.87550902366638,
+          "g_scale": 0.7900456280093616,
+          "mse": 1.8390182958683e-05,
+          "relative_frobenius": 0.39102524816664147
+        }
+      }
+    },
+    {
+      "layer_index": 3,
+      "layer_type": "full_attention",
+      "read_seconds": 0.045,
+      "build_seconds": 2.11,
+      "embed_gather_seconds": 1.759,
+      "calibration_seconds": 0.472,
+      "quantization_seconds": 544.76,
+      "artifact_build_seconds": 35.123,
+      "artifact_save_seconds": 0.012,
+      "hessian_working_set_gib": 0.938,
+      "hessian_groups": 7,
+      "peak_host_rss_mib": 6607.8,
+      "live_xpu_allocated_mib": 6155.9,
+      "modules": {
+        "self_attn.q_proj": {
+          "elapsed_seconds": 85.38987565040588,
+          "g_scale": 0.6811805715965646,
+          "mse": 5.646300269290805e-05,
+          "relative_frobenius": 0.4058510042330485
+        },
+        "self_attn.k_proj": {
+          "elapsed_seconds": 14.46000862121582,
+          "g_scale": 0.7903563712410883,
+          "mse": 4.013603029306978e-05,
+          "relative_frobenius": 0.38863697624384536
+        },
+        "self_attn.v_proj": {
+          "elapsed_seconds": 14.289570569992065,
+          "g_scale": 0.7945595229934456,
+          "mse": 3.961219044867903e-05,
+          "relative_frobenius": 0.3888739116554346
+        },
+        "self_attn.o_proj": {
+          "elapsed_seconds": 42.99952268600464,
+          "g_scale": 0.7891341589328025,
+          "mse": 3.9075799577403814e-05,
+          "relative_frobenius": 0.39853405759505195
+        },
+        "mlp.gate_proj": {
+          "elapsed_seconds": 127.9697003364563,
+          "g_scale": 0.788120799448543,
+          "mse": 1.7707576262182556e-05,
+          "relative_frobenius": 0.363783990499413
+        },
+        "mlp.up_proj": {
+          "elapsed_seconds": 127.84953355789185,
+          "g_scale": 0.7922994575334092,
+          "mse": 1.5951260138535872e-05,
+          "relative_frobenius": 0.36288083067002125
+        },
+        "mlp.down_proj": {
+          "elapsed_seconds": 131.79279708862305,
+          "g_scale": 0.7913451156337202,
+          "mse": 1.4705175999552011e-05,
+          "relative_frobenius": 0.34873453974812946
+        }
+      }
+    }
+  ]
+}

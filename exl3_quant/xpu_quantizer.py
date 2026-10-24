@@ -58,6 +58,8 @@ _WARM_LOAD_SECONDS = 0.0
 def _prepare_environment() -> None:
     if os.path.isdir(_ONEAPI_BIN) and _ONEAPI_BIN not in os.environ.get("PATH", ""):
         os.environ["PATH"] = _ONEAPI_BIN + os.pathsep + os.environ.get("PATH", "")
+    if "TORCH_XPU_ARCH_LIST" not in os.environ:
+        os.environ["TORCH_XPU_ARCH_LIST"] = ""
 
 
 def build_quantize_extension(verbose: bool = False, force_rebuild: bool = False):
@@ -272,7 +274,10 @@ class ScratchArena:
 
         if self._temp_costs is not None or self._temp_edges is not None:
             if torch.xpu.is_available():
-                torch.xpu.synchronize(self.device_index)
+                try:
+                    torch.xpu.synchronize(self.device_index)
+                except Exception:
+                    pass
             k = self._key[1] if self._key else 0
             t = self._key[2] if self._key else 0
             b = self._key[3] if self._key else 0
@@ -280,7 +285,10 @@ class ScratchArena:
             self._temp_edges = None
             self._key = None
             if torch.xpu.is_available():
-                torch.xpu.empty_cache()
+                try:
+                    torch.xpu.empty_cache()
+                except Exception:
+                    pass
             snap = capture_snapshot(self.device_index)
             out_bytes = (
                 int(torch.xpu.memory_allocated(self.device_index))

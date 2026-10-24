@@ -21,13 +21,21 @@ sys.path.insert(0, str(REPO_ROOT))
 
 # Insert adjacent exl3xpu repository to import the live decoder oracle
 EXL3XPU_PATH = REPO_ROOT.parent / "exl3xpu"
-sys.path.insert(0, str(EXL3XPU_PATH))
+if EXL3XPU_PATH.exists() and str(EXL3XPU_PATH) not in sys.path:
+    sys.path.insert(0, str(EXL3XPU_PATH))
 
-import exl3xpu.ref as oracle_ref
+try:
+    import exl3xpu.ref as oracle_ref
+    ORACLE_AVAILABLE = True
+except Exception:
+    oracle_ref = None
+    ORACLE_AVAILABLE = False
+
 from exl3_quant import trellis_format
 from exl3_quant.reference_encoder import ReferenceTrellisEncoder
 
 
+@unittest.skipUnless(ORACLE_AVAILABLE, "exl3xpu.ref oracle not available")
 class TestOracleParity(unittest.TestCase):
 
     def test_tensor_core_perm_oracle_identity(self):
